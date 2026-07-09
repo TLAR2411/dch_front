@@ -1,0 +1,50 @@
+@font-face {
+  font-family: "battambang";
+  src: url("./battambang.woff2") format("woff2");
+  font-display: swap; /* បន្ថែមបន្ទាត់នេះគ្រប់ font-face ទាំងអស់ */
+}
+
+@font-face {
+  font-family: "moul";
+  src: url("./moul.woff2") format("woff2");
+  font-display: swap; /* បន្ថែមបន្ទាត់នេះគ្រប់ font-face ទាំងអស់ */
+}
+
+@font-face {
+  font-family: "notosans";
+  src: url("./notosans.woff2") format("woff2");
+  font-display: swap; /* បន្ថែមបន្ទាត់នេះគ្រប់ font-face ទាំងអស់ */
+}
+
+@font-face {
+  font-family: "Calibri";
+  src: url("./calibri.woff2") format("woff2");
+  font-display: swap; /* បន្ថែមបន្ទាត់នេះគ្រប់ font-face ទាំងអស់ */
+}
+@font-face {
+  font-family: "googlesans";
+  src: url("./googlesans.woff2") format("woff2");
+  font-display: swap; /* បន្ថែមបន្ទាត់នេះគ្រប់ font-face ទាំងអស់ */
+}
+
+@font-face {
+  font-family: "googlesans2";
+  src: url("./googlesans2.woff2") format("woff2");
+  font-display: swap; /* បន្ថែមបន្ទាត់នេះគ្រប់ font-face ទាំងអស់ */
+}
+
+.battambang {
+  font-family: "battambang", sans-serif !important;
+}
+
+.notosans {
+  font-family: "notosans", sans-serif !important;
+}
+
+.googlesans {
+  font-family: "googlesans", sans-serif !important;
+}
+
+.moul {
+  font-family: "moul", sans-serif !important;
+}
