@@ -85,14 +85,16 @@
 ### 11. Spine-ID identity rework for students, guardians/families, staff
 - **Resolves:** G-8, G-6
 - **What:** Every person-creation path calls the spine through the backend: `create_student` (with `Idempotency-Key`), `create_guardian`/`create_family`/`add_family_member`; 409 `duplicate_candidates` surfaces candidates for human confirmation (§1.8) — never auto-`confirmed=true`. Replace the free-text father/mother fields (`CreateStudent.vue:63,530`) with a spine-backed guardian/family picker. Local rows carry and join on spine IDs. Staff/teacher screens become scoped reads of spine ERPNext data, not local masters (`CreateTeacher.vue:246`).
+- **Design decision (2026-07-11):** Registration is its own page, separate from enrollment. The **Registration page** creates the person only — student + guardian/family via the spine registry writes above, persisting spine IDs — and contains **no curriculum/class selection**. The curriculum multi-select currently embedded in student creation (`CreateStudent.vue:473`) moves to the Enrollment page (item #12). Registration's output (a spine `student_id` linked to a family) is the input the Enrollment page operates on.
 - **Depends on:** #7, #9 (creation flows sit behind authenticated backend sessions)
-- **Acceptance:** zero person rows with NULL spine ID (§1.9 audit criterion); duplicate-create in the UI shows the 409 candidates with a human-gated confirm (§3.2.8).
+- **Acceptance:** zero person rows with NULL spine ID (§1.9 audit criterion); duplicate-create in the UI shows the 409 candidates with a human-gated confirm (§3.2.8); the registration form contains no enrollment fields.
 
 ### 12. ★ Enrollment re-architecture: create/transition via spine, event-converged local state
 - **Resolves:** G-5 (go-live blocker)
 - **What:** `students-classes-enrollment` / `students-curriculums-enrollment` writes (ClassesList.vue:108, StudentCurriculumList.vue:104, CreateStudent.vue:473) route through the backend to `registry_write.create_enrollment` / `transition_enrollment`; local class membership is keyed by spine `enrollment_id` and converges from `enrollment.*` events (including `resumed` → same state as `activated`) and re-reads — no authoritative local flips. Illegal transitions surface the spine's 422 verbatim (item #10).
+- **Design decision (2026-07-11):** Enrollment is its own page, separate from registration (item #11). The **Enrollment page** operates on an already-registered student (looked up by spine `student_id`): pick an offering/period (via `catalog.*` reads through the backend), create the enrollment (`create_enrollment` with `Idempotency-Key`), and manage its lifecycle (`transition_enrollment`, with the applied → offered → enrolled → activated/suspended/resumed/completed/withdrawn states displayed from spine data). No person-creation fields on this page; an unregistered student routes the user to Registration first.
 - **Depends on:** #7, #10, #11
-- **Acceptance:** every enrollment row carries a spine `enrollment_id`; UI transition of an illegal state change shows the spine 422 and does not change local state.
+- **Acceptance:** every enrollment row carries a spine `enrollment_id`; UI transition of an illegal state change shows the spine 422 and does not change local state; the enrollment page contains no person-creation fields.
 
 ### 13. ★ Money-boundary ruling and rework: `create_charge` + `money_read.*`, outbox/dedupe
 - **Resolves:** G-7 (go-live blocker)
