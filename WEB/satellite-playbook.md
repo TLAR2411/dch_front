@@ -34,24 +34,40 @@ Role boundaries:
 - All server-to-spine calls go to `{SPINE_URL}/api/method/dewey_edu_core.api.v1.<module>.<function>` — nothing else. No `/api/resource/*`, no `frappe.client`, no `/api/method/frappe.*` (except the three OAuth endpoints in §1.13), no `/api/v2`, no direct DB connection to the spine. The satellite's `Edu Satellite` role has zero doctype permissions, so `/api/resource` returns 403 by design.
 - Auth header: `Authorization: token <api_key>:<api_secret>` — the issued satellite key pair, from env/secret store, server-side only. Never personal credentials, never session cookies, never from browser code.
 - Keep the `api.v1` prefix in one config constant, not scattered string literals.
-- Sandbox and Production are **separate registrations with separate key pairs**. Production keys are only issued after the conformance suite passes on staging (§3).
+- Sandbox and Production are **separate registrations with separate key pairs**. Production keys are only issued after the conformance suite passes on staging (§3). What `environment` means for the data those registrations create and read is §1.16.
 
 ### 1.2 Endpoint surface
 
 Reads (GET-style, all under `dewey_edu_core.api.v1.`):
 
 - `ping.ping` (no scope — see §1.4 note on rate limiting)
+- `discovery.capabilities` (no scope; any active satellite token). Live, self-describing index of every **scoped** `/api/v1` endpoint — path, required scope, allowed HTTP verbs, and `granted` (whether **your** app holds that scope). Derived by introspection from the code, so it never drifts from the running spine. Use it at boot to fail fast on a missing grant, and as the authoritative scoped-endpoint list when this file is stale. The two unscoped meta-endpoints (`ping.ping`, `discovery.capabilities`) are not self-listed. Like `ping`, it **bypasses the rate limiter** (not a scoped endpoint) — don't use it to reason about rate limiting. Envelope: `message.data.endpoints[]` plus `contract`, `app_version`, `app`, `environment`.
+- **Browsable reference:** `{SPINE_URL}/edu-api-docs` — a human web page (no token, no login) listing every endpoint with its scope, verbs, live-introspected request parameters (required/optional/default), and response codes. Always current (server-side introspection). Bookmark it; it's the drop-in "what can I call?" reference for the whole team.
 - `catalog.list_brands`, `catalog.list_campuses`, `catalog.list_offering_types`, `catalog.list_offerings`, `catalog.list_periods` (scope `read:catalog`)
 - `registry_read.list_students`, `registry_read.get_student` (scope `read:students`); `registry_read.list_guardians`, `registry_read.get_guardian` (scope `read:guardians`); `registry_read.list_families`, `registry_read.get_family` (scope `read:families`); `registry_read.list_enrollments`, `registry_read.get_enrollment` (scope `read:enrollments`)
 - `money_read.list_invoices`, `money_read.get_invoice`, `money_read.get_family_statement` (scope `read:invoices`)
 - `events.list_events` (scope `read:events`)
 
-Writes (POST, exactly eight):
+Writes (POST, exactly thirteen):
 
+- `catalog_write.create_offering`, `catalog_write.update_offering`,
+  `catalog_write.create_period`, `catalog_write.update_period` (scope
+  `write:catalog`) — fenced by your app's **Catalog Grants**; ask the hub for
+  a grant row per (brand, offering type) you need. `default_fee_plan` is
+  hub-only: your offering is enrollable but unpriced until the hub attaches
+  a plan, and enrollments taken meanwhile are backfilled at that moment.
 - `registry_write.create_student`, `registry_write.update_student` (scope `write:students`); `registry_write.create_guardian` (scope `write:guardians`); `registry_write.create_family`, `registry_write.add_family_member` (scope `write:families`); `registry_write.create_enrollment`, `registry_write.transition_enrollment` (scope `write:enrollments`)
 - `charges.create_charge` (scope `write:charges`)
+- `POST update_guardian(guardian_id, **fields)` — scope `write:guardians`.
+  Patchable: `guardian_name, first_name, middle_name, last_name,
+  khmer_first_name, khmer_last_name, name_order, phone, email`.
+  **Governance:** if your app solely owns the guardian → `200` (applied,
+  audited). If the guardian is shared with another app → `202`
+  `{status:"change_requested", change_request_id}`; nothing is overwritten
+  until a hub admin approves the Edu Change Request. Same gate now applies to
+  `update_student` (a shared student returns `202`).
 
-Scopes are exact set membership — no hierarchy or aliasing. The full valid vocabulary (anything else is not a scope): `read:catalog`, `read:students`, `write:students`, `read:guardians`, `write:guardians`, `read:families`, `write:families`, `read:enrollments`, `write:enrollments`, `read:invoices`, `write:charges`, `read:events`. Request only the scopes your call set needs (least privilege — grants are diffed against usage in audits).
+Scopes are exact set membership — no hierarchy or aliasing. The full valid vocabulary (anything else is not a scope): `read:catalog`, `write:catalog`, `read:students`, `write:students`, `read:guardians`, `write:guardians`, `read:families`, `write:families`, `read:enrollments`, `write:enrollments`, `read:invoices`, `write:charges`, `read:events`. Request only the scopes your call set needs (least privilege — grants are diffed against usage in audits).
 
 Anything else the satellite "writes" must be local-only data (§1.10).
 
@@ -75,13 +91,15 @@ Because these are Frappe `/api/method` endpoints, the payload arrives under the 
 
 - **Creates return HTTP 201** (documented in `openapi.yaml`; the implementation sets `http_status_code = 201` on every create endpoint, and the conformance suite accepts either code). The client rule: treat **200 OR 201** as create success — proxies or pre-2026-07 copies of the spec may say 200. A strict `== 200` check is the bug to look for.
 - Retryable set: **5xx and network errors only** — and only with an idempotency strategy on writes (§1.5). 400/401/403/404/409/422 are never retried.
-- Rate limit: per-app per-minute bucket (spine default 300/min; operator-configurable). On 429, exponential backoff; bulk sync jobs must be throttled below the limit. Note: `ping.ping` **bypasses** the rate limiter (it's not a scoped endpoint) — never use ping to test or reason about rate limiting.
+- Rate limit: per-app per-minute bucket (spine default 300/min; operator-configurable). On 429, exponential backoff; bulk sync jobs must be throttled below the limit. Note: the two unscoped meta-endpoints `ping.ping` and `discovery.capabilities` **bypass** the rate limiter (neither is a scoped endpoint) — never use them to test or reason about rate limiting.
 
 ### 1.5 Idempotency — read this carefully
 
-The spine honors an `Idempotency-Key` header on **exactly two endpoints**: `registry_write.create_student` and `registry_write.create_enrollment`. Replays within 48h return the same resource; only terminal success (<400) is cached, so a 409/422 response followed by a corrected retry with the same key re-executes.
+The spine honors an `Idempotency-Key` header on **exactly four endpoints**: `registry_write.create_student`, `registry_write.create_enrollment`, `catalog_write.create_offering` and `catalog_write.create_period`. Replays within 48h return the same resource; only terminal success (<400) is cached, so a 409/422 response followed by a corrected retry with the same key re-executes.
 
-**Every other write — including `charges.create_charge` — has NO spine-side replay protection.** The satellite MUST provide its own retry safety (transactional outbox with a dedupe key, or equivalent) for `create_charge` (double-billing risk), `create_guardian`, `create_family`, `add_family_member`, `update_student`, and `transition_enrollment`.
+Note the replay is keyed on `(app, endpoint, key)` and does **not** fingerprint the payload: reusing a key with different arguments returns the cached response for the ORIGINAL call, and writes nothing. Use a fresh key per logical operation.
+
+**Every other write — including `charges.create_charge` — has NO spine-side replay protection.** The satellite MUST provide its own retry safety (transactional outbox with a dedupe key, or equivalent) for `create_charge` (double-billing risk), `create_guardian`, `create_family`, `add_family_member`, `update_student`, `update_guardian`, `update_offering`, `update_period`, and `transition_enrollment`.
 
 Where `Idempotency-Key` is used: generate it once per logical operation (persist it on the outbox row) and reuse it verbatim across retries. A fresh `uuid4()` inside the retry loop defeats the mechanism entirely.
 
@@ -96,9 +114,12 @@ Where `Idempotency-Key` is used: generate it once per logical operation (persist
 ### 1.7 Incremental sync and write constraints
 
 - `catalog.list_campuses`, `catalog.list_offerings`, `registry_read.list_students` accept `updated_since` + `limit`. Local caches sync incrementally against a **durable watermark** (persisted after each successful run) — no scheduled "fetch everything" jobs against large collections.
+- Campus `address` is a flat multi-line display string — never parse structure out of it. On the hub it is backed by a linked core Address document; edits to that Address bump the campus `modified`, so watermark sync picks up address changes like any other campus edit.
 - Only documented filters: `list_offerings` (brand, status); `list_students` (q, guardian_phone, dob, family); `list_campuses` (brand); `list_invoices` status filter takes the ERPNext literals **exactly**: `Draft`, `Unpaid`, `Paid`, `Overdue`, `Return` (lowercase variants silently match nothing).
-- `update_student` accepts ONLY: `first_name`, `last_name`, `preferred_name`, `email`, `phone`, `status`. Anything else → 422 `invalid_fields`. Don't build a generic "patch whatever changed" sync against it.
+- `update_student` accepts ONLY: `first_name`, `middle_name`, `last_name`, `preferred_name`, `khmer_first_name`, `khmer_last_name`, `name_order`, `email`, `phone`, `status`. Anything else → 422 `invalid_fields`. Don't build a generic "patch whatever changed" sync against it.
 - `create_charge` has an `immediate` flag (mini-invoice now vs. next fee run). Sending `immediate=true` to a brand that disallows it → 422 `immediate_not_allowed`; handle as a configuration/product decision, not a retryable error.
+
+**Shared-record edits.** Edits to hub-global persons (students, guardians) that more than one app touches become change requests, not silent overwrites: the requesting app receives the `change_request_id` and learns the outcome via the `<resource>.updated` event when applied. A **rejected** change request emits no event — only applied changes emit `<resource>.updated` — so a satellite must treat prolonged silence after a `change_request_id` as not-yet-applied (or rejected), never as success.
 
 ### 1.8 Duplicate-person protocol
 
@@ -106,6 +127,10 @@ Where `Idempotency-Key` is used: generate it once per logical operation (persist
 
 1. Surface the candidates for **human** review.
 2. Only after a human confirms "genuinely new", resubmit the **identical body** plus `confirmed: true`.
+
+**Duplicate detection** is name-order-insensitive and matches across Khmer and Latin name records. `create_student` accepts optional `khmer_first_name`, `khmer_last_name`, and `name_order` parameters to support structured Khmer names.
+
+`duplicate_candidates` error response: `details[]` items include additive keys `full_name` (Latin name rendering) and `khmer_full_name` (Khmer name rendering if available); existing keys `student_id` and `match_reasons[]` are unchanged.
 
 MUST NOT: auto-set `confirmed=true` by default, blind-retry a 409, or create a local-only person to dodge the protocol.
 
@@ -165,9 +190,12 @@ def verify_signature(secret: str, header: str, body: bytes, max_age_seconds: int
 Envelope: `{event_id, type, schema_version (int, currently 1), occurred_at, data, links}`. `event_id` format `EVT-<yymmddHHMMSS>-<8-char hash>`, globally unique.
 
 v1 catalog (exact strings, dot-separated lowercase):
-`student.created`, `student.updated`, `student.merged`; `guardian.created`, `guardian.updated`; `family.updated`; `enrollment.applied`, `enrollment.offered`, `enrollment.enrolled`, `enrollment.activated`, `enrollment.suspended`, `enrollment.resumed`, `enrollment.completed`, `enrollment.withdrawn`; `invoice.submitted`, `invoice.paid`, `invoice.overdue`; `credit_note.issued`; `offering.updated`; `offering.capacity_warning`.
+`student.created`, `student.updated`, `student.merged`; `guardian.created`, `guardian.updated`; `family.updated`; `enrollment.applied`, `enrollment.offered`, `enrollment.enrolled`, `enrollment.activated`, `enrollment.suspended`, `enrollment.resumed`, `enrollment.completed`, `enrollment.withdrawn`; `invoice.submitted`, `invoice.paid`, `invoice.overdue`; `credit_note.issued`; `offering.created`; `offering.updated`; `offering.capacity_warning`; `period.created`; and the shared-record governance types `student.change_requested`, `guardian.change_requested`, `offering.change_requested`, `period.change_requested` (emitted when a write you sent returned `202` — see §1.4).
 
-There are NO `family.created` or `offering.created` events — discover new families/offerings via periodic list reads. A handler for an event name not in this catalog is a bug.
+There is NO `family.created` event — discover new families via periodic list
+reads. `offering.created` and `period.created` DO exist (added 2026-07-25,
+when satellites gained catalog writes). A handler for an event name not in
+this catalog is a bug.
 
 Payload shapes (`data`):
 
@@ -178,7 +206,9 @@ Payload shapes (`data`):
 - `enrollment.*` → `{enrollment_id, student, offering, brand, status, prior_status, effective_date, reason}`
 - `invoice.*` / `credit_note.issued` → `{invoice_id, family, customer, company, currency, grand_total, outstanding_amount, due_date, is_return, fee_run}`
 - `offering.updated` → `{offering_id, offering_name, brand, campus, offering_type, enrollment_period, status, capacity}`
+- `offering.created` → same shape as `offering.updated`
 - `offering.capacity_warning` → `{offering, capacity, enrolled}` — note the key is `offering`, **not** `offering_id`
+- `period.created` → `{period_id, period_name, brand, period_model, start_date, end_date}`
 
 Consumption rules:
 
@@ -210,6 +240,28 @@ MUST NOT: store local passwords for spine-known humans (no password hash columns
 
 v1 is additive-only; breaking changes and deprecations follow the spine's `docs/api-changelog.md` with announced windows. Requirements: tolerant parsing (§1.3), a named owner watching the changelog, and no version-sniffing hacks. Never pin strict response schemas.
 
+### 1.16 Sandbox data quarantine — what `environment` means for data
+
+Every Student, Guardian, Family, Enrollment, and Adhoc Charge the spine creates — and, since satellites gained catalog writes, every Offering and Enrollment Period too — is stamped (internally, never exposed in v1 responses — §1.3's additive-only tolerance still holds, nothing here changes response shapes) with a hidden test/real flag at creation time, driven by the one signal the spine trusts: the writing satellite app's `environment` at the moment of the call. A create through a `Sandbox`-registered app's key pair lands in the **test pool**; a create through a `Production` app (or a staff Desk/SPA session) lands in the **real pool**. This is decided once, at create — it is not kept in sync if an app's `environment` changes later (see the backfill-patch caveat below).
+
+- **Two pools, no crossover.** Test and real rows are disjoint with no legitimate path between them. Duplicate-person detection (§1.8), guardian-phone matching, and every explicit `guardian` / `family` / `primary_payer_guardian` id a satellite supplies in a write body are compared **within the caller's own pool only**. A Sandbox create can never dedupe against, or silently attach to, a real person, and a Production create can never match a Sandbox one. A caller-supplied id from the wrong pool is rejected as unknown — the same outcome as an id that doesn't exist at all, with no signal distinguishing "wrong pool" from "never existed." Do not build retry/fallback logic on the assumption that a rejected id must exist somewhere; treat it exactly like a 404 you'd get for any other reason (same no-existence-leak posture as brand isolation, §1.3/§3.2.17).
+- **Reads are pool-matched, symmetrically.** `registry_read.*`, `money_read.*`, and `catalog.list_offerings` / `catalog.list_periods` return only the caller's own pool: a Sandbox app's `list_students` / `get_student` (and the guardian/family/enrollment/invoice equivalents) see test rows only; a Production app sees real rows only. A `get_*` call for an id in the other pool is a plain `not_found` (404) — same shape and same handling rules as a brand-mismatch 404 (§1.3): never infer existence from the error, never distinguish pool-mismatch from brand-mismatch from genuinely-missing.
+- **Events are environment-matched, with one exception.** Deliveries for `student.*`, `guardian.*`, `family.*`, and `enrollment.*` events go only to apps whose `environment` matches the emitting entity's pool: an event about a Sandbox-created enrollment delivers to Sandbox-environment apps only; an event about a real one delivers to Production-environment apps only. **The four catalog event types are the one exception** — `offering.created`, `offering.updated`, `offering.capacity_warning` and `period.created` carry no person data, so they deliver to BOTH environments regardless of pool (a Sandbox app still needs to see its own dev catalog change, and delivery is deliberately not filtered on the catalog row's pool). If you subscribe to those four types expecting environment isolation, you will still receive events for the other environment's catalog — that's intended, not a leak. **The exception is scoped to exactly those four names, not to the `offering.*` / `period.*` globs**: `offering.change_requested` and `period.change_requested` are emitted with the target row's pool and ARE environment-matched, like every person event. Note the asymmetry: catalog **reads** (`catalog.list_offerings`, `catalog.list_periods`) ARE pool-matched — a Sandbox app lists only Sandbox-created offerings and periods — even though catalog **events** are not.
+- **Events are brand-fenced as well as pool-matched (since 2026-07-27).** Independently of the environment rule above, an app receives an event only if it holds an `allowed_brands` grant for one of the brands the event concerns, or it created the record. Brands resolve the same way read visibility does: directly from `brand` for offerings, periods and enrollments; transitively through enrollments for students, guardians and families. Delivery is therefore never more generous than what `registry_read` / `money_read` would return for the same caller. **Consequence to design for: a person with no enrollment reaches no satellite** — a brand-new student has no brand yet, so only the creating app receives `student.created`; every other satellite first sees that person via `enrollment.*` when it enrols them into a brand it holds. Do not treat `student.created` as a group-wide roster feed. The two rules compose: a catalog event reaches both environments (I5, above) **but still only granted brands**.
+- **Test data carries no retention guarantee.** Unlike everything else in this playbook, test-pool rows exist only to support satellite dev/staging traffic and are the one class of registry data the spine may delete outright (operator-run purge, below). Do not build a Sandbox-environment integration that assumes long-lived spine-side history for records it created against a Sandbox key pair.
+- **Money never touches test data.** Fee-run selection and mini-invoice creation skip/refuse test-pool enrollments and charges outright — a Sandbox app cannot cause a real invoice to be generated, by construction. Test families' ERP Customers land in a dedicated "Sandbox Test" Customer Group, visually segregated in ERPNext UIs (AR reports, Customer lists) without needing custom fields on `Customer` itself.
+- **Staff-visible surfaces exclude test data by default** — this affects what your [SPINE OPERATOR] contact sees when troubleshooting on your behalf. `/api/resource` and `get_list`/Desk list views hide test-pool rows via `permission_query_conditions`; **an admin (System Manager, which the built-in Administrator holds) is exempted** and sees both pools in those list views — the deliberate inspection escape hatch. The ⌘K search, dashboards, enrollment board, and duplicate reports filter test data in hand-written SQL (not the permission hook), so they stay hidden **even for admins**. A single record is always reachable by name (`frappe.client.get`, or the Desk form URL `/app/edu-student/<id>`) regardless of pool. Note: Frappe does NOT auto-exempt Administrator from `permission_query_conditions` — the exemption is coded explicitly in `permissions.py`.
+
+**Operational notes [SPINE OPERATOR]:**
+
+- Rows created before this quarantine existed were backfilled into the test pool via a one-time patch, using each row's creating user as a proxy for "was this created by a currently-Sandbox app." That proxy does not correct for an app that was Production at creation time and was demoted to Sandbox afterward, or for a system-user account reused across a retired app and a replacement one — treat the backfill as a best-effort one-time cleanup, not a live guarantee.
+- A System-Manager-only, dry-run-by-default purge command hard-deletes all test-pool data in dependency order (event outbox/deliveries → adhoc charges → enrollments → student notes → students → families and their Customers → guardians). It skips (reports, never deletes) any Customer with a linked Sales Invoice — that combination shouldn't be reachable given the money guard above, and is worth investigating before any manual cleanup. Always read the dry-run counts before re-running with delete enabled.
+
+**Deferred / known gaps — not addressed by this mechanism:**
+
+- ~~**Event brand-fencing.**~~ **CLOSED 2026-07-27** — deliveries are now brand-matched per-delivery, not just environment-matched. See "Events are brand-fenced" above and the `docs/api-changelog.md` entry; note the behavior change for `student.created` on a person with no enrollment.
+- **Mixed-pool merge is unsupported.** A `student.merged` event assumes both the surviving and merged student are in the same pool. Nothing today creates a mixed-pool merge candidate (two-way isolation above rules it out at the dedupe stage), so this is a latent gap rather than a reachable one — but merge handling has not been exercised against a mixed-pool pair and should not be assumed safe if that ever becomes reachable.
+
 ---
 
 ## 2. Static audit checklist (run inside the satellite repo)
@@ -222,10 +274,10 @@ Run from the repo root; `rg -n` equivalents fine. Each item cites the contract s
 - **B4 — status codes and retry policy (§1.4).** Read the HTTP client's retry policy: retryable set excludes 400/401/403/404/409/422; create success accepts 200 OR 201 (`grep -rn "status_code == 200" .` near create calls is the red flag); 401/403 alert-and-stop; 429 backs off.
 - **B5 — envelope + tolerant parsing (§1.3).** Client reads `message.data` / `message.next_cursor` / `message.error.code`; branches on the full code list including `invalid_fields`, `invalid_transition`, `immediate_not_allowed`; `grep -rn "additionalProperties.*false\|extra='forbid'\|DisallowUnknownFields\|deny_unknown_fields" .` on spine-response models — hits are violations. No code asserts a `details` key on 404s.
 - **B6 — duplicate protocol (§1.8).** `grep -rn "duplicate_candidates" .` must hit the create path; `grep -rn "confirmed" .` — `confirmed=true` only in a human-gated path, never a default payload field.
-- **B7 — idempotency discipline (§1.5).** `grep -rn "Idempotency-Key" .` on `create_student`/`create_enrollment` calls, key persisted per logical op (outbox row), reused across retries. Then verify satellite-side dedupe/outbox exists for **all other writes**, above all `create_charge`.
+- **B7 — idempotency discipline (§1.5).** `grep -rn "Idempotency-Key" .` on `create_student`/`create_enrollment`/`create_offering`/`create_period` calls, key persisted per logical op (outbox row), reused across retries, and never reused across operations with different arguments. Then verify satellite-side dedupe/outbox exists for **all other writes**, above all `create_charge`.
 - **B8 — pagination (§1.6).** `grep -rn "next_cursor" .` — `while next_cursor` shape, exact value threaded, cursor persisted; `grep -rn "b64decode" .` near cursor code = violation; requested `limit <= 200`; bad-cursor validation errors surfaced.
 - **B9 — incremental sync (§1.7).** `grep -rn "updated_since" .` — durable watermark persisted; no full re-list jobs; `update_student` payloads ⊆ the six whitelisted fields; invoice status filters use exact ERPNext literals.
-- **B10 — event consumption (§1.12).** Verify: scheduled poller exists (not webhook-only); processed-events table with UNIQUE(event_id) checked before side effects, shared by both paths; default branch logs-and-advances unknown types; `schema_version > 1` alerts; handlers are order-tolerant upserts; `grep -rn "offering.created\|family.created" .` — presence is a bug; **`enrollment.resumed` handled and mapped to the same state as `enrollment.activated`**; subscription-gap backfill logic exists (list-endpoint backfill after subscription changes).
+- **B10 — event consumption (§1.12).** Verify: scheduled poller exists (not webhook-only); processed-events table with UNIQUE(event_id) checked before side effects, shared by both paths; default branch logs-and-advances unknown types; `schema_version > 1` alerts; handlers are order-tolerant upserts; `grep -rn "family.created" .` — presence is a bug; **`enrollment.resumed` handled and mapped to the same state as `enrollment.activated`**; subscription-gap backfill logic exists (list-endpoint backfill after subscription changes).
 - **B11 — payload field names (§1.12).** Handlers consume exact field names per the shape table — especially `survivor_id`/`merged_id`, `prior_status` on enrollment events, and `offering` (not `offering_id`) on `capacity_warning`.
 - **B12 — webhook receiver (§1.11).** `grep -rn "X-Dewey-Signature" .`; HMAC over raw bytes (not re-serialized JSON); `grep -rn "compare_digest\|timingSafeEqual" .` (a `==` compare is a finding); 300s freshness window both directions; verification before parsing; fast 2xx with heavy work queued; unhandled types still 2xx.
 - **B13 — merge re-keying (§1.12.5).** `grep -rn "student.merged\|survivor_id\|merged_id" .` — handler exists; enumerate every schema column holding spine student IDs and confirm each is repointed; 404-on-merged-id doesn't crash sync.
@@ -272,7 +324,7 @@ The suite never contacts the satellite. These probe the satellite's own behavior
 6. **Idempotent retry:** kill the satellite mid-create and let its retry fire — exactly one student spine-side; same `Idempotency-Key` twice manually → identical body and status.
 7. **Charge double-bill:** trigger the same billable action twice via retry — exactly one charge spine-side. **This passes only on the strength of the satellite's own outbox/dedupe** (§1.5) — the spine offers no protection on `create_charge`.
 8. **Duplicate flow via the UI:** submit a near-duplicate student — 409 surfaced, candidates shown, human-gated confirm.
-9. **Rate limit:** fire limit+1 requests within one clock minute **against a scoped endpoint** (e.g. `catalog.list_brands`) — expect the 429 `rate_limited` envelope and backoff recovery. Do NOT use `ping` — it bypasses the limiter and will produce a false "rate limiting broken" finding.
+9. **Rate limit:** fire limit+1 requests within one clock minute **against a scoped endpoint** (e.g. `catalog.list_brands`) — expect the 429 `rate_limited` envelope and backoff recovery. Do NOT use `ping` or `discovery.capabilities` — both bypass the limiter and will produce a false "rate limiting broken" finding.
 10. **/api/resource closure:** `GET /api/resource/Edu%20Student` and `GET /api/resource/Edu%20Satellite%20App` with the satellite token → both 403.
 11. **Deactivation:** **[SPINE OPERATOR]** toggle `active=0` on the sandbox registration — calls flip to 401 `unauthorized`, satellite alerts without retry-looping; restore afterward.
 12. **missing_scope:** call one ungranted-scope endpoint → 403 `missing_scope`, treated as config error, not retried.
