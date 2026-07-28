@@ -1,5 +1,6 @@
 <script setup>
 import { api } from "@/utils/api";
+import { listClassRoster } from "@/services/api/studentClasses";
 import { onMounted, ref, watch, computed } from "vue";
 import MianLogo from "@images/logo/main-logo-1.svg?url";
 import supabase from "@/utils/supabase.js";
@@ -278,19 +279,9 @@ async function buildSubjectParentMap() {
 }
 
 async function fetchClassStudents(classId) {
-  const { data, error } = await supabase
-    .from("student_classes")
-    .select(`
-      student_id,
-      index,
-      student:students(id, name_en, name_kh, gender)
-    `)
-    .eq("class_id", classId)
-    .is("deleted_at", null)
-    .order("index", { ascending: true });
-
-  if (error) throw error;
-  return data ?? [];
+  // Was a direct student_classes query with a nested students embed.
+  // listClassRoster reproduces that exact shape from the API.
+  return await listClassRoster(classId);
 }
 
 async function fetchYearAttendance({ classId, startDate, endDate }) {

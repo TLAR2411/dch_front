@@ -1,6 +1,6 @@
 import { api } from "@/utils/api";
+import { allWeekdays } from "@/services/api/weekday";
 import { app } from "@/utils/app";
-import supabase from "@/utils/supabase";
 
 export const getTables = async () => {
     try {
@@ -404,16 +404,7 @@ export const getClasses = async () => {
 }
 export const getWeekdays = async () => {
     try {
-        const { data, error } = await supabase
-            .from("weekday")
-            .select("*");
-
-        if (error) {
-            console.error("Error with the response:", error);
-            return null;
-        }
-
-        return data;
+        return await allWeekdays();
     } catch (error) {
         console.error("Server weekdays error:", error);
         return null;
