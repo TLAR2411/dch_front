@@ -73,6 +73,10 @@ Work down the list. Each row is one commit's worth of change.
 | Branches list | `/admin/branches` | List loads; create, edit, disable, delete. |
 | Attendance reports — month / term / year | report screens | **Class roster appears with every student, in order.** This one had a real shape mismatch: the old query keyed students differently from the API. An empty or short roster is the symptom. |
 | Any screen using weekday names | schedule//calendar pickers | Day-of-week options are present. |
+| Terms | `/global/terms` | List loads in **start-date order**, and shows disabled terms as well as active ones. Create, edit, disable, delete. The school-day columns (total / weekend / holiday / school days) keep their values — and recompute when you change a term's dates. |
+| Grade subjects | `/global/grade-subjects` | Each grade lists its subjects, with component subjects nested under their parent. Assign several subjects at once; remove one. **A removed subject must not come back on reload.** |
+| Report footer (signatures) | any printable report | Names, roles and dates load and save. **Clearing a signature image must actually clear it** — save, reload, confirm it is still gone. This was broken and is now fixed. |
+| Anything counting school days | term forms, score entry | Day counts are unchanged from before. These come from holidays + timetable, and a wrong branch or year filter shows as a count that is too high. |
 
 *(More rows land here as the remaining screens are rewired.)*
 
@@ -88,8 +92,12 @@ regressions:
    holidays are unaffected.
 3. **Editing a teacher** rejects branch assignments outside your own
    entitlement.
+4. **Terms belong to a branch.** Viewing, editing, disabling or deleting
+   another branch's term now reports "not found". Before this branch any of
+   those worked — including the delete, which is permanent. Users holding both
+   branches (three of the eight) see no change.
 
-If a tester reports "I can see less than before" on any of those three, that is
+If a tester reports "I can see less than before" on any of those four, that is
 the fix working.
 
 ## Known-broken before you start
