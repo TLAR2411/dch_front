@@ -3,7 +3,9 @@ import { api } from "@/utils/api";
 import { listClassRoster } from "@/services/api/studentClasses";
 import { onMounted, ref, watch, computed } from "vue";
 import MianLogo from "@images/logo/main-logo-1.svg?url";
-import supabase from "@/utils/supabase.js";
+import { listGradeSubjectAssignments } from "@/services/api/gradeSubject";
+import { listSubjectParentMap } from "@/services/api/subjects";
+import { listAttendanceRange } from "@/services/api/attendance";
 import { getClasses, getGrades, getCurriculums } from "@/services/dataService.js";
 import { useYearStore } from "@/stores/yearStore.js";
 import { usePartStore } from "@/stores/partStore.js";
@@ -199,20 +201,13 @@ async function fetchGradeSubjects() {
       return;
     }
 
-    const { data: assignmentRows, error } = await supabase
-      .from("grade_subject")
-      .select(`
-        id,
-        grade_id,
-        subject_id,
-        subject:subjects(id, name_en, name_kh, parent_id)
-      `)
-      .eq("year_id", yearId.value)
-      .eq("grade_id", gradeId)
-      .is("deleted_at", null)
-      .eq("is_active", true);
+    // Endpoint filters by year and grade; the subject arrives nested with
+    // its parent_id, which is what buildSubjectOptions groups on.
+    const { assignments: assignmentRows } = await listGradeSubjectAssignments({
+      year_id: yearId.value,
+      grade_id: gradeId,
+    });
 
-    if (error) throw error;
 
     subjectOptions.value = buildSubjectOptions(assignmentRows ?? []);
   } catch (error) {
@@ -261,13 +256,8 @@ async function fetchTerms() {
 }
 
 async function buildSubjectParentMap() {
-  const { data, error } = await supabase
-    .from("subjects")
-    .select("id, parent_id")
-    .not("parent_id", "is", null)
-    .is("deleted_at", null);
+  const data = await listSubjectParentMap();
 
-  if (error) throw error;
 
   const map = new Map();
   for (const row of data ?? []) {
@@ -283,15 +273,11 @@ async function fetchClassStudents(classId) {
 }
 
 async function fetchTermAttendance({ classId, startDate, endDate }) {
-  const { data, error } = await supabase
-    .from("students_attendance")
-    .select("student_id, date, subject_id, present, late, ask_permission")
-    .eq("class_id", classId)
-    .gte("date", startDate)
-    .lte("date", endDate);
-
-  if (error) throw error;
-  return data ?? [];
+  return await listAttendanceRange({
+    class_id: classId,
+    from: startDate,
+    to: endDate,
+  });
 }
 
 function isTruthyFlag(value) {

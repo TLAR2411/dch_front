@@ -4,7 +4,11 @@
  * Auto text from all grade subjects (strong ≥ 80, weak < 60).
  */
 import { computed, ref, watch } from "vue";
-import supabase from "@/utils/supabase.js";
+import { listAttendanceRange } from "@/services/api/attendance";
+import {
+  listStudentRecommendations,
+  saveStudentRecommendations,
+} from "@/services/api/studentRecommendations";
 import { useYearStore } from "@/stores/yearStore.js";
 import successAlert from "@/helper/successAlert.js";
 import { loadClassSubjectAverages } from "@/views/global/report/examReportScoreService.js";
@@ -60,14 +64,11 @@ async function fetchAbsentDaysByStudent(classId, termId) {
   const start = String(term.start_date).slice(0, 10);
   const end = String(term.end_date).slice(0, 10);
 
-  const { data, error } = await supabase
-    .from("students_attendance")
-    .select("student_id, date, present, ask_permission")
-    .eq("class_id", classId)
-    .gte("date", start)
-    .lte("date", end);
-
-  if (error) throw error;
+  const data = await listAttendanceRange({
+    class_id: classId,
+    from: start,
+    to: end,
+  });
 
   /** studentId → Set of absent dates */
   const absentDates = new Map();
@@ -103,17 +104,17 @@ function draftForStudent(student, subjectList, scoreByStudent, absentByStudent) 
 async function fetchSavedRecommendations(studentIds) {
   if (!studentIds.length || !props.classId || !yearId.value) return new Map();
 
-  const { data, error } = await supabase
-    .from("student_teacher_recommendations")
-    .select(
-      "id, student_id, class_id, academic_period_id, year_id, recommendation, generated_text, is_edited",
-    )
-    .eq("class_id", props.classId)
-    .eq("year_id", yearId.value)
-    .eq("academic_period_id", props.termId)
-    .in("student_id", studentIds);
+  // termId may legitimately be null — "no period" is its own row, distinct
+  // from "any period". The endpoint needs that said explicitly.
+  const data = await listStudentRecommendations({
+    class_id: props.classId,
+    year_id: yearId.value,
+    ...(props.termId == null
+      ? { academic_period_null: true }
+      : { academic_period_id: props.termId }),
+    student_ids: studentIds,
+  });
 
-  if (error) throw error;
   return new Map((data ?? []).map((row) => [row.student_id, row]));
 }
 
@@ -325,13 +326,7 @@ async function saveAll() {
       updated_at: new Date().toISOString(),
     }));
 
-    const { error } = await supabase
-      .from("student_teacher_recommendations")
-      .upsert(payload, {
-        onConflict: "student_id,class_id,academic_period_id,year_id",
-      });
-
-    if (error) throw error;
+    await saveStudentRecommendations(payload);
 
     for (const row of rows.value) row.dirty = false;
 
