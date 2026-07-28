@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
+import { allClasses } from "@/services/api/classes";
 import { getClasses, getGrades, getTerms } from "@/services/dataService";
 import { getCurrentYearId } from "@/services/getCurrentYearId";
 import ReportStudentIndividual from "../components/ReportStudentIndividual.vue";
@@ -153,9 +154,7 @@ function onClear() {
 const fetchClasses = async ()=>{
     loading.value = true;
     try {
-        const {data,error} = await supabase.from('classes').select('*').eq('cur_id', cur_id.value).eq('year_id', yearId.value);
-        if(error) throw error;
-        classes.value = data ?? [];
+        classes.value = await allClasses({ year_id: yearId.value }) ?? [];
     } catch (error) {
         
     }

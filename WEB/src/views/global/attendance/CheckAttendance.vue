@@ -1,12 +1,12 @@
 <script setup>
 import { onMounted, ref, watch } from "vue";
+import { listSchedules } from "@/services/api/schedules";
 import DateNavigator from "../components/DateNavigator.vue";
 import { getClasses, getWeekdays } from "@/services/dataService.js";
 import { useRoute } from "vue-router";
 import { api } from "@/utils/api.js";
 import AppCombobox from "@/@core/components/app-form-elements/AppCombobox.vue";
 import Loading from "../components/Loading.vue";
-import supabase from "@/utils/supabase.js";
 
 const dataAttendance = ref([]);
 const route = useRoute();
@@ -216,15 +216,10 @@ watch(date, async (newDate) => {
 
 const getSubjectSchedule = async (dayId) => {
   try {
-    const { data, error } = await supabase
-      .from("schedules")
-      .select(`subjects(id,name_en)`)
-      .eq("class_id", form.value.class_id)
-      .eq("day_id", dayId);
-
-    if (error) throw error;
-
-    subjectSchedules.value = data;
+    subjectSchedules.value = await listSchedules({
+      class_id: form.value.class_id,
+      day_id: dayId,
+    });
 
     console.log("formSubject", form.value.subject_id);
 
