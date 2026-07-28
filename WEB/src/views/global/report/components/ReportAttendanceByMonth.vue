@@ -5,7 +5,11 @@ import { onMounted, ref, watch, computed } from "vue";
 import monthSelectPlugin from "flatpickr/dist/plugins/monthSelect";
 import "flatpickr/dist/plugins/monthSelect/style.css";
 import MianLogo from "@images/logo/main-logo-1.svg?url";
-import supabase from "@/utils/supabase.js";
+import { listGradeSubjectAssignments } from "@/services/api/gradeSubject";
+import { listSubjectParentMap } from "@/services/api/subjects";
+import { listAttendanceRange } from "@/services/api/attendance";
+import { listHolidayCalendar } from "@/services/api/holiday";
+import { listSchedules } from "@/services/api/schedules";
 import { getClasses, getGrades, getCurriculums } from "@/services/dataService.js";
 import { useYearStore } from "@/stores/yearStore.js";
 import { usePartStore } from "@/stores/partStore.js";
@@ -231,22 +235,13 @@ async function fetchGradeSubjects() {
       return;
     }
 
-    const { data: assignmentRows, error } = await supabase
-      .from("grade_subject")
-      .select(`
-        id,
-        grade_id,
-        subject_id,
-        subject:subjects(id, name_en, name_kh, parent_id)
-      `)
-      .eq("year_id", yearId.value)
-      .eq("grade_id", gradeId)
-      .is("deleted_at", null)
-      .eq("is_active", true);
+    // Endpoint filters by year and grade; the subject arrives nested with
+    // its parent_id, which is what buildSubjectOptions groups on.
+    const { assignments } = await listGradeSubjectAssignments({
+      year_id: yearId.value,
+      grade_id: gradeId,
+    });
 
-    if (error) throw error;
-
-    const assignments = assignmentRows ?? [];
     subjectOptions.value = buildSubjectOptions(assignments);
 
     if (
@@ -310,37 +305,23 @@ async function fetchMonthHolidays(monthValue) {
   const { startDate, endDate, year } = getMonthDateRange(monthValue);
   const dates = new Set();
 
-  const { data: publicData, error: publicError } = await supabase
-    .from("holiday")
-    .select("date")
-    .eq("is_public", true)
-    .eq("year", String(year))
-    .gte("date", startDate)
-    .lte("date", endDate)
-    .eq("is_deleted", false);
+  // One call returns both kinds of row. cur_id / year_id are NOT sent as
+  // endpoint filters: they would apply to public holidays too, and public rows
+  // carry neither, so every national holiday would drop out. They are applied
+  // below to the branch events only — which is what the two queries did.
+  const rows = await listHolidayCalendar({ from: startDate, to: endDate });
 
-  if (publicError) throw publicError;
+  const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 
-  let eventQuery = supabase
-    .from("holiday")
-    .select("date")
-    .eq("is_public", false)
-    .gte("date", startDate)
-    .lte("date", endDate)
-    .eq("is_deleted", false);
+  const publicData = (rows ?? [])
+    .filter((row) => row.is_public === true)
+    .filter((row) => sameId(row.year, year));
 
-  if (partStore.cur_id != null) {
-    eventQuery = eventQuery.eq("cur_id", partStore.cur_id);
-  }
-  if (settingStore.branch_id != null) {
-    eventQuery = eventQuery.eq("branch_id", settingStore.branch_id);
-  }
-  if (yearId.value != null) {
-    eventQuery = eventQuery.eq("year_id", yearId.value);
-  }
-
-  const { data: eventData, error: eventError } = await eventQuery;
-  if (eventError) throw eventError;
+  const eventData = (rows ?? [])
+    .filter((row) => row.is_public !== true)
+    .filter((row) => partStore.cur_id == null || sameId(row.cur_id, partStore.cur_id))
+    .filter((row) => settingStore.branch_id == null || sameId(row.branch_id, settingStore.branch_id))
+    .filter((row) => yearId.value == null || sameId(row.year_id, yearId.value));
 
   for (const row of [...(publicData ?? []), ...(eventData ?? [])]) {
     if (row.date) dates.add(String(row.date).slice(0, 10));
@@ -351,13 +332,7 @@ async function fetchMonthHolidays(monthValue) {
 
 async function resolveSubjectScope(subjectId) {
   const ids = [subjectId];
-  const { data: children, error } = await supabase
-    .from("subjects")
-    .select("id")
-    .eq("parent_id", subjectId)
-    .is("deleted_at", null);
-
-  if (error) throw error;
+  const children = await listSubjectParentMap([subjectId]);
 
   for (const child of children ?? []) {
     ids.push(child.id);
@@ -377,16 +352,14 @@ async function fetchSubjectScheduledDows(classId, subjectIds) {
     return null;
   }
 
-  const { data, error } = await supabase
-    .from("schedules")
-    .select("day_id, subject_id")
-    .eq("class_id", classId)
-    .in("subject_id", subjectIds);
-
-  if (error) throw error;
+  // The endpoint filters by class; subject is filtered here, as a class
+  // timetable is a handful of rows.
+  const data = await listSchedules({ class_id: classId });
+  const wanted = new Set(subjectIds.map(String));
 
   const dows = new Set(
     (data ?? [])
+      .filter((row) => wanted.has(String(row.subject_id)))
       .map((row) => Number(row.day_id))
       .filter((id) => Number.isFinite(id) && id >= 0 && id <= 6),
   );
@@ -407,20 +380,15 @@ async function fetchMonthAttendance({
   startDate,
   endDate,
 }) {
-  let query = supabase
-    .from("students_attendance")
-    .select("student_id, date, subject_id, present, late, ask_permission")
-    .eq("class_id", classId)
-    .gte("date", startDate)
-    .lte("date", endDate);
-
-  if (subjectIds?.length) {
-    query = query.in("subject_id", subjectIds);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return data ?? [];
+  // Only send subject_ids when there are some. The endpoint reads an empty
+  // array as "no subjects match", but this caller has always meant "all
+  // subjects" by it — sending [] would empty the report.
+  return await listAttendanceRange({
+    class_id: classId,
+    from: startDate,
+    to: endDate,
+    ...(subjectIds?.length ? { subject_ids: subjectIds } : {}),
+  });
 }
 
 function emptyTotals() {
@@ -428,13 +396,7 @@ function emptyTotals() {
 }
 
 async function buildSubjectParentMap() {
-  const { data, error } = await supabase
-    .from("subjects")
-    .select("id, parent_id")
-    .not("parent_id", "is", null)
-    .is("deleted_at", null);
-
-  if (error) throw error;
+  const data = await listSubjectParentMap();
 
   const map = new Map();
   for (const row of data ?? []) {
