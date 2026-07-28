@@ -4,7 +4,6 @@
  */
 import { computed, ref, watch } from "vue";
 import { listStudentRecommendations, saveStudentRecommendations } from "@/services/api/studentRecommendations";
-import supabase from "@/utils/supabase.js";
 import { getCurrentYearId } from "@/services/getCurrentYearId";
 import { usePartStore } from "@/stores/partStore";
 import { getEntityLabel } from "@/utils/reportLabels.js";

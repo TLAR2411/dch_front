@@ -21,3 +21,11 @@ export const deleteAssessmentItem = (id) =>
  */
 export const ensureAssessmentItem = (row) =>
   api.post("/api/grade-assessment-ensure", row).then((r) => r.data.data);
+
+/**
+ * Adds assessment items to a category. The category-max ceiling and the
+ * rule-belongs-to-subject check are enforced server-side, so a 422 carries the
+ * message the screen used to compute for itself.
+ */
+export const addAssessmentItems = (payload) =>
+  api.post("/api/grade-assessment-add", payload).then((r) => r.data.data);

@@ -8,7 +8,14 @@ import AddEditAssessmentDialog from "./AddEditAssessmentDialog.vue";
 import SubjectSettingRuleList from "./SubjectSettingRuleList.vue";
 import { onMounted, ref, computed } from "vue";
 import { getSubjects } from "@/services/dataService.js";
-import supabase from "@/utils/supabase.js";
+import {
+  listGradingLayout,
+  listGradingRuleSettings,
+  cascadeDeleteGradingRules,
+  syncGradingRules,
+} from "@/services/api/gradingRules";
+import { addAssessmentItems } from "@/services/api/assessmentItems";
+import { listSubjectParentMap, showSubject } from "@/services/api/subjects";
 import successAlert from "@/helper/successAlert.js";
 import DeleteAlert from "@/helper/deleteAlert.js";
 
@@ -188,74 +195,16 @@ const fetchGrades = async () => {
 //   }
 // };
 
-const collectSubjectIdsForDelete = async (subjectId) => {
-  const { data: children, error } = await supabase
-    .from("subjects")
-    .select("id")
-    .eq("parent_id", subjectId);
-
-  if (error) throw error;
-
-  const childIds = (children || []).map((child) => child.id);
-
-  return {
-    subjectIds: [subjectId, ...childIds],
-    childIds,
-  };
-};
-
-const fetchGradingRuleIdsForSubjects = async (
-  subjectIds,
-  childIds,
-  gradeId,
-) => {
-  let query = supabase
-    .from("grade_subject_grading_rule")
-    .select("id")
-    .eq("grade_id", gradeId)
-    .eq("year_id", yearId);
-
-  if (childIds.length) {
-    query = query.or(
-      `subject_id.in.(${subjectIds.join(",")}),child_subject_id.in.(${childIds.join(",")})`,
-    );
-  } else {
-    query = query.in("subject_id", subjectIds);
-  }
-
-  const { data: rules, error } = await query;
-  if (error) throw error;
-
-  return (rules || []).map((rule) => rule.id);
-};
-
-const deleteAssessmentsByRuleIds = async (ruleIds) => {
-  if (!ruleIds.length) return;
-
-  const { error } = await supabase
-    .from("assessment_items")
-    .delete()
-    .in("grade_subject_grading_rule_id", ruleIds);
-
-  if (error) throw error;
-};
-
-const deleteGradingRulesByIds = async (ruleIds) => {
-  if (!ruleIds.length) return;
-
-  const { error } = await supabase
-    .from("grade_subject_grading_rule")
-    .delete()
-    .in("id", ruleIds);
-
-  if (error) throw error;
-};
+// The four steps this replaced — look up child subjects, find rules matching
+// either subject_id or child_subject_id, delete assessment items, delete
+// rules — are one transactional endpoint call. The server derives the child
+// subjects from parent_id itself, so the .or() has no client-side equivalent
+// to reproduce.
 
 const onDeleteRule = async (id) => {
   await DeleteAlert(async () => {
     try {
-      await deleteAssessmentsByRuleIds([id]);
-      await deleteGradingRulesByIds([id]);
+      await cascadeDeleteGradingRules({ id });
 
       successAlert.fire({
         icon: "success",
@@ -283,24 +232,15 @@ const onDelete = async (subjectId, gradeId) => {
 
   await DeleteAlert(async () => {
     try {
-      const { subjectIds, childIds } =
-        await collectSubjectIdsForDelete(subjectId);
-
-      const ruleIds = await fetchGradingRuleIdsForSubjects(
-        subjectIds,
-        childIds,
-        gradeId,
-      );
-
-      await deleteAssessmentsByRuleIds(ruleIds);
-      await deleteGradingRulesByIds(ruleIds);
+      const result = await cascadeDeleteGradingRules({
+        subject_id: subjectId,
+        grade_id: gradeId,
+        year_id: yearId,
+      });
 
       successAlert.fire({
         icon: "success",
-        title:
-          childIds.length > 0
-            ? "Subject, child subjects, rules, and assessments deleted successfully"
-            : "Subject rules and assessments deleted successfully",
+        title: result?.message || "Subject rules and assessments deleted successfully",
       });
       fetchGrades1();
     } catch (error) {
@@ -376,15 +316,8 @@ const onEdit = async (id, type, grade_id = null) => {
 //   }
 // };
 
-const fetchChildSubjectRows = async (parentSubjectId) => {
-  const { data, error } = await supabase
-    .from("subjects")
-    .select("id, name_en")
-    .eq("parent_id", parentSubjectId);
-
-  if (error) throw error;
-  return data ?? [];
-};
+const fetchChildSubjectRows = async (parentSubjectId) =>
+  await listSubjectParentMap([parentSubjectId]);
 
 const validateParentChildCategoryMaxScores = async ({
   subjectId,
@@ -392,13 +325,7 @@ const validateParentChildCategoryMaxScores = async ({
   gradeIds,
   rules,
 }) => {
-  const { data: subjectRow, error: subjectError } = await supabase
-    .from("subjects")
-    .select("id, parent_id, name_en")
-    .eq("id", subjectId)
-    .single();
-
-  if (subjectError) throw subjectError;
+  const subjectRow = await showSubject(subjectId);
 
   if (subjectRow.parent_id) {
     for (const rule of rules) {
@@ -412,15 +339,15 @@ const validateParentChildCategoryMaxScores = async ({
 
     for (const gradeId of gradeIds) {
       for (const rule of rules) {
-        const { data: siblingRules, error } = await supabase
-          .from("grade_subject_grading_rule")
-          .select("subject_id, category_id, max_score")
-          .eq("year_id", selectedYearId)
-          .eq("grade_id", gradeId)
-          .eq("category_id", rule.category_id)
-          .in("subject_id", siblingIds);
-
-        if (error) throw error;
+        // The layout endpoint has no category filter; one category is a
+        // client-side narrowing of the same rows.
+        const siblingRules = (
+          await listGradingLayout({
+            year_id: selectedYearId,
+            grade_id: gradeId,
+            subject_ids: siblingIds,
+          })
+        ).filter((r) => Number(r.category_id) === Number(rule.category_id));
 
         const siblingTotal = siblings.reduce((sum, sibling) => {
           if (Number(sibling.id) === Number(subjectId)) {
@@ -433,16 +360,13 @@ const validateParentChildCategoryMaxScores = async ({
           return sum + Number(row?.max_score || 0);
         }, 0);
 
-        const { data: parentRule, error: parentError } = await supabase
-          .from("grade_subject_grading_rule")
-          .select("max_score")
-          .eq("year_id", selectedYearId)
-          .eq("grade_id", gradeId)
-          .eq("subject_id", subjectRow.parent_id)
-          .eq("category_id", rule.category_id)
-          .maybeSingle();
-
-        if (parentError) throw parentError;
+        const parentRule = (
+          await listGradingLayout({
+            year_id: selectedYearId,
+            grade_id: gradeId,
+            subject_ids: [subjectRow.parent_id],
+          })
+        ).find((r) => Number(r.category_id) === Number(rule.category_id)) ?? null;
         if (!parentRule) continue;
 
         const parentMax = Number(parentRule.max_score);
@@ -461,17 +385,11 @@ const validateParentChildCategoryMaxScores = async ({
   if (!children.length) return null;
 
   for (const gradeId of gradeIds) {
-    const { data: childRules, error } = await supabase
-      .from("grade_subject_grading_rule")
-      .select("subject_id, category_id, max_score")
-      .eq("year_id", selectedYearId)
-      .eq("grade_id", gradeId)
-      .in(
-        "subject_id",
-        children.map((child) => child.id),
-      );
-
-    if (error) throw error;
+    const childRules = await listGradingLayout({
+      year_id: selectedYearId,
+      grade_id: gradeId,
+      subject_ids: children.map((child) => child.id),
+    });
 
     const childMaxByCategory = new Map();
     for (const row of childRules ?? []) {
@@ -529,14 +447,11 @@ const onUpdate = async (data, callback) => {
     }
 
     // 1. Fetch existing rows ONLY for the grades being edited (not the whole subject/year)
-    const { data: existingRows, error: fetchError } = await supabase
-      .from("grade_subject_grading_rule")
-      .select("*")
-      .eq("subject_id", subject_id)
-      .eq("year_id", year_id)
-      .in("grade_id", gradeIds);
-
-    if (fetchError) throw fetchError;
+    const existingRows = await listGradingLayout({
+      year_id,
+      grade_ids: gradeIds,
+      subject_ids: [subject_id],
+    });
 
     // 2. If multiple grades selected, make sure they currently share
     //    the exact same category_id set before allowing a bulk update
@@ -621,29 +536,19 @@ const onUpdate = async (data, callback) => {
             .map((row) => row.id)
         : [];
 
-    // --- execute ---
-    if (toDeleteIds.length) {
-      const { error } = await supabase
-        .from("grade_subject_grading_rule")
-        .delete()
-        .in("id", toDeleteIds);
-      if (error) throw error;
-    }
-
-    for (const row of toUpdate) {
-      const { error } = await supabase
-        .from("grade_subject_grading_rule")
-        .update({ percentage: row.percentage, max_score: row.max_score })
-        .eq("id", row.id);
-      if (error) throw error;
-    }
-
-    if (toInsert.length) {
-      const { error } = await supabase
-        .from("grade_subject_grading_rule")
-        .insert(toInsert);
-      if (error) throw error;
-    }
+    // One transaction. This was a delete, then one UPDATE PER ROW in a loop,
+    // then an insert, with nothing tying them together — a failure partway
+    // left some categories reweighted and others not, percentages no longer
+    // summing to 100, and no error state on screen to show it.
+    await syncGradingRules({
+      deletes: toDeleteIds,
+      updates: toUpdate.map((row) => ({
+        id: row.id,
+        percentage: row.percentage,
+        max_score: row.max_score,
+      })),
+      inserts: toInsert,
+    });
 
     await fetchGrades1();
     isDialogVisible.value = false;
@@ -755,25 +660,10 @@ const mapSubjectPayload = (
 const fetchGrades1 = async () => {
   isLoading.value = true;
   try {
-    const { data: ruleRows, error: rulesError } = await supabase
-      .from("grade_subject_grading_rule")
-      .select(`
-        id,
-        grade_id,
-        year_id,
-        subject_id,
-        category_id,
-        percentage,
-        max_score,
-        grade:grades(name_en, name_kh),
-        year:school_year(year_name),
-        subject:subjects(name_en, name_kh, parent_id),
-        category:grading_category(name_en, name_kh),
-        assessments:assessment_items(id, item_name, max_score, sequence_no, subject_id)
-      `)
-      .eq("year_id", yearId);
-
-    if (rulesError) throw rulesError;
+    // Rules and the child subjects of every parent that appears, in one call —
+    // the child query was derived entirely from the ids the first returned.
+    const { rules: ruleRows, children: fetchedChildren } =
+      await listGradingRuleSettings({ year_id: yearId });
 
     const rows = ruleRows ?? [];
     const rulesByGradeSubjectId = new Map();
@@ -820,16 +710,10 @@ const fetchGrades1 = async () => {
       ),
     ];
 
-    let childSubjectRows = [];
-    if (parentSubjectIds.length) {
-      const { data: childRows, error: childError } = await supabase
-        .from("subjects")
-        .select("id, name_en, name_kh, parent_id")
-        .in("parent_id", parentSubjectIds);
-
-      if (childError) throw childError;
-      childSubjectRows = childRows ?? [];
-    }
+    const parentIdSet = new Set(parentSubjectIds.map(String));
+    const childSubjectRows = (fetchedChildren ?? []).filter((child) =>
+      parentIdSet.has(String(child.parent_id)),
+    );
 
     const childrenByParentId = new Map();
     for (const child of childSubjectRows) {
@@ -983,55 +867,18 @@ const onCreateAssessment = async (data, callback) => {
       throw new Error("Please add at least one assessment.");
     }
 
-    const { data: ruleRow, error: ruleError } = await supabase
-      .from("grade_subject_grading_rule")
-      .select("max_score, subject_id")
-      .eq("id", data.grading_rule_id)
-      .single();
-
-    if (ruleError) throw ruleError;
-
-    if (
-      data.subject_id != null &&
-      Number(ruleRow.subject_id) !== Number(data.subject_id)
-    ) {
-      throw new Error("This category does not belong to the selected subject.");
-    }
-
-    let existingItemsQuery = supabase
-      .from("assessment_items")
-      .select("max_score")
-      .eq("grade_subject_grading_rule_id", data.grading_rule_id);
-
-    if (data.subject_id != null) {
-      existingItemsQuery = existingItemsQuery.eq("subject_id", data.subject_id);
-    }
-
-    const { data: existingItems, error: existingError } = await existingItemsQuery;
-
-    if (existingError) throw existingError;
-
-    const categoryMaxScore = Number(ruleRow?.max_score);
-    if (Number.isFinite(categoryMaxScore)) {
-      const existingTotal = (existingItems ?? []).reduce(
-        (sum, item) => sum + Number(item.max_score || 0),
-        0,
-      );
-      const newTotal = payload.reduce(
-        (sum, item) => sum + Number(item.max_score || 0),
-        0,
-      );
-
-      if (existingTotal + newTotal > categoryMaxScore) {
-        throw new Error(
-          `Total assessment score (${existingTotal + newTotal} pts) exceeds category max (${categoryMaxScore} pts).`,
-        );
-      }
-    }
-
-    const { error } = await supabase.from("assessment_items").insert(payload);
-
-    if (error) throw error;
+    // The category-max ceiling and the rule-belongs-to-subject check now run
+    // server-side. They ran here before, which made them advice rather than
+    // rules — the same insert could be posted straight to PostgREST.
+    await addAssessmentItems({
+      grading_rule_id: data.grading_rule_id,
+      subject_id: data.subject_id ?? null,
+      items: payload.map((item) => ({
+        item_name: item.item_name,
+        max_score: item.max_score,
+        sequence_no: item.sequence_no,
+      })),
+    });
 
     successAlert.fire({
       icon: "success",

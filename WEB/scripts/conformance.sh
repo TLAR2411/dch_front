@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Every data read and write goes through dch_app. This check makes that
+# structural rather than a convention people remember.
+#
+# Why it matters more than it looks: once row-level security is switched on,
+# a surviving supabase.from() returns ZERO ROWS rather than an error. The
+# screen renders blank, no exception, no failed request in the network tab.
+# This check is the thing that catches it, and it must run before RLS goes on.
+#
+# Run from dch_front/WEB:  npm run conformance
+set -u
+fails=0
+cd "$(dirname "$0")/.." || exit 1
+
+# F1 — no PostgREST table access anywhere in src/.
+# Excludes Array.from / Object.from, comment lines, and the service README,
+# which documents the ban by quoting it. Storage buckets are a separate
+# surface with its own check below — this one is about tables.
+hits=$(grep -rn "\.from(" src 2>/dev/null \
+  | grep -v "Array\.from" \
+  | grep -v "Object\.from" \
+  | grep -v "storage$" \
+  | grep -v "\.storage$" \
+  | grep -vE "^[^:]+:[0-9]+: *[/*]" \
+  | grep -v "SIGNATURE_BUCKET" \
+  | grep -v "services/api/README")
+if [ -z "$hits" ]; then
+  echo "PASS  F1 no direct database access in src/"
+else
+  echo "FAIL  F1 direct database access found:"; echo "$hits" | head -20
+  fails=$((fails+1))
+fi
+
+# F2 — the supabase client may only be imported where it is genuinely needed.
+#   login.vue / authStore.js  supabase.auth — Supabase is the identity
+#                             provider and the JWT it issues is what the API
+#                             verifies. Documented exception.
+#   footerRepor.vue           supabase.storage — signature image upload. NOT
+#                             yet behind the API; a real remaining bypass,
+#                             tracked separately. Remove from this list when
+#                             the upload endpoint lands.
+allowed="src/pages/login.vue src/stores/authStore.js src/views/global/components/footerRepor.vue"
+actual=$(grep -rln 'from "@/utils/supabase' src 2>/dev/null | sort)
+expected=$(printf '%s\n' $allowed | sort)
+if [ "$actual" = "$expected" ]; then
+  echo "PASS  F2 supabase client imported only where allowed"
+else
+  echo "FAIL  F2 supabase import list changed:"
+  diff <(echo "$expected") <(echo "$actual") | sed 's/^/      /'
+  fails=$((fails+1))
+fi
+
+# F3 — service modules must not reach for the client either. They are the
+# layer that replaced it; an import here would defeat the whole arrangement.
+check3=$(grep -rn "utils/supabase" src/services 2>/dev/null)
+if [ -z "$check3" ]; then
+  echo "PASS  F3 service layer is client-free"
+else
+  echo "FAIL  F3 service layer imports the supabase client:"; echo "$check3"
+  fails=$((fails+1))
+fi
+
+# F4 — the storage bypass is a KNOWN, BOUNDED exception, not a resolved one.
+# footerRepor.vue uploads signature images straight to a Supabase bucket with
+# the publishable key, upsert:true and a client-supplied path. That is a real
+# bypass of the API and the permission layer; it is simply not a table read.
+# Pinning the count means the debt cannot quietly grow, and the check turns
+# green the moment an upload endpoint replaces it.
+storage=$(grep -rn "supabase\.storage" src 2>/dev/null | wc -l | tr -d ' ')
+if [ "$storage" = "2" ]; then
+  echo "PASS  F4 storage bypass still confined to footerRepor.vue (2 calls, tracked)"
+elif [ "$storage" = "0" ]; then
+  echo "PASS  F4 storage bypass is gone — drop footerRepor.vue from F2's allow-list"
+else
+  echo "FAIL  F4 storage bypass changed size: expected 2 or 0, found $storage"
+  grep -rn "supabase\.storage" src | sed 's/^/      /'
+  fails=$((fails+1))
+fi
+
+echo
+[ $fails -eq 0 ] && echo "conformance: ALL PASS" || { echo "conformance: $fails FAILURE(S)"; exit 1; }

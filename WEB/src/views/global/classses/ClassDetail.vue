@@ -6,7 +6,6 @@ import { getWeekdays } from "@/services/dataService.js";
 import { useRouter, useRoute } from "vue-router";
 import Schedule from "../components/Schedule.vue";
 import TeacherClass from "../components/TeacherClass.vue";
-import supabase from "@/utils/supabase.js";
 import { api } from "@/utils/api.js";
 
 const route = useRoute();

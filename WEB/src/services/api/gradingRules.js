@@ -26,3 +26,30 @@ export const deleteGradingRule = (id) =>
  */
 export const listGradingLayout = (filter) =>
   api.post("/api/grading-rule-layout", filter).then((r) => r.data.data);
+
+/**
+ * The settings screen's whole read: every rule for a year with its grade,
+ * year, subject, category and assessment items — plus the child subjects of
+ * every parent subject that appears.
+ *
+ * Resolves to `{ rules, children }`.
+ */
+export const listGradingRuleSettings = (filter) =>
+  api.post("/api/grading-rule-settings", filter).then((r) => r.data.data);
+
+/**
+ * Deletes rules AND their assessment items in one transaction.
+ *
+ * Pass `{ id }` for one rule, or `{ subject_id, grade_id, year_id }` for a
+ * subject's rules including its child subjects' — the server derives the
+ * children itself, so no child id list is sent.
+ *
+ * Rejects with 409 when student scores reference the items. That delete
+ * already failed (the foreign key is NO ACTION); it now says why.
+ */
+export const cascadeDeleteGradingRules = (target) =>
+  api.post("/api/grading-rule-cascade-delete", target).then((r) => r.data);
+
+/** Applies removals, reweights and additions as one transaction. */
+export const syncGradingRules = (changes) =>
+  api.post("/api/grading-rule-sync", changes).then((r) => r.data.data);

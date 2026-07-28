@@ -7,7 +7,6 @@ import { computed, nextTick, ref, watch } from "vue";
 import { listStudentRecommendations } from "@/services/api/studentRecommendations";
 import html2canvas from "html2canvas";
 import FileSaver from "file-saver";
-import supabase from "@/utils/supabase.js";
 import { app } from "@/utils/app";
 import { roundScore } from "@/utils/gradeCalculation.js";
 import { buildTeacherRecommendation } from "@/utils/teacherRecommendation.js";
