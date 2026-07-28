@@ -247,6 +247,18 @@ const initData = async (item) => {
         expandedRows.value = dataItems.value.data.map(
           (item) => item[props.itemValue],
         );
+    } else {
+      let items = Array.isArray(props.items) ? [...props.items] : [];
+      if (props.transformData) items = props.transformData(items);
+      dataItems.value = {
+        data: items,
+        meta: { total: items.length },
+        total: items.length,
+      };
+      if (props.expandByDefault)
+        expandedRows.value = dataItems.value.data.map(
+          (item) => item[props.itemValue],
+        );
     }
   } catch (error) {
     console.error("Failed to fetch data:", error);
@@ -307,6 +319,14 @@ watch(
     saveState();
     initData();
   }, DEBOUNCE_DELAY),
+  { deep: true },
+);
+watch(
+  () => props.items,
+  () => {
+    if (props.apiUrl != null) return;
+    initData();
+  },
   { deep: true },
 );
 watch(

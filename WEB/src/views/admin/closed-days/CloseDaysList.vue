@@ -26,6 +26,8 @@ const isLoading = ref(true);
 const dataTableRef = ref(null);
 
 const isDialogImportHoliday = ref(false);
+const importYear = ref(new Date().getFullYear());
+const importFetchLoading = ref(false);
 
 const filter = ref({
   search: null,
@@ -167,34 +169,55 @@ const onDisable = async (item) => {
 
 const public_holiday = ref([]);
 
-const onImportHoliday = async () => {
-  isDialogImportHoliday.value = true;
+const fetchHolidaysForYear = async (year) => {
+  const targetYear = Number(year) || currentYear.value;
+  importYear.value = targetYear;
+  importFetchLoading.value = true;
+  public_holiday.value = [];
+
   try {
     const res = await fetch(
-      `https://date.nager.at/api/v3/publicholidays/${currentYear.value}/KH`,
+      `https://date.nager.at/api/v3/publicholidays/${targetYear}/KH`,
     );
-    public_holiday.value = await res.json(); // ✅ await the .json() call
-    console.log("testing", public_holiday.value);
+    if (!res.ok) throw new Error(`Failed to load holidays for ${targetYear}`);
+    const data = await res.json();
+    public_holiday.value = Array.isArray(data) ? data : [];
   } catch (error) {
     console.log("error", error);
+    public_holiday.value = [];
+  } finally {
+    importFetchLoading.value = false;
   }
 };
 
-const onCreateHoliday = async (data, callback) => {
+const onImportHoliday = async () => {
+  isDialogImportHoliday.value = true;
+  await fetchHolidaysForYear(importYear.value || currentYear.value);
+};
+
+const onCreateHoliday = async (payload, callback) => {
   try {
     isLoading.value = true;
 
-    const payload = data.map((d) => ({
+    const holidays = Array.isArray(payload) ? payload : payload?.holidays || [];
+    const year =
+      Number(payload?.year) || Number(importYear.value) || currentYear.value;
+
+    if (!holidays.length || !year) {
+      callback(false);
+      return;
+    }
+
+    const insertPayload = holidays.map((d) => ({
       date: d.date,
       name_kh: d.localName,
       name_en: d.name,
-      year: currentYear.value,
+      year: String(year),
+      is_public: true,
+      is_deleted: false,
     }));
 
-    const { data: insertedData, error } = await supabase
-      .from("holiday")
-      .insert(payload)
-      .select();
+    const { error } = await supabase.from("holiday").insert(insertPayload);
 
     if (error) {
       console.error("Insert error:", error);
@@ -225,9 +248,12 @@ const onCreateHoliday = async (data, callback) => {
 
   <AddEditImportHoliday
     v-model:isDialogImportHoliday="isDialogImportHoliday"
+    v-model:import-year="importYear"
     :item-data="public_holiday"
     :loading="isLoading"
+    :fetch-loading="importFetchLoading"
     @on-create-holiday="onCreateHoliday"
+    @on-load-year="fetchHolidaysForYear"
   />
 
   <AppCardTable

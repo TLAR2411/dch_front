@@ -135,4 +135,22 @@ export default [
 
         ],
     },
+
+    {
+        title: "Settings",
+        icon: { icon: "tabler-settings" },
+        permission: '',
+        children: [
+    
+          {
+            title: "Behavior",
+            to: {
+              name: "global-behavior",
+            },
+            // permission: "view-grades",
+          },
+          
+    
+        ],
+      },
 ];

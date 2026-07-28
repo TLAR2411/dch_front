@@ -48,3 +48,8 @@
 .moul {
   font-family: "moul", sans-serif !important;
 }
+
+.inter,
+.font-ui {
+  font-family: "notosans", sans-serif !important;
+}

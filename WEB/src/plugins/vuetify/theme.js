@@ -4,10 +4,16 @@
 // export const staticPrimaryDarkenColor = '#0b3565'
 // export const staticPrimaryColor = '#0D9394'
 // export const staticPrimaryDarkenColor = '#0D9394'
-export const staticPrimaryColor = '#122e1a'
-export const staticPrimaryDarkenColor = '#122e1a'
-export const staticLightPrimaryColor = '#036980'
-export const navBarColor = '#033c64ff'
+
+// export const staticPrimaryColor = '#122e1a'
+// export const staticPrimaryDarkenColor = '#122e1a'
+// export const staticLightPrimaryColor = '#036980'
+// export const navBarColor = '#033c64ff'
+
+export const staticPrimaryColor = '#1B4332'        // Rich forest green
+export const staticPrimaryDarkenColor = '#143728'   // Darker green for hover
+export const staticLightPrimaryColor = '#52B788'   // Soft green accent
+export const navBarColor = '#1D3557'   
 export const themes = {
   light: {
     dark: false,

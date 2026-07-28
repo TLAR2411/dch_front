@@ -6,8 +6,13 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const CATEGORY_ORDER: typeof import('./src/utils/gradeCalculation.js')['CATEGORY_ORDER']
   const COOKIE_MAX_AGE_1_YEAR: typeof import('./src/utils/constants.js')['COOKIE_MAX_AGE_1_YEAR']
   const EffectScope: typeof import('vue')['EffectScope']
+  const HIGH_ABSENT_THRESHOLD: typeof import('./src/utils/teacherRecommendation.js')['HIGH_ABSENT_THRESHOLD']
+  const PART_DASHBOARD_ROUTES: typeof import('./src/utils/partHomeRoutes.js')['PART_DASHBOARD_ROUTES']
+  const STRONG_THRESHOLD: typeof import('./src/utils/teacherRecommendation.js')['STRONG_THRESHOLD']
+  const WEAK_THRESHOLD: typeof import('./src/utils/teacherRecommendation.js')['WEAK_THRESHOLD']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
   const addAddress: typeof import('./src/utils/idb.js')['addAddress']
   const addOrUpdateVillage: typeof import('./src/utils/idb.js')['addOrUpdateVillage']
@@ -20,7 +25,16 @@ declare global {
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
   const avatarText: typeof import('./src/@core/utils/formatters.js')['avatarText']
   const betweenValidator: typeof import('./src/@core/utils/validators.js')['betweenValidator']
+  const buildTeacherRecommendation: typeof import('./src/utils/teacherRecommendation.js')['buildTeacherRecommendation']
+  const calcAverageGrade: typeof import('./src/utils/gradeCalculation.js')['calcAverageGrade']
+  const calcCategoryPercent: typeof import('./src/utils/gradeCalculation.js')['calcCategoryPercent']
+  const calculateSchoolDayCountsForTerm: typeof import('./src/utils/schoolDays.js')['calculateSchoolDayCountsForTerm']
   const cancelAllPendingRequests: typeof import('./src/utils/api.js')['cancelAllPendingRequests']
+  const categorySortIndex: typeof import('./src/utils/gradeCalculation.js')['categorySortIndex']
+  const classifySubjects: typeof import('./src/utils/teacherRecommendation.js')['classifySubjects']
+  const compareEntityNames: typeof import('./src/utils/reportLabels.js')['compareEntityNames']
+  const computeScheduledSchoolDays: typeof import('./src/utils/schoolDays.js')['computeScheduledSchoolDays']
+  const computeSchoolDayCounts: typeof import('./src/utils/schoolDays.js')['computeSchoolDayCounts']
   const computed: typeof import('vue')['computed']
   const computedAsync: typeof import('@vueuse/core')['computedAsync']
   const computedEager: typeof import('@vueuse/core')['computedEager']
@@ -57,6 +71,8 @@ declare global {
   const emailValidator: typeof import('./src/@core/utils/validators.js')['emailValidator']
   const encrypt: typeof import('./src/utils/encrypteData.js')['encrypt']
   const extendRef: typeof import('@vueuse/core')['extendRef']
+  const fetchClosedDatesForTerm: typeof import('./src/utils/schoolDays.js')['fetchClosedDatesForTerm']
+  const fetchScheduledDowsForSubject: typeof import('./src/utils/schoolDays.js')['fetchScheduledDowsForSubject']
   const formatDate: typeof import('./src/@core/utils/formatters.js')['formatDate']
   const formatDateToMonthShort: typeof import('./src/@core/utils/formatters.js')['formatDateToMonthShort']
   const getAccessToken: typeof import('./src/utils/accessToken.js')['getAccessToken']
@@ -66,6 +82,7 @@ declare global {
   const getAddressesByVillage: typeof import('./src/utils/idb.js')['getAddressesByVillage']
   const getApprover: typeof import('./src/utils/getData.js')['getApprover']
   const getBank: typeof import('./src/utils/getData.js')['getBank']
+  const getBilingualLabel: typeof import('./src/utils/reportLabels.js')['getBilingualLabel']
   const getBranches: typeof import('./src/utils/getData.js')['getBranches']
   const getCashDenominationPurposes: typeof import('./src/utils/getData.js')['getCashDenominationPurposes']
   const getCategories: typeof import('./src/utils/getData.js')['getCategories']
@@ -79,6 +96,7 @@ declare global {
   const getCustomerTypes: typeof import('./src/utils/getData.js')['getCustomerTypes']
   const getCustomers: typeof import('./src/utils/getData.js')['getCustomers']
   const getDepartments: typeof import('./src/utils/getData.js')['getDepartments']
+  const getEntityLabel: typeof import('./src/utils/reportLabels.js')['getEntityLabel']
   const getIdentities: typeof import('./src/utils/getData.js')['getIdentities']
   const getItemOptions: typeof import('./src/utils/getData.js')['getItemOptions']
   const getItemSizes: typeof import('./src/utils/getData.js')['getItemSizes']
@@ -89,6 +107,7 @@ declare global {
   const getMainSourceIncomes: typeof import('./src/utils/getData.js')['getMainSourceIncomes']
   const getMenuItems: typeof import('./src/utils/getData.js')['getMenuItems']
   const getOccupations: typeof import('./src/utils/getData.js')['getOccupations']
+  const getPartDashboardRoute: typeof import('./src/utils/partHomeRoutes.js')['getPartDashboardRoute']
   const getPeople: typeof import('./src/utils/getData.js')['getPeople']
   const getPermissions: typeof import('./src/utils/getData.js')['getPermissions']
   const getPositions: typeof import('./src/utils/getData.js')['getPositions']
@@ -101,6 +120,7 @@ declare global {
   const getRestructureSetting: typeof import('./src/utils/getData.js')['getRestructureSetting']
   const getRestructureSettings: typeof import('./src/utils/getData.js')['getRestructureSettings']
   const getRoles: typeof import('./src/utils/getData.js')['getRoles']
+  const getSelectTitleField: typeof import('./src/utils/reportLabels.js')['getSelectTitleField']
   const getSupplierPrices: typeof import('./src/utils/getData.js')['getSupplierPrices']
   const getSupplierTypes: typeof import('./src/utils/getData.js')['getSupplierTypes']
   const getSuppliers: typeof import('./src/utils/getData.js')['getSuppliers']
@@ -141,6 +161,7 @@ declare global {
   const mapWritableState: typeof import('pinia')['mapWritableState']
   const markRaw: typeof import('vue')['markRaw']
   const nextTick: typeof import('vue')['nextTick']
+  const normalizeCategoryKey: typeof import('./src/utils/gradeCalculation.js')['normalizeCategoryKey']
   const onActivated: typeof import('vue')['onActivated']
   const onBeforeMount: typeof import('vue')['onBeforeMount']
   const onBeforeRouteLeave: typeof import('vue-router/auto')['onBeforeRouteLeave']
@@ -167,6 +188,7 @@ declare global {
   const passwordValidator: typeof import('./src/@core/utils/validators.js')['passwordValidator']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
   const prefixWithPlus: typeof import('./src/@core/utils/formatters.js')['prefixWithPlus']
+  const pronounForGender: typeof import('./src/utils/teacherRecommendation.js')['pronounForGender']
   const provide: typeof import('vue')['provide']
   const provideLocal: typeof import('@vueuse/core')['provideLocal']
   const reactify: typeof import('@vueuse/core')['reactify']
@@ -188,11 +210,14 @@ declare global {
   const removeAccessToken: typeof import('./src/utils/accessToken.js')['removeAccessToken']
   const removeRefreshToken: typeof import('./src/utils/accessToken.js')['removeRefreshToken']
   const requiredValidator: typeof import('./src/@core/utils/validators.js')['requiredValidator']
+  const resolveCategoryMax: typeof import('./src/utils/gradeCalculation.js')['resolveCategoryMax']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
+  const resolveReportPart: typeof import('./src/utils/reportLabels.js')['resolveReportPart']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
   const resolveVuetifyTheme: typeof import('./src/@core/utils/vuetify.js')['resolveVuetifyTheme']
   const rgbaToHex: typeof import('./src/@core/utils/colorConverter.js')['rgbaToHex']
+  const roundScore: typeof import('./src/utils/gradeCalculation.js')['roundScore']
   const setAccessToken: typeof import('./src/utils/accessToken.js')['setAccessToken']
   const setActivePinia: typeof import('pinia')['setActivePinia']
   const setMapStoreSuffix: typeof import('pinia')['setMapStoreSuffix']
@@ -202,6 +227,8 @@ declare global {
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
   const storeToRefs: typeof import('pinia')['storeToRefs']
+  const subjectToSkillPhrase: typeof import('./src/utils/teacherRecommendation.js')['subjectToSkillPhrase']
+  const sumItemScores: typeof import('./src/utils/gradeCalculation.js')['sumItemScores']
   const supabase: typeof import('./src/utils/supabase.js')['supabase']
   const syncRef: typeof import('@vueuse/core')['syncRef']
   const syncRefs: typeof import('@vueuse/core')['syncRefs']
@@ -412,6 +439,7 @@ declare global {
   const useWindowFocus: typeof import('@vueuse/core')['useWindowFocus']
   const useWindowScroll: typeof import('@vueuse/core')['useWindowScroll']
   const useWindowSize: typeof import('@vueuse/core')['useWindowSize']
+  const validateScore: typeof import('./src/utils/gradeCalculation.js')['validateScore']
   const watch: typeof import('vue')['watch']
   const watchArray: typeof import('@vueuse/core')['watchArray']
   const watchAtMost: typeof import('@vueuse/core')['watchAtMost']
@@ -441,8 +469,13 @@ import { UnwrapRef } from 'vue'
 declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
+    readonly CATEGORY_ORDER: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['CATEGORY_ORDER']>
     readonly COOKIE_MAX_AGE_1_YEAR: UnwrapRef<typeof import('./src/utils/constants.js')['COOKIE_MAX_AGE_1_YEAR']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly HIGH_ABSENT_THRESHOLD: UnwrapRef<typeof import('./src/utils/teacherRecommendation.js')['HIGH_ABSENT_THRESHOLD']>
+    readonly PART_DASHBOARD_ROUTES: UnwrapRef<typeof import('./src/utils/partHomeRoutes.js')['PART_DASHBOARD_ROUTES']>
+    readonly STRONG_THRESHOLD: UnwrapRef<typeof import('./src/utils/teacherRecommendation.js')['STRONG_THRESHOLD']>
+    readonly WEAK_THRESHOLD: UnwrapRef<typeof import('./src/utils/teacherRecommendation.js')['WEAK_THRESHOLD']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly alphaDashValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['alphaDashValidator']>
     readonly alphaValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['alphaValidator']>
@@ -453,7 +486,16 @@ declare module 'vue' {
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly avatarText: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['avatarText']>
     readonly betweenValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['betweenValidator']>
+    readonly buildTeacherRecommendation: UnwrapRef<typeof import('./src/utils/teacherRecommendation.js')['buildTeacherRecommendation']>
+    readonly calcAverageGrade: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['calcAverageGrade']>
+    readonly calcCategoryPercent: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['calcCategoryPercent']>
+    readonly calculateSchoolDayCountsForTerm: UnwrapRef<typeof import('./src/utils/schoolDays.js')['calculateSchoolDayCountsForTerm']>
     readonly cancelAllPendingRequests: UnwrapRef<typeof import('./src/utils/api.js')['cancelAllPendingRequests']>
+    readonly categorySortIndex: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['categorySortIndex']>
+    readonly classifySubjects: UnwrapRef<typeof import('./src/utils/teacherRecommendation.js')['classifySubjects']>
+    readonly compareEntityNames: UnwrapRef<typeof import('./src/utils/reportLabels.js')['compareEntityNames']>
+    readonly computeScheduledSchoolDays: UnwrapRef<typeof import('./src/utils/schoolDays.js')['computeScheduledSchoolDays']>
+    readonly computeSchoolDayCounts: UnwrapRef<typeof import('./src/utils/schoolDays.js')['computeSchoolDayCounts']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
@@ -488,12 +530,18 @@ declare module 'vue' {
     readonly emailValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['emailValidator']>
     readonly encrypt: UnwrapRef<typeof import('./src/utils/encrypteData.js')['encrypt']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
+    readonly fetchClosedDatesForTerm: UnwrapRef<typeof import('./src/utils/schoolDays.js')['fetchClosedDatesForTerm']>
+    readonly fetchScheduledDowsForSubject: UnwrapRef<typeof import('./src/utils/schoolDays.js')['fetchScheduledDowsForSubject']>
     readonly formatDate: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['formatDate']>
     readonly formatDateToMonthShort: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['formatDateToMonthShort']>
     readonly getAccessToken: UnwrapRef<typeof import('./src/utils/accessToken.js')['getAccessToken']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
+    readonly getBilingualLabel: UnwrapRef<typeof import('./src/utils/reportLabels.js')['getBilingualLabel']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
+    readonly getEntityLabel: UnwrapRef<typeof import('./src/utils/reportLabels.js')['getEntityLabel']>
+    readonly getPartDashboardRoute: UnwrapRef<typeof import('./src/utils/partHomeRoutes.js')['getPartDashboardRoute']>
+    readonly getSelectTitleField: UnwrapRef<typeof import('./src/utils/reportLabels.js')['getSelectTitleField']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hasPermission2: UnwrapRef<typeof import('./src/utils/hasPermission2.js')['default']>
     readonly hasPermission: UnwrapRef<typeof import('./src/utils/hasPermission.js')['default']>
@@ -525,6 +573,7 @@ declare module 'vue' {
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
+    readonly normalizeCategoryKey: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['normalizeCategoryKey']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
     readonly onBeforeRouteLeave: UnwrapRef<typeof import('vue-router/auto')['onBeforeRouteLeave']>
@@ -545,9 +594,11 @@ declare module 'vue' {
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
+    readonly paginationMeta: UnwrapRef<typeof import('./src/utils/paginationMeta.js')['paginationMeta']>
     readonly passwordValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['passwordValidator']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly prefixWithPlus: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['prefixWithPlus']>
+    readonly pronounForGender: UnwrapRef<typeof import('./src/utils/teacherRecommendation.js')['pronounForGender']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
@@ -567,11 +618,14 @@ declare module 'vue' {
     readonly registerPlugins: UnwrapRef<typeof import('./src/@core/utils/plugins.js')['registerPlugins']>
     readonly removeAccessToken: UnwrapRef<typeof import('./src/utils/accessToken.js')['removeAccessToken']>
     readonly requiredValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['requiredValidator']>
+    readonly resolveCategoryMax: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['resolveCategoryMax']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
+    readonly resolveReportPart: UnwrapRef<typeof import('./src/utils/reportLabels.js')['resolveReportPart']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
     readonly resolveVuetifyTheme: UnwrapRef<typeof import('./src/@core/utils/vuetify.js')['resolveVuetifyTheme']>
     readonly rgbaToHex: UnwrapRef<typeof import('./src/@core/utils/colorConverter.js')['rgbaToHex']>
+    readonly roundScore: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['roundScore']>
     readonly setAccessToken: UnwrapRef<typeof import('./src/utils/accessToken.js')['setAccessToken']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
@@ -579,6 +633,8 @@ declare module 'vue' {
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
+    readonly subjectToSkillPhrase: UnwrapRef<typeof import('./src/utils/teacherRecommendation.js')['subjectToSkillPhrase']>
+    readonly sumItemScores: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['sumItemScores']>
     readonly supabase: UnwrapRef<typeof import('./src/utils/supabase.js')['default']>
     readonly supabase: UnwrapRef<typeof import('./src/utils/supabase.js')['supabase']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
@@ -781,6 +837,7 @@ declare module 'vue' {
     readonly useWindowFocus: UnwrapRef<typeof import('@vueuse/core')['useWindowFocus']>
     readonly useWindowScroll: UnwrapRef<typeof import('@vueuse/core')['useWindowScroll']>
     readonly useWindowSize: UnwrapRef<typeof import('@vueuse/core')['useWindowSize']>
+    readonly validateScore: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['validateScore']>
     readonly watch: UnwrapRef<typeof import('vue')['watch']>
     readonly watchArray: UnwrapRef<typeof import('@vueuse/core')['watchArray']>
     readonly watchAtMost: UnwrapRef<typeof import('@vueuse/core')['watchAtMost']>

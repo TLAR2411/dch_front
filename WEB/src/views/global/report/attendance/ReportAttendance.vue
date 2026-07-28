@@ -3,10 +3,11 @@ import { getClasses } from "@/services/dataService";
 import { onMounted, ref } from "vue";
 import ReportAttendanceByDay from "../components/ReportAttendanceByDay.vue";
 import ReportAttendanceByMonth from "../components/ReportAttendanceByMonth.vue";
+import ReportAttendanceByTerm from "../components/ReportAttendanceByTerm.vue";
+import ReportAttendanceByYear from "../components/ReportAttendanceByYear.vue";
 
 const classes = ref([]);
-
-const currentTab = ref("window1");
+const reportType = ref("day");
 
 const form = ref({
   class_id: null,
@@ -14,46 +15,72 @@ const form = ref({
 
 onMounted(async () => {
   classes.value = await getClasses();
-  if (classes.value.length > 0) {
-    form.value.class_id = classes.value[0].id;
-  }
 });
 </script>
+
 <template>
   <div>
-    <VRow>
-      <VCol cols="12" md="2"
-        ><AppSelect
+    <VRow align="center">
+      <VCol cols="12" md="4">
+        <AppSelect
           v-model="form.class_id"
           :items="classes"
           item-title="name_en"
           item-value="id"
           autocomplete="off"
           placeholder="Choose Class"
-      /></VCol>
+        />
+      </VCol>
       <VCol cols="12" md="8">
-        <VTabs
-          density="comfortable"
-          variant="tonal"
-          v-model="currentTab"
-          class="v-tabs-pill"
+        <VBtnToggle
+          v-model="reportType"
+          density="compact"
+          color="primary"
+          divided
+          class="report-type-toggle w-100"
         >
-          <VTab>Day</VTab>
-          <VTab>Month</VTab>
-          <VTab>Term</VTab>
-          <VTab>Year</VTab>
-        </VTabs>
+          <VBtn value="day" class="flex-grow-1">Day</VBtn>
+          <VBtn value="month" class="flex-grow-1">Month</VBtn>
+          <VBtn value="term" class="flex-grow-1">Term</VBtn>
+          <VBtn value="year" class="flex-grow-1">Year</VBtn>
+        </VBtnToggle>
       </VCol>
     </VRow>
-    <VCard class="mt-3 pa-3">
-      <VWindow v-model="currentTab">
-        <VWindowItem>
-          <ReportAttendanceByDay :class_id="form.class_id" />
-        </VWindowItem>
-        <VWindowItem>
-          <ReportAttendanceByMonth :class_id="form.class_id" />
-        </VWindowItem>
-      </VWindow>
+
+    <VCard v-if="!form.class_id" class="mt-3 pa-8 text-center">
+      <VIcon size="48" class="mb-3" style="opacity: 0.35">tabler-school</VIcon>
+      <div class="text-body-1 font-weight-medium">
+        Select a class to view attendance reports
+      </div>
+      <div class="text-body-2 mt-1" style="opacity: 0.7">
+        Choose a class above, then pick Day, Month, Term, or Year.
+      </div>
+    </VCard>
+
+    <VCard v-if="form.class_id" class="mt-3 pa-3">
+      <ReportAttendanceByDay
+        v-if="reportType === 'day'"
+        :class_id="form.class_id"
+      />
+      <ReportAttendanceByMonth
+        v-else-if="reportType === 'month'"
+        :class_id="form.class_id"
+      />
+      <ReportAttendanceByTerm
+        v-else-if="reportType === 'term'"
+        :class_id="form.class_id"
+      />
+      <ReportAttendanceByYear
+        v-else-if="reportType === 'year'"
+        :class_id="form.class_id"
+      />
     </VCard>
   </div>
 </template>
+
+<style scoped>
+.report-type-toggle :deep(.v-btn) {
+  text-transform: none;
+  letter-spacing: 0;
+}
+</style>

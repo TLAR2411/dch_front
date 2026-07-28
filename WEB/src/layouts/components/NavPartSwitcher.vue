@@ -5,6 +5,7 @@ import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import hasPermission from "@/utils/hasPermission.js";
+import { getPartDashboardRoute } from "@/utils/partHomeRoutes";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -54,18 +55,10 @@ const current = computed(
 );
 
 // route names that actually exist (matches your nav config)
-const partHome = {
-  admin: "dashboard", // adjust to your admin landing route name
-  khmer: "khmer-dashboard",
-  english: "english-dashboard",
-  chinese: "chinese-dashboard",
-};
-const PART_PREFIXES = ["admin", "english", "khmer", "chinese"];
-
 const switchPart = (part) => {
   if (part === system_part.value) return;
   partStore.setSystemPart(part); // also sets cur_id
-  router.push({ name: partHome[part] });
+  router.push({ name: getPartDashboardRoute(part) });
 };
 
 // const switchPart = (newPart) => {

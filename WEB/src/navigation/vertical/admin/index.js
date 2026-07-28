@@ -9,6 +9,9 @@ export default [
         to: {
             name: "admin-students",
         },
+        createTo: {
+            name: "admin-students-create",
+        },
         icon: { icon: "tabler-user" },
         // permission: "view-students",
     },

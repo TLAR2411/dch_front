@@ -141,7 +141,7 @@ onMounted(async () => {
         <AppTextField
           v-model="itemData.name_kh"
           :label="t('Name Kh')"
-          :rules="[requiredValidator]"
+      
         />
       </VCol>
       <VCol cols="12" sm="4" md="4">
@@ -197,7 +197,7 @@ onMounted(async () => {
         <AppTextField
           v-model="itemData.name_kh"
           :label="t('Name Kh')"
-          :rules="[requiredValidator]"
+          
         />
       </VCol>
       <VCol cols="12" sm="4" md="4">

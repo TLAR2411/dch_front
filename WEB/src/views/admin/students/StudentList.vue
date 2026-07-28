@@ -163,8 +163,8 @@ onMounted(() => {
     <template #[`item.photo_path`]="{ item }">
       <div class="d-flex flex-row pt-2 pb-2">
         <AppName
-          :title="item.name_kh"
-          :sub-title="item.name_en"
+          :title="item.name_en"
+          :sub-title="item.name_kh"
           :image="item.photo_path"
         />
       </div>

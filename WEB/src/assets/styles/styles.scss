@@ -12,15 +12,33 @@
 html,
 body,
 #app {
-  font-family: "Calibri", "notosans", sans-serif;
+  font-family: "notosans", "battambang", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   height: 100%;
   margin: 0;
-  //  font-size-adjust: 0.54;
 }
 
 .v-tab {
-  font-family: "Calibri", "notosans", sans-serif;
-  font-weight: 700; /* Use one of the weights you imported */
+  font-family: "notosans", sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.v-btn {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.v-list-item-title,
+.v-field-label,
+.v-label,
+.v-card-title {
+  font-weight: 400;
 }
 .layout-navbar {
   padding: 0 12px 0 12px !important;
@@ -140,4 +158,18 @@ ul,
 }
 .font-size-4 {
   font-size: 4rem !important;
+}
+
+@media print {
+  .layout-navbar,
+  .layout-vertical-nav,
+  .layout-footer,
+  .report-no-print,
+  .d-print-none {
+    display: none !important;
+  }
+
+  .layout-page-content {
+    padding: 0 !important;
+  }
 }

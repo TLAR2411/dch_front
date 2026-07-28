@@ -7,6 +7,7 @@ import "@styles/styles.scss"
 
 import Notifications, { notify } from "@kyvg/vue3-notification"
 import { router } from "@/router"
+import print from "vue3-print-nb"
 
 // ⬇️ Add this: PWA update handler
 // import { registerSW } from "virtual:pwa-register"
@@ -19,6 +20,7 @@ const app = createApp(App)
 registerPlugins(app)
 app.use(Notifications)
 app.use(router)
+app.directive("print", print)
 
 // 🔧 Register SW before mount so it can take control early
 // const updateSW = registerSW({

@@ -28,6 +28,8 @@ const textApprove = ref("");
 
 const errorMessage = ref("");
 
+const isSubmit = ref(null);
+
 const form = ref({
   class_id: route.params.id ? Number(route.params.id) : null,
   date: "",
@@ -73,6 +75,7 @@ const getData = async () => {
 
     // API returns student_id (not id) — normalise here
     if (res.data.data) {
+      isSubmit.value = res.data.is_submit;
       dataAttendance.value = (res.data.data || []).map((item) => ({
         ...item,
         // default everyone to present, only touch exceptions
@@ -289,30 +292,28 @@ onMounted(async () => {
         </VBtn>
       </VCol>
 
-      <VCol cols="12" md="4" class="d-flex ga-2" v-if="isSearch">
+      <VCol cols="12" md="4" class="d-flex ga-2 flex-wrap" v-if="isSearch">
         <VBtn
           variant="tonal"
           color="success"
           :loading="saving"
           :disabled="saving"
-          prepend-icon="tabler-download"
+          prepend-icon="tabler-send"
           @click="saveAttendance"
           density="comfortable"
         >
-          Submit
-          <!-- <span class="d-none d-sm-inline"> Save </span> -->
+          {{ isSubmit ? "Update" : "Submit" }}
         </VBtn>
         <VBtn
           variant="tonal"
           :color="textApprove == 'Disapprove' ? 'warning' : 'primary'"
           :loading="isApprove"
-          :disabled="isApprove"
+          :disabled="isApprove || !isSubmit"
           @click="approveAttendance"
           prepend-icon="tabler-circle-check"
           density="comfortable"
         >
           {{ textApprove }}
-          <!-- <span class="d-none d-sm-inline"> {{ textApprove }}</span> -->
         </VBtn>
 
         <div>
@@ -342,6 +343,38 @@ onMounted(async () => {
 
     <VRow v-else-if="isSearch">
       <VCol cols="12">
+        <div
+          class="submit-status-banner mb-3"
+          :class="isSubmit ? 'is-submitted' : 'is-draft'"
+        >
+          <div class="d-flex align-center ga-2">
+            <VIcon
+              :icon="isSubmit ? 'tabler-circle-check' : 'tabler-alert-circle'"
+              size="20"
+            />
+            <div>
+              <div class="status-title">
+                {{ isSubmit ? "Already submitted" : "Not yet submitted" }}
+              </div>
+              <div class="status-desc">
+                {{
+                  isSubmit
+                    ? "Attendance for this class, date, and subject has been saved."
+                    : "Mark attendance, then click Submit to save."
+                }}
+              </div>
+            </div>
+          </div>
+          <VChip
+            size="small"
+            label
+            :color="isSubmit ? 'success' : 'warning'"
+            variant="flat"
+          >
+            {{ isSubmit ? "Submitted" : "Draft" }}
+          </VChip>
+        </div>
+
         <VTable
           fixed-header
           density="comfortable"
@@ -473,27 +506,6 @@ onMounted(async () => {
           </tbody>
         </VTable>
       </VCol>
-      <!-- <VCol cols="12" md="5" sm="7">
-      <VCard class="pa-3" density="compact">
-        <p style="font-size: 13px">
-          <span class="font-weight-bold">Note: </span>
-          <span style="opacity: 0.5"
-            >All students are marked as Present by default <br />· Uncheck
-            Present = Absent <br />· Check Late = Present but arrived late
-            <br />· Check Permission = Excused absence (Present & Late are
-            disabled)</span
-          >
-        </p>
-        <div class="legend-bar">
-          <span class="leg"
-            ><span class="ldot success" />Present (default)</span
-          >
-
-          <span class="leg"><span class="ldot error" />Late</span>
-          <span class="leg"><span class="ldot info" />Permission</span>
-        </div>
-      </VCard>
-    </VCol> -->
     </VRow>
 
     <p
@@ -507,6 +519,42 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.submit-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+
+.submit-status-banner.is-draft {
+  background: rgba(var(--v-theme-warning), 0.1);
+  border-color: rgba(var(--v-theme-warning), 0.35);
+  color: rgb(var(--v-theme-warning));
+}
+
+.submit-status-banner.is-submitted {
+  background: rgba(var(--v-theme-success), 0.1);
+  border-color: rgba(var(--v-theme-success), 0.35);
+  color: rgb(var(--v-theme-success));
+}
+
+.status-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.status-desc {
+  font-size: 12px;
+  margin-top: 2px;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
 /* legend */
 
 .legend-bar {

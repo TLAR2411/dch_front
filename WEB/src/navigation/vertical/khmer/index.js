@@ -5,6 +5,7 @@ export default [
     to: {
       name: "global-dashboard",
     },
+    
     permission: "",
   },
 
@@ -13,7 +14,27 @@ export default [
     to: {
       name: "global-student",
     },
+    
     icon: { icon: "tabler-users" },
+    // permission: "view-students",
+  },
+
+
+  {
+    title: "Score Entry",
+    to: {
+      name: "global-score",
+    },
+    icon: { icon: "tabler-file-check" },
+    // permission: "view-grades",
+  },
+
+  {
+    title: "Attendance",
+    to: {
+      name: "global-attendance",
+    },
+    icon: { icon: "tabler-file-check" },
     // permission: "view-students",
   },
 
@@ -40,17 +61,13 @@ export default [
     to: {
       name: "global-teachers",
     },
+    createTo: {
+      name: "global-teachers-create",
+    },
     icon: { icon: "tabler-school" },
     // permission: "view-students",
   },
-  {
-    title: "Attendance",
-    to: {
-      name: "global-attendance",
-    },
-    icon: { icon: "tabler-file-check" },
-    // permission: "view-students",
-  },
+
 
   {
     title: "Checkin Checkout",
@@ -104,6 +121,14 @@ export default [
         },
         // permission: "view-grades",
       },
+
+      {
+        title: "Grade Subjects",
+        to: {
+          name: "global-gradesubject",
+        },
+        // permission: "view-grades",
+      },
       {
         title: "Category",
         to: {
@@ -119,9 +144,12 @@ export default [
         },
         // permission: "view-grades",
       },
+      
 
     ],
   },
+
+
 
 
   {
@@ -137,6 +165,31 @@ export default [
         },
         // permission: "view-grades",
       },
+      {
+        title: "Exam",
+        to: {
+          name: "global-report-exam",
+        },
+        // permission: "view-grades",
+      },
+
+    ],
+  },
+
+  {
+    title: "Settings",
+    icon: { icon: "tabler-settings" },
+    permission: '',
+    children: [
+
+      {
+        title: "Behavior",
+        to: {
+          name: "global-behavior",
+        },
+        // permission: "view-grades",
+      },
+      
 
     ],
   },

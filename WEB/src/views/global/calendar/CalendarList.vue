@@ -1,9 +1,10 @@
 <script setup>
 import supabase from "@/utils/supabase";
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { usePartStore } from "@/stores/partStore";
 import { useSettingStore } from "@/stores/settingStore";
 import { useYearStore } from "@/stores/yearStore";
+import AddEditImportHoliday from "@/views/admin/closed-days/AddEditImportHoliday.vue";
 
 // ── stores ──────────────────────────────────────────────
 const yearStore = useYearStore();
@@ -28,6 +29,13 @@ const showDialog = ref(false);
 const selectedDate = ref("");
 const selectedHoliday = ref(null);
 const form = ref({ name: "", description: "", is_public: false });
+
+// import public holidays
+const isDialogImportHoliday = ref(false);
+const importYear = ref(new Date().getFullYear());
+const importFetchLoading = ref(false);
+const importSaving = ref(false);
+const publicHolidayList = ref([]);
 
 // ── constants ────────────────────────────────────────────
 const MONTHS = [
@@ -252,10 +260,73 @@ async function deleteEvent() {
   }
 }
 
+const fetchHolidaysForYear = async (year) => {
+  const targetYear = Number(year) || currentYear.value;
+  importYear.value = targetYear;
+  importFetchLoading.value = true;
+  publicHolidayList.value = [];
+
+  try {
+    const res = await fetch(
+      `https://date.nager.at/api/v3/publicholidays/${targetYear}/KH`,
+    );
+    if (!res.ok) throw new Error(`Failed to load holidays for ${targetYear}`);
+    const data = await res.json();
+    publicHolidayList.value = Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error(error);
+    publicHolidayList.value = [];
+  } finally {
+    importFetchLoading.value = false;
+  }
+};
+
+const onImportHoliday = async () => {
+  importYear.value = currentYear.value;
+  isDialogImportHoliday.value = true;
+  await fetchHolidaysForYear(importYear.value);
+};
+
+const onCreateHoliday = async (payload, callback) => {
+  try {
+    importSaving.value = true;
+
+    const holidays = Array.isArray(payload) ? payload : payload?.holidays || [];
+    const year =
+      Number(payload?.year) || Number(importYear.value) || currentYear.value;
+
+    if (!holidays.length || !year) {
+      callback(false);
+      return;
+    }
+
+    const insertPayload = holidays.map((d) => ({
+      date: d.date,
+      name_kh: d.localName,
+      name_en: d.name,
+      year: String(year),
+      is_public: true,
+      is_deleted: false,
+    }));
+
+    const { error } = await supabase.from("holiday").insert(insertPayload);
+    if (error) throw error;
+
+    await getHoliday();
+    isDialogImportHoliday.value = false;
+    callback(true);
+  } catch (error) {
+    console.error("Failed to insert holidays:", error);
+    callback(false);
+  } finally {
+    importSaving.value = false;
+  }
+};
+
 watch(
   () => currentYear.value,
-  (newVa) => {
-    console.log("year", currentYear.value);
+  () => {
+    getHoliday();
   },
 );
 
@@ -281,6 +352,14 @@ onMounted(() => {
             <div class="cal-year-label">{{ currentYear }}</div>
           </div>
           <div class="cal-header-right">
+            <button
+              class="btn-import"
+              type="button"
+              @click="onImportHoliday"
+            >
+              <VIcon icon="tabler-download" size="15" class="me-1" />
+              Import
+            </button>
             <button class="btn-today" @click="goToday">Today</button>
             <button class="btn-nav" @click="prevMonth">&#8249;</button>
             <button class="btn-nav" @click="nextMonth">&#8250;</button>
@@ -590,6 +669,16 @@ onMounted(() => {
         </div>
       </Transition>
     </Teleport>
+
+    <AddEditImportHoliday
+      v-model:isDialogImportHoliday="isDialogImportHoliday"
+      v-model:import-year="importYear"
+      :item-data="publicHolidayList"
+      :loading="importSaving"
+      :fetch-loading="importFetchLoading"
+      @on-create-holiday="onCreateHoliday"
+      @on-load-year="fetchHolidaysForYear"
+    />
   </div>
 </template>
 
@@ -904,6 +993,25 @@ onMounted(() => {
 .btn-today:hover {
   background: #f3f4f6;
   color: #111827;
+}
+
+.btn-import {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  padding: 0 12px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(var(--v-theme-primary), 0.25);
+  background: rgba(var(--v-theme-primary), 0.08);
+  cursor: pointer;
+  color: rgb(var(--v-theme-primary));
+  font-family: inherit;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+.btn-import:hover {
+  background: rgba(var(--v-theme-primary), 0.14);
 }
 
 .btn-nav {

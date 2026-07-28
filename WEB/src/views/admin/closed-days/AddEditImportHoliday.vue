@@ -17,11 +17,41 @@ const props = defineProps({
     required: false,
     default: false,
   },
+  fetchLoading: {
+    type: Boolean,
+    required: false,
+    default: false,
+  },
+  importYear: {
+    type: [Number, String],
+    required: false,
+    default: () => new Date().getFullYear(),
+  },
 });
 
-const emit = defineEmits(["onCreateHoliday", "update:isDialogImportHoliday"]);
+const emit = defineEmits([
+  "onCreateHoliday",
+  "update:isDialogImportHoliday",
+  "update:importYear",
+  "on-load-year",
+]);
 
 const selectedHolidays = ref([]);
+const localYear = ref(Number(props.importYear) || new Date().getFullYear());
+
+const yearOptions = computed(() => {
+  const current = new Date().getFullYear();
+  const years = [];
+  for (let y = current - 2; y <= current + 10; y++) {
+    years.push(y);
+  }
+  // Keep custom typed year in the list if outside the range
+  if (localYear.value && !years.includes(Number(localYear.value))) {
+    years.unshift(Number(localYear.value));
+    years.sort((a, b) => a - b);
+  }
+  return years;
+});
 
 const isAllSelected = computed(
   () =>
@@ -34,6 +64,47 @@ const isIndeterminate = computed(
     selectedHolidays.value.length > 0 &&
     selectedHolidays.value.length < props.itemData.length,
 );
+
+watch(
+  () => props.importYear,
+  (val) => {
+    if (val != null && Number(val) !== Number(localYear.value)) {
+      localYear.value = Number(val);
+    }
+  },
+);
+
+watch(
+  () => props.isDialogImportHoliday,
+  (open) => {
+    if (open) {
+      selectedHolidays.value = [];
+      if (!localYear.value) {
+        localYear.value = new Date().getFullYear();
+      }
+      emit("update:importYear", Number(localYear.value));
+      emit("on-load-year", Number(localYear.value));
+    }
+  },
+);
+
+watch(
+  () => props.itemData,
+  () => {
+    selectedHolidays.value = [];
+  },
+);
+
+const onYearChange = (year) => {
+  const nextYear = Number(String(year).trim());
+  if (!nextYear || Number.isNaN(nextYear) || nextYear < 1900 || nextYear > 2100) {
+    return;
+  }
+  localYear.value = nextYear;
+  selectedHolidays.value = [];
+  emit("update:importYear", nextYear);
+  emit("on-load-year", nextYear);
+};
 
 const toggleAll = () => {
   if (isAllSelected.value) {
@@ -58,12 +129,19 @@ const onCloseDialog = () => {
 };
 
 const onImport = debounce(() => {
-  emit("onCreateHoliday", selectedHolidays.value, (res) => {
-    if (res) {
-      selectedHolidays.value = [];
-      emit("update:isDialogImportHoliday", false);
-    }
-  });
+  emit(
+    "onCreateHoliday",
+    {
+      holidays: selectedHolidays.value,
+      year: Number(localYear.value),
+    },
+    (res) => {
+      if (res) {
+        selectedHolidays.value = [];
+        emit("update:isDialogImportHoliday", false);
+      }
+    },
+  );
 }, 500);
 </script>
 
@@ -83,14 +161,41 @@ const onImport = debounce(() => {
           </div>
           <div>
             <div class="hid-title">Import Public Holidays</div>
-            <div class="hid-subtitle">
-              Cambodia · {{ new Date().getFullYear() }}
-            </div>
+            <div class="hid-subtitle">Cambodia national holidays</div>
           </div>
         </div>
         <button class="hid-close" type="button" @click="onCloseDialog">
           <VIcon icon="tabler-x" size="15" />
         </button>
+      </div>
+
+      <!-- Year picker -->
+      <div class="hid-year-bar">
+        <div class="hid-year-label">Import year</div>
+        <div class="hid-year-controls">
+          <AppCombobox
+            :model-value="localYear"
+            :items="yearOptions"
+            
+            placeholder="Select or type year"
+            density="compact"
+            hide-details
+            autocomplete="off"
+            class="hid-year-select"
+            @update:model-value="onYearChange"
+          />
+          <VBtn
+            variant="tonal"
+            color="primary"
+            density="comfortable"
+            prepend-icon="tabler-refresh"
+            :loading="fetchLoading"
+            :disabled="fetchLoading || !localYear"
+            @click="onYearChange(localYear)"
+          >
+            Load
+          </VBtn>
+        </div>
       </div>
 
       <!-- Selection bar -->
@@ -110,15 +215,31 @@ const onImport = debounce(() => {
         </label>
         <span class="hid-count">
           {{ selectedHolidays.length }} / {{ itemData.length }} selected
+          <template v-if="localYear"> · {{ localYear }}</template>
         </span>
       </div>
 
       <!-- Table -->
       <VCardText class="hid-body">
-        <div class="hid-list">
+        <div v-if="fetchLoading" class="hid-empty">
+          <VProgressCircular indeterminate size="28" width="2" />
+          <div class="mt-2">Loading holidays for {{ localYear }}…</div>
+        </div>
+
+        <div v-else-if="!itemData.length" class="hid-empty">
+          <VIcon icon="tabler-calendar-off" size="28" style="opacity: 0.35" />
+          <div class="mt-2">
+            No holidays found for {{ localYear || "this year" }}.
+          </div>
+          <div class="hid-empty-hint">
+            Choose a year above, then click Load.
+          </div>
+        </div>
+
+        <div v-else class="hid-list">
           <div
             v-for="(holiday, index) in itemData"
-            :key="index"
+            :key="`${holiday.date}-${index}`"
             class="hid-row"
             :class="{ 'is-selected': selectedHolidays.includes(holiday) }"
             @click="
@@ -162,7 +283,9 @@ const onImport = debounce(() => {
         <button
           class="hid-btn hid-btn-import"
           type="button"
-          :disabled="selectedHolidays.length === 0 || loading"
+          :disabled="
+            selectedHolidays.length === 0 || loading || !localYear
+          "
           @click="onImport"
         >
           <VIcon
@@ -190,7 +313,6 @@ const onImport = debounce(() => {
   flex-direction: column;
 }
 
-/* Header */
 .hid-header {
   display: flex;
   align-items: center;
@@ -250,7 +372,30 @@ const onImport = debounce(() => {
   background: rgba(var(--v-theme-on-surface), 0.06);
 }
 
-/* Selection bar */
+.hid-year-bar {
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  flex-shrink: 0;
+}
+
+.hid-year-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  margin-bottom: 8px;
+}
+
+.hid-year-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hid-year-select {
+  flex: 1;
+  min-width: 0;
+}
+
 .hid-selection-bar {
   display: flex;
   align-items: center;
@@ -276,7 +421,6 @@ const onImport = debounce(() => {
   color: rgba(var(--v-theme-on-surface), 0.4);
 }
 
-/* Checkbox */
 .hid-checkbox {
   width: 16px;
   height: 16px;
@@ -300,11 +444,27 @@ const onImport = debounce(() => {
   border-color: rgb(var(--v-theme-primary));
 }
 
-/* List */
 .hid-body {
   padding: 8px 12px !important;
   overflow-y: auto;
   max-height: 420px;
+}
+
+.hid-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 36px 16px;
+  font-size: 0.8125rem;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+}
+
+.hid-empty-hint {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  opacity: 0.75;
 }
 
 .hid-list {
@@ -364,7 +524,6 @@ const onImport = debounce(() => {
   font-variant-numeric: tabular-nums;
 }
 
-/* Footer */
 .hid-footer {
   display: flex;
   align-items: center;

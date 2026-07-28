@@ -380,6 +380,19 @@ export const getTeacher = async () => {
 }
 
 
+export const getTerms = async (yearId) => {
+
+    console.log(yearId);
+    try {
+        const response = await api.post("academics-periods-all", {
+            year_id: yearId
+        });
+        return response.data.data;
+    } catch (error) {
+        console.error("Server academics periods error: ", error);
+    }
+}
+
 
 export const getClasses = async () => {
     try {

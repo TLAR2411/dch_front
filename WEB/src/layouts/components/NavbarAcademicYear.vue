@@ -1,11 +1,15 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
+import { useRouter } from "vue-router";
 import { useYearStore } from "@/stores/yearStore";
-import { getYears } from "@/services/dataService";
+import { usePartStore } from "@/stores/partStore";
+import { getPartDashboardRoute } from "@/utils/partHomeRoutes";
 import { app } from "@/utils/app";
 
+const router = useRouter();
 const yearStore = useYearStore();
+const partStore = usePartStore();
 const { year_id } = storeToRefs(yearStore);
 
 const years = ref(app()?.years);
@@ -16,9 +20,19 @@ const currentYear = computed(
     years.value[years.value.length - 1],
 );
 
+const navigateToPartDashboard = () => {
+  const dashboardRoute = getPartDashboardRoute(partStore.system_part);
+
+  if (router.currentRoute.value.name === dashboardRoute) return;
+  if (router.hasRoute(dashboardRoute)) {
+    router.push({ name: dashboardRoute });
+  }
+};
+
 const switchYear = (id) => {
   if (id === year_id.value) return;
   yearStore.setYearId(id);
+  navigateToPartDashboard();
 };
 
 onMounted(async () => {

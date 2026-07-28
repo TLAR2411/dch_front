@@ -109,7 +109,7 @@ const onImageError = () => {
   <div class="d-flex flex-column ml-2">
     <span>{{ title }}</span>
     <span
-      style="font-family: Public Sans; font-size: 10px"
+      style="font-family: notosans, sans-serif; font-size: 10px; font-weight: 400"
       :class="subTitleCondition ? 'text-error' : 'text-primary'"
     >
       {{ subTitle }}

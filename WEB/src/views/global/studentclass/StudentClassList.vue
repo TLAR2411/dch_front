@@ -212,8 +212,8 @@ const onDeleteSelected = async () => {
     <template #[`item.student.photo_path`]="{ item }">
       <div class="d-flex flex-row pt-2 pb-2">
         <AppName
-          :title="item.student.name_kh"
-          :sub-title="item.student.name_en"
+          :title="item.student.name_en"
+          :sub-title="item.student.name_kh"
           :image="item.student.photo_path"
         />
       </div>

@@ -1,6 +1,7 @@
 <script setup>
 import { api } from "@/utils/api";
 import { onMounted, ref, watch, computed } from "vue";
+import FooterRepor from "@/views/global/components/footerRepor.vue";
 
 const props = defineProps({
   class_id: {
@@ -19,6 +20,24 @@ const formDay = ref({
   class_id: props.class_id,
   start_date: null,
 });
+
+const printTitle = computed(() => {
+  if (!formDay.value.start_date) return "Attendance Report Daily";
+  const date = new Date(formDay.value.start_date);
+  if (Number.isNaN(date.getTime())) return "Attendance Report Daily";
+  const label = date.toLocaleDateString("en", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  return `Attendance Report for ${label}`;
+});
+
+const printObj = computed(() => ({
+  id: "printAreaDay",
+  popTitle: printTitle.value,
+}));
 
 const subjects = computed(() => {
   if (!attData.value.length) return [];
@@ -56,30 +75,18 @@ function attStatus(att) {
   return null;
 }
 
-const chipProps = {
-  present: { color: "success", icon: "tabler-check", label: "Present" },
-  late: { color: "warning", icon: "tabler-clock", label: "Late" },
-  permission: { color: "info", icon: "tabler-file-check", label: "Permission" },
-  absent: { color: "error", icon: "tabler-x", label: "Absent" },
+const statusProps = {
+  present: { dot: "dot-present", icon: "tabler-check", label: "Present" },
+  late: { dot: "dot-late", icon: "tabler-clock", label: "Late" },
+  permission: { dot: "dot-permission", icon: "tabler-file-check", label: "Permission" },
+  absent: { dot: "dot-absent", icon: "tabler-x", label: "Absent" },
 };
 
-function getChip(att) {
+function getStatus(att) {
   const status = attStatus(att);
   return status
-    ? chipProps[status]
-    : { color: "default", icon: "tabler-minus", label: "—" };
-}
-
-const avatarColors = [
-  { bg: "#E6F1FB", text: "#0C447C" },
-  { bg: "#EAF3DE", text: "#27500A" },
-  { bg: "#FAEEDA", text: "#633806" },
-  { bg: "#FBEAF0", text: "#72243E" },
-  { bg: "#E1F5EE", text: "#085041" },
-];
-
-function avatarColor(id) {
-  return avatarColors[id % avatarColors.length];
+    ? statusProps[status]
+    : { dot: "dot-none", icon: "tabler-minus", label: "—" };
 }
 
 function initials(name) {
@@ -123,24 +130,33 @@ onMounted(() => {
 
 <template>
   <!-- ── filter ─────────────────────────────────────────────────────── -->
-  <VRow class="mt-1" align="center">
+  <VRow class="mt-1 report-no-print" align="center">
     <VCol cols="9" md="3">
       <AppDateTimePicker
         v-model="formDay.start_date"
         placeholder="Select date"
       />
     </VCol>
-    <VCol cols="3" md="3">
+    <VCol cols="3" md="5" class="d-flex gap-2">
       <VBtn
-        color="success"
+        color="primary"
         @click="getData"
         variant="tonal"
-        density="comfortable"
+        
         :loading="loading"
         :disabled="loading"
         prepend-icon="tabler-search"
         >Search</VBtn
       >
+      <VBtn
+        variant="tonal"
+ 
+        :disabled="!hasData || loading || !attData.length"
+        prepend-icon="tabler-printer"
+        v-print="printObj"
+      >
+        Print
+      </VBtn>
     </VCol>
     <!-- <VCol cols="12" md="9" class="d-flex justify-end">
         <VBtn variant="tonal" size="small" prepend-icon="tabler-download">
@@ -149,7 +165,7 @@ onMounted(() => {
       </VCol> -->
   </VRow>
 
-  <div v-if="hasData">
+  <div v-if="loading || hasData">
     <VRow class="mt-2 d-none d-md-flex">
       <template v-if="loading">
         <VCol v-for="n in 6" :key="n" cols="6" sm="4" md="2">
@@ -169,8 +185,8 @@ onMounted(() => {
 
         <VCol cols="6" sm="4" md="2">
           <div class="stat-card">
-            <div class="stat-icon success-icon">
-              <VIcon size="18" color="success">tabler-check</VIcon>
+            <div class="stat-icon neutral-icon">
+              <VIcon size="18" color="medium-emphasis">tabler-check</VIcon>
             </div>
             <div class="stat-val">{{ stats.present }}</div>
             <div class="stat-lbl">Present</div>
@@ -180,8 +196,8 @@ onMounted(() => {
 
         <VCol cols="6" sm="4" md="2">
           <div class="stat-card">
-            <div class="stat-icon warning-icon">
-              <VIcon size="18" color="warning">tabler-clock</VIcon>
+            <div class="stat-icon neutral-icon">
+              <VIcon size="18" color="medium-emphasis">tabler-clock</VIcon>
             </div>
             <div class="stat-val">{{ stats.late }}</div>
             <div class="stat-lbl">Late</div>
@@ -199,8 +215,8 @@ onMounted(() => {
 
         <VCol cols="6" sm="4" md="2">
           <div class="stat-card">
-            <div class="stat-icon info-icon">
-              <VIcon size="18" color="info">tabler-file-check</VIcon>
+            <div class="stat-icon neutral-icon">
+              <VIcon size="18" color="medium-emphasis">tabler-file-check</VIcon>
             </div>
             <div class="stat-val">{{ stats.permission }}</div>
             <div class="stat-lbl">Permission</div>
@@ -220,8 +236,8 @@ onMounted(() => {
 
         <VCol cols="6" sm="4" md="2">
           <div class="stat-card">
-            <div class="stat-icon error-icon">
-              <VIcon size="18" color="error">tabler-x</VIcon>
+            <div class="stat-icon neutral-icon">
+              <VIcon size="18" color="medium-emphasis">tabler-x</VIcon>
             </div>
             <div class="stat-val">{{ stats.absent }}</div>
             <div class="stat-lbl">Absent</div>
@@ -245,8 +261,8 @@ onMounted(() => {
             </div>
             <div class="stat-val">{{ stats.avgPct }}%</div>
             <div class="stat-lbl">Avg. attendance</div>
-          </div> </VCol
-        >s
+          </div>
+        </VCol>
       </template>
     </VRow>
 
@@ -262,15 +278,18 @@ onMounted(() => {
             class="mt-1"
           />
         </div>
+        <div v-else id="printAreaDay" class="border rounded-lg pa-3">
+          <div class="text-center mb-3 d-none d-print-block">
+            <div class="font-weight-medium">{{ printTitle }}</div>
+          </div>
         <VTable
-          v-else
           fixed-header
           density="comfortable"
-          class="border rounded-lg report-table"
+          class="report-table"
         >
           <thead>
             <tr>
-              <th style="width: 44px" class="text-center">N°</th>
+              <th style="width: 24px" class="text-center">N°</th>
               <th style="min-width: 160px">Student</th>
               <th style="width: 60px" class="text-center">Gender</th>
               <th
@@ -290,10 +309,10 @@ onMounted(() => {
           </thead>
           <tbody>
             <tr v-for="(student, i) in attData" :key="student.id">
-              <td class="text-center no-col">{{ student.index ?? i + 1 }}</td>
+              <td class="text-center ">{{ student.index ?? i + 1 }}</td>
               <td>
-                <div class="name-main">{{ student.name_en }}</div>
-                <div class="name-sub">{{ student.name_kh }}</div>
+                {{ student.name_en }}
+               
               </td>
               <td class="text-center">
                 {{ student.gender === "female" ? "F" : "M" }}
@@ -317,37 +336,43 @@ onMounted(() => {
                   :open-on-hover="false"
                 >
                   <template #activator="{ props: tooltipProps }">
-                    <VChip
+                    <span
                       v-bind="tooltipProps"
-                      size="x-small"
-                      :color="getChip(getAtt(student, sub.subject_id)).color"
-                      variant="tonal"
-                      :prepend-icon="
-                        getChip(getAtt(student, sub.subject_id)).icon
-                      "
+                      class="status-badge"
                       style="cursor: pointer"
                     >
-                      {{ getChip(getAtt(student, sub.subject_id)).label }}
-                    </VChip>
+                      <span
+                        class="status-dot"
+                        :class="getStatus(getAtt(student, sub.subject_id)).dot"
+                      />
+                      <!-- <VIcon size="12" color="medium-emphasis">
+                        {{ getStatus(getAtt(student, sub.subject_id)).icon }}
+                      </VIcon> -->
+                      {{ getStatus(getAtt(student, sub.subject_id)).label }}
+                    </span>
                   </template>
                 </VTooltip>
 
-                <VChip
+                <span
                   v-else
-                  size="x-small"
-                  :color="getChip(getAtt(student, sub.subject_id)).color"
-                  variant="tonal"
-                  :prepend-icon="getChip(getAtt(student, sub.subject_id)).icon"
+                  class="status-badge"
                 >
-                  {{ getChip(getAtt(student, sub.subject_id)).label }}
-                </VChip>
+                  <span
+                    class="status-dot"
+                    :class="getStatus(getAtt(student, sub.subject_id)).dot"
+                  />
+                  <!-- <VIcon size="12" color="medium-emphasis">
+                    {{ getStatus(getAtt(student, sub.subject_id)).icon }}
+                  </VIcon> -->
+                  {{ getStatus(getAtt(student, sub.subject_id)).label }}
+                </span>
               </td>
-              <td class="text-center total-p">{{ student.present_total }}</td>
-              <td class="text-center total-l">{{ student.late_total }}</td>
-              <td class="text-center total-x">
+              <td class="text-center total-col">{{ student.present_total }}</td>
+              <td class="text-center total-col">{{ student.late_total }}</td>
+              <td class="text-center total-col">
                 {{ student.ask_permission_total }}
               </td>
-              <td class="text-center total-a">{{ student.absent_total }}</td>
+              <td class="text-center total-col">{{ student.absent_total }}</td>
             </tr>
 
             <tr v-if="!attData.length">
@@ -360,6 +385,8 @@ onMounted(() => {
             </tr>
           </tbody>
         </VTable>
+        <FooterRepor editable />
+        </div>
       </VCol>
     </VRow>
 
@@ -384,10 +411,7 @@ onMounted(() => {
             <!-- header -->
             <div class="student-card-head">
               <div class="d-flex align-center gap-2">
-                <div
-                  class="avi"
-                  :style="`background:${avatarColor(student.id).bg};color:${avatarColor(student.id).text}`"
-                >
+                <div class="avi">
                   {{ initials(student.name_en) }}
                 </div>
                 <div>
@@ -395,13 +419,9 @@ onMounted(() => {
                   <div class="name-sub">{{ student.name_kh }}</div>
                 </div>
               </div>
-              <VChip
-                size="x-small"
-                :color="student.gender === 'female' ? 'pink' : 'info'"
-                variant="tonal"
-              >
+              <span class="gender-tag">
                 {{ student.gender === "female" ? "F" : "M" }}
-              </VChip>
+              </span>
             </div>
 
             <!-- subjects -->
@@ -425,47 +445,46 @@ onMounted(() => {
                   :open-on-hover="false"
                 >
                   <template #activator="{ props: tooltipProps }">
-                    <VChip
+                    <span
                       v-bind="tooltipProps"
-                      size="x-small"
-                      :color="getChip(att).color"
-                      variant="tonal"
-                      :prepend-icon="getChip(att).icon"
+                      class="status-badge"
                       style="cursor: pointer"
                     >
-                      {{ getChip(att).label }}
-                    </VChip>
+                      <span class="status-dot" :class="getStatus(att).dot" />
+                      <VIcon size="12" color="medium-emphasis">
+                        {{ getStatus(att).icon }}
+                      </VIcon>
+                      {{ getStatus(att).label }}
+                    </span>
                   </template>
                 </VTooltip>
 
-                <VChip
-                  v-else
-                  size="x-small"
-                  :color="getChip(att).color"
-                  variant="tonal"
-                  :prepend-icon="getChip(att).icon"
-                >
-                  {{ getChip(att).label }}
-                </VChip>
+                <span v-else class="status-badge">
+                  <span class="status-dot" :class="getStatus(att).dot" />
+                  <VIcon size="12" color="medium-emphasis">
+                    {{ getStatus(att).icon }}
+                  </VIcon>
+                  {{ getStatus(att).label }}
+                </span>
               </div>
             </div>
 
             <!-- totals footer -->
             <div class="card-totals">
-              <div class="ct success-text">
-                <VIcon size="13" color="success">tabler-check</VIcon>
+              <div class="ct">
+                <VIcon size="13" color="medium-emphasis">tabler-check</VIcon>
                 {{ student.present_total }} present
               </div>
-              <div class="ct warning-text">
-                <VIcon size="13" color="warning">tabler-clock</VIcon>
+              <div class="ct">
+                <VIcon size="13" color="medium-emphasis">tabler-clock</VIcon>
                 {{ student.late_total }} late
               </div>
-              <div class="ct info-text">
-                <VIcon size="13" color="info">tabler-file-check</VIcon>
+              <div class="ct">
+                <VIcon size="13" color="medium-emphasis">tabler-file-check</VIcon>
                 {{ student.ask_permission_total }} permission
               </div>
-              <div class="ct error-text">
-                <VIcon size="13" color="error">tabler-x</VIcon>
+              <div class="ct">
+                <VIcon size="13" color="medium-emphasis">tabler-x</VIcon>
                 {{ student.absent_total }} absent
               </div>
             </div>
@@ -504,36 +523,12 @@ onMounted(() => {
 .neutral-icon {
   background: rgba(var(--v-theme-on-surface), 0.06);
 }
-.success-icon {
-  background: rgba(var(--v-theme-success), 0.12);
-}
-.warning-icon {
-  background: rgba(var(--v-theme-warning), 0.12);
-}
-.info-icon {
-  background: rgba(var(--v-theme-info), 0.12);
-}
-.error-icon {
-  background: rgba(var(--v-theme-error), 0.12);
-}
 
 .stat-val {
   font-size: 22px;
   font-weight: 500;
   line-height: 1;
   color: rgb(var(--v-theme-on-surface));
-}
-.success-val {
-  color: rgb(var(--v-theme-success));
-}
-.warning-val {
-  color: rgb(var(--v-theme-warning));
-}
-.info-val {
-  color: rgb(var(--v-theme-info));
-}
-.error-val {
-  color: rgb(var(--v-theme-error));
 }
 
 .stat-lbl {
@@ -544,19 +539,43 @@ onMounted(() => {
 .stat-sub {
   font-size: 11px;
   margin-top: 2px;
-  opacity: 0.7;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
-.success-sub {
-  color: rgb(var(--v-theme-success));
+
+/* status badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  white-space: nowrap;
 }
-.warning-sub {
-  color: rgb(var(--v-theme-warning));
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
-.info-sub {
-  color: rgb(var(--v-theme-info));
+.dot-present {
+  background: rgba(var(--v-theme-on-surface), 0.35);
 }
-.error-sub {
-  color: rgb(var(--v-theme-error));
+.dot-late {
+  background: rgba(var(--v-theme-on-surface), 0.5);
+}
+.dot-permission {
+  background: rgba(var(--v-theme-on-surface), 0.45);
+}
+.dot-absent {
+  background: rgb(var(--v-theme-error));
+}
+.dot-none {
+  background: rgba(var(--v-theme-on-surface), 0.15);
 }
 
 /* table */
@@ -578,25 +597,9 @@ onMounted(() => {
   opacity: 0.5;
   margin-top: 1px;
 }
-.no-col {
-  font-size: 12px;
-  opacity: 0.4;
-}
-.total-p {
-  color: rgb(var(--v-theme-success));
+.total-col {
   font-weight: 500;
-}
-.total-l {
-  color: rgb(var(--v-theme-warning));
-  font-weight: 500;
-}
-.total-x {
-  color: rgb(var(--v-theme-info));
-  font-weight: 500;
-}
-.total-a {
-  color: rgb(var(--v-theme-error));
-  font-weight: 500;
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
 }
 
 .report-table tbody tr:hover td {
@@ -627,6 +630,17 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 500;
   flex-shrink: 0;
+  background: rgba(var(--v-theme-on-surface), 0.08);
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+}
+.gender-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 .subject-rows {
   display: flex;
@@ -658,17 +672,21 @@ onMounted(() => {
   gap: 4px;
   font-size: 12px;
   font-weight: 500;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
-.success-text {
-  color: rgb(var(--v-theme-success)) !important;
-}
-.warning-text {
-  color: rgb(var(--v-theme-warning)) !important;
-}
-.info-text {
-  color: rgb(var(--v-theme-info)) !important;
-}
-.error-text {
-  color: rgb(var(--v-theme-error)) !important;
+
+@media print {
+  .report-no-print {
+    display: none !important;
+  }
+
+  .d-print-block {
+    display: block !important;
+  }
+
+  #printAreaDay {
+    border: none !important;
+    padding: 0 !important;
+  }
 }
 </style>

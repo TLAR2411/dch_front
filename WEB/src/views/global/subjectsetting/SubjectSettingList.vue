@@ -4,6 +4,8 @@ import { api } from "@/utils/api";
 import { useDisplay } from "vuetify";
 import formatTime from "@/utils/formater/formatTime";
 import AddEditSubjectSettingDialog from "./AddEditSubjectSettingDialog.vue";
+import AddEditAssessmentDialog from "./AddEditAssessmentDialog.vue";
+import SubjectSettingRuleList from "./SubjectSettingRuleList.vue";
 import { onMounted, ref, computed } from "vue";
 import { getSubjects } from "@/services/dataService.js";
 import supabase from "@/utils/supabase.js";
@@ -33,6 +35,8 @@ const { t } = useI18n();
 
 const formData = ref({});
 const isDialogVisible = ref(false);
+const isAssessmentDialogVisible = ref(false);
+const assessmentFormData = ref({});
 const isLoading = ref(true);
 
 const subjects = ref([]);
@@ -42,31 +46,69 @@ const filter = ref({
   search: null,
 });
 
-// only one grade open at a time - holds the currently open grade_id (or null)
+// only one grade open at a time
 const openGradeId = ref(null);
-// subject panels can stay open independently, keyed by id
-const openSubjects = ref({});
+// only one parent subject open at a time
+const openSubjectKey = ref(null);
+// only one child subject open at a time per parent
+const openChildSubjects = ref({});
+// only one category/rule open at a time
+const openRuleKey = ref(null);
 
 const toggleGrade = (gradeId) => {
   openGradeId.value = openGradeId.value === gradeId ? null : gradeId;
 };
 
+const subjectRowKey = (gradeId, subjectId) => `${gradeId}-${subjectId}`;
+
+const isSubjectOpen = (gradeId, subjectId) =>
+  openSubjectKey.value === subjectRowKey(gradeId, subjectId);
+
 const toggleSubject = (subjectRowId) => {
-  openSubjects.value[subjectRowId] = !openSubjects.value[subjectRowId];
+  openSubjectKey.value =
+    openSubjectKey.value === subjectRowId ? null : subjectRowId;
+  openRuleKey.value = null;
 };
 
-// category (rule) rows can expand to show their assessments
-const openRules = ref({});
+const parentChildKey = (gradeId, parentSubjectId) =>
+  `${gradeId}-${parentSubjectId}`;
 
-const ruleKey = (gradeId, subjectId, rule) =>
-  `${gradeId}-${subjectId}-${rule.grading_rule_id ?? rule.category_id}`;
+const subjectSectionKey = (gradeId, subjectId) => `${gradeId}-${subjectId}`;
+
+const openSubjectSections = ref({});
+
+const isChildSubjectOpen = (gradeId, parentSubjectId, childSubjectId) =>
+  openChildSubjects.value[parentChildKey(gradeId, parentSubjectId)] ===
+  childSubjectId;
+
+const toggleChildSubject = (gradeId, parentSubjectId, childSubjectId) => {
+  const parentKey = parentChildKey(gradeId, parentSubjectId);
+  const isOpen = openChildSubjects.value[parentKey] === childSubjectId;
+
+  openChildSubjects.value = {
+    ...openChildSubjects.value,
+    [parentKey]: isOpen ? null : childSubjectId,
+  };
+
+  if (!isOpen) {
+    openRuleKey.value = null;
+  }
+};
+
+const toggleSubjectSection = (gradeId, subjectId, section) => {
+  const key = subjectSectionKey(gradeId, subjectId);
+  const isClosing = openSubjectSections.value[key] === section;
+
+  openSubjectSections.value = {
+    ...openSubjectSections.value,
+    [key]: isClosing ? null : section,
+  };
+  openRuleKey.value = null;
+};
 
 const toggleRule = (key) => {
-  openRules.value[key] = !openRules.value[key];
+  openRuleKey.value = openRuleKey.value === key ? null : key;
 };
-
-// bar segment colors, cycling for however many rule categories a subject has
-const barColors = ["#1e1e2d", "#4b4b63", "#9a9ab0", "#c8c8d6"];
 
 const totalMaxScore = (subject) =>
   (subject.rules || []).reduce((sum, r) => sum + Number(r.max_score || 0), 0);
@@ -84,11 +126,19 @@ const filteredGrades = computed(() => {
         grade.grade?.name_en?.toLowerCase().includes(q) ||
         grade.grade?.name_kh?.toLowerCase().includes(q);
 
-      const matchingSubjects = (grade.subjects || []).filter(
-        (s) =>
+      const matchingSubjects = (grade.subjects || []).filter((s) => {
+        const parentMatches =
           s.subject?.name_en?.toLowerCase().includes(q) ||
-          s.subject?.name_kh?.toLowerCase().includes(q),
-      );
+          s.subject?.name_kh?.toLowerCase().includes(q);
+
+        const childMatches = (s.child_subjects || []).some(
+          (child) =>
+            child.subject?.name_en?.toLowerCase().includes(q) ||
+            child.subject?.name_kh?.toLowerCase().includes(q),
+        );
+
+        return parentMatches || childMatches;
+      });
 
       if (gradeMatches) return grade;
       if (matchingSubjects.length)
@@ -138,29 +188,80 @@ const fetchGrades = async () => {
 //   }
 // };
 
+const collectSubjectIdsForDelete = async (subjectId) => {
+  const { data: children, error } = await supabase
+    .from("subjects")
+    .select("id")
+    .eq("parent_id", subjectId);
+
+  if (error) throw error;
+
+  const childIds = (children || []).map((child) => child.id);
+
+  return {
+    subjectIds: [subjectId, ...childIds],
+    childIds,
+  };
+};
+
+const fetchGradingRuleIdsForSubjects = async (
+  subjectIds,
+  childIds,
+  gradeId,
+) => {
+  let query = supabase
+    .from("grade_subject_grading_rule")
+    .select("id")
+    .eq("grade_id", gradeId)
+    .eq("year_id", yearId);
+
+  if (childIds.length) {
+    query = query.or(
+      `subject_id.in.(${subjectIds.join(",")}),child_subject_id.in.(${childIds.join(",")})`,
+    );
+  } else {
+    query = query.in("subject_id", subjectIds);
+  }
+
+  const { data: rules, error } = await query;
+  if (error) throw error;
+
+  return (rules || []).map((rule) => rule.id);
+};
+
+const deleteAssessmentsByRuleIds = async (ruleIds) => {
+  if (!ruleIds.length) return;
+
+  const { error } = await supabase
+    .from("assessment_items")
+    .delete()
+    .in("grade_subject_grading_rule_id", ruleIds);
+
+  if (error) throw error;
+};
+
+const deleteGradingRulesByIds = async (ruleIds) => {
+  if (!ruleIds.length) return;
+
+  const { error } = await supabase
+    .from("grade_subject_grading_rule")
+    .delete()
+    .in("id", ruleIds);
+
+  if (error) throw error;
+};
+
 const onDeleteRule = async (id) => {
   await DeleteAlert(async () => {
     try {
-      // delete the rule's assessment items first
-      const { error: itemsError } = await supabase
-        .from("assessment_items")
-        .delete()
-        .eq("grade_subject_grading_rule_id", id);
-
-      if (itemsError) throw itemsError;
-
-      const { error } = await supabase
-        .from("grade_subject_grading_rule")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      await deleteAssessmentsByRuleIds([id]);
+      await deleteGradingRulesByIds([id]);
 
       successAlert.fire({
         icon: "success",
         title: "Rule deleted successfully",
       });
-      fetchGrades();
+      fetchGrades1();
     } catch (error) {
       console.error("Failed to delete rule:", error);
       successAlert.fire({
@@ -171,50 +272,42 @@ const onDeleteRule = async (id) => {
   });
 };
 
-const onDelete = async (id, gradeId) => {
+const onDelete = async (subjectId, gradeId) => {
+  if (!gradeId) {
+    successAlert.fire({
+      icon: "error",
+      title: "Grade is required to delete subject grading rules",
+    });
+    return;
+  }
+
   await DeleteAlert(async () => {
     try {
-      // find all rule ids for this subject/grade/year
-      const { data: rules, error: rulesError } = await supabase
-        .from("grade_subject_grading_rule")
-        .select("id")
-        .eq("subject_id", id)
-        .eq("year_id", yearId)
-        .eq("grade_id", gradeId);
+      const { subjectIds, childIds } =
+        await collectSubjectIdsForDelete(subjectId);
 
-      if (rulesError) throw rulesError;
+      const ruleIds = await fetchGradingRuleIdsForSubjects(
+        subjectIds,
+        childIds,
+        gradeId,
+      );
 
-      const ruleIds = (rules || []).map((r) => r.id);
-
-      // delete their assessment items first
-      if (ruleIds.length) {
-        const { error: itemsError } = await supabase
-          .from("assessment_items")
-          .delete()
-          .in("grade_subject_grading_rule_id", ruleIds);
-
-        if (itemsError) throw itemsError;
-      }
-
-      const { error } = await supabase
-        .from("grade_subject_grading_rule")
-        .delete()
-        .eq("subject_id", id)
-        .eq("year_id", yearId)
-        .eq("grade_id", gradeId);
-
-      if (error) throw error;
+      await deleteAssessmentsByRuleIds(ruleIds);
+      await deleteGradingRulesByIds(ruleIds);
 
       successAlert.fire({
         icon: "success",
-        title: "Rule deleted successfully",
+        title:
+          childIds.length > 0
+            ? "Subject, child subjects, rules, and assessments deleted successfully"
+            : "Subject rules and assessments deleted successfully",
       });
-      fetchGrades();
+      fetchGrades1();
     } catch (error) {
-      console.error("Failed to delete rule:", error);
+      console.error("Failed to delete subject grading data:", error);
       successAlert.fire({
         icon: "error",
-        title: error.message || "Failed to delete rule",
+        title: error.message || "Failed to delete subject grading data",
       });
     }
   });
@@ -225,7 +318,7 @@ const onCreate = async (data, callback) => {
     isLoading.value = true;
     const res = await api.post("grading-rule-store", data);
     if (res.data.status) {
-      await fetchGrades();
+      await fetchGrades1();
       isDialogVisible.value = false;
     } else {
       console.error("Error with the response:", res.data);
@@ -283,6 +376,128 @@ const onEdit = async (id, type, grade_id = null) => {
 //   }
 // };
 
+const fetchChildSubjectRows = async (parentSubjectId) => {
+  const { data, error } = await supabase
+    .from("subjects")
+    .select("id, name_en")
+    .eq("parent_id", parentSubjectId);
+
+  if (error) throw error;
+  return data ?? [];
+};
+
+const validateParentChildCategoryMaxScores = async ({
+  subjectId,
+  yearId: selectedYearId,
+  gradeIds,
+  rules,
+}) => {
+  const { data: subjectRow, error: subjectError } = await supabase
+    .from("subjects")
+    .select("id, parent_id, name_en")
+    .eq("id", subjectId)
+    .single();
+
+  if (subjectError) throw subjectError;
+
+  if (subjectRow.parent_id) {
+    for (const rule of rules) {
+      if (Number(rule.percentage || 0) !== 0) {
+        return `${subjectRow.name_en}: child subject categories should have 0% weight (they roll up into the parent).`;
+      }
+    }
+
+    const siblings = await fetchChildSubjectRows(subjectRow.parent_id);
+    const siblingIds = siblings.map((child) => child.id);
+
+    for (const gradeId of gradeIds) {
+      for (const rule of rules) {
+        const { data: siblingRules, error } = await supabase
+          .from("grade_subject_grading_rule")
+          .select("subject_id, category_id, max_score")
+          .eq("year_id", selectedYearId)
+          .eq("grade_id", gradeId)
+          .eq("category_id", rule.category_id)
+          .in("subject_id", siblingIds);
+
+        if (error) throw error;
+
+        const siblingTotal = siblings.reduce((sum, sibling) => {
+          if (Number(sibling.id) === Number(subjectId)) {
+            return sum + Number(rule.max_score || 0);
+          }
+
+          const row = (siblingRules ?? []).find(
+            (entry) => entry.subject_id === sibling.id,
+          );
+          return sum + Number(row?.max_score || 0);
+        }, 0);
+
+        const { data: parentRule, error: parentError } = await supabase
+          .from("grade_subject_grading_rule")
+          .select("max_score")
+          .eq("year_id", selectedYearId)
+          .eq("grade_id", gradeId)
+          .eq("subject_id", subjectRow.parent_id)
+          .eq("category_id", rule.category_id)
+          .maybeSingle();
+
+        if (parentError) throw parentError;
+        if (!parentRule) continue;
+
+        const parentMax = Number(parentRule.max_score);
+        if (!Number.isFinite(parentMax)) continue;
+
+        if (Math.abs(parentMax - siblingTotal) > 0.01) {
+          return `Child max scores for this category sum to ${siblingTotal} pts, but the parent category max is ${parentMax} pts. Adjust parent or child rules so they match.`;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  const children = await fetchChildSubjectRows(subjectId);
+  if (!children.length) return null;
+
+  for (const gradeId of gradeIds) {
+    const { data: childRules, error } = await supabase
+      .from("grade_subject_grading_rule")
+      .select("subject_id, category_id, max_score")
+      .eq("year_id", selectedYearId)
+      .eq("grade_id", gradeId)
+      .in(
+        "subject_id",
+        children.map((child) => child.id),
+      );
+
+    if (error) throw error;
+
+    const childMaxByCategory = new Map();
+    for (const row of childRules ?? []) {
+      childMaxByCategory.set(
+        row.category_id,
+        (childMaxByCategory.get(row.category_id) || 0) +
+          Number(row.max_score || 0),
+      );
+    }
+
+    for (const rule of rules) {
+      const childTotal = childMaxByCategory.get(rule.category_id);
+      if (childTotal == null) continue;
+
+      const parentMax = Number(rule.max_score);
+      if (!Number.isFinite(parentMax)) continue;
+
+      if (Math.abs(parentMax - childTotal) > 0.01) {
+        return `Category max score (${parentMax} pts) must equal the sum of child subject max scores (${childTotal} pts).`;
+      }
+    }
+  }
+
+  return null;
+};
+
 const onUpdate = async (data, callback) => {
   isLoading.value = true;
   try {
@@ -294,6 +509,22 @@ const onUpdate = async (data, callback) => {
     if (!subject_id || !year_id || !gradeIds.length || !rules?.length) {
       console.error("Missing subject_id / year_id / grade_id / rules");
       callback(false);
+      return;
+    }
+
+    const validationMessage = await validateParentChildCategoryMaxScores({
+      subjectId: subject_id,
+      yearId: year_id,
+      gradeIds,
+      rules,
+    });
+
+    if (validationMessage) {
+      successAlert.fire({
+        icon: "error",
+        title: validationMessage,
+      });
+      callback(false, validationMessage);
       return;
     }
 
@@ -414,7 +645,7 @@ const onUpdate = async (data, callback) => {
       if (error) throw error;
     }
 
-    await fetchGrades();
+    await fetchGrades1();
     isDialogVisible.value = false;
     callback(true);
   } catch (error) {
@@ -432,7 +663,7 @@ const onDisable = async (item, callback) => {
     });
 
     if (res.data.status) {
-      await fetchGrades();
+      await fetchGrades1();
     } else {
       console.error("Error with the response:", res.data);
     }
@@ -442,14 +673,391 @@ const onDisable = async (item, callback) => {
   }
 };
 
+const gradeSubjectRulesKey = (gradeId, subjectId) => `${gradeId}-${subjectId}`;
+
+const mapRulePayload = (row) => ({
+  grading_rule_id: row.id,
+  grade_id: row.grade_id ?? null,
+  subject_id: row.subject_id ?? null,
+  category_id: row.category_id ?? null,
+  category: row.category
+    ? {
+        name_en: row.category.name_en ?? null,
+        name_kh: row.category.name_kh ?? null,
+      }
+    : {
+        name_en: null,
+        name_kh: null,
+      },
+  percentage: row.percentage ?? null,
+  max_score: row.max_score ?? null,
+  assessments: (row.assessments ?? [])
+    .filter(
+      (assessment) =>
+        assessment.subject_id == null ||
+        Number(assessment.subject_id) === Number(row.subject_id),
+    )
+    .map((assessment) => ({
+      id: assessment.id,
+      item_name: assessment.item_name ?? null,
+      max_score: assessment.max_score ?? null,
+      sequence_no: assessment.sequence_no ?? null,
+      subject_id: assessment.subject_id ?? null,
+    }))
+    .sort((a, b) => {
+      const aSeq = Number(a.sequence_no ?? 0);
+      const bSeq = Number(b.sequence_no ?? 0);
+      return aSeq - bSeq || Number(a.id ?? 0) - Number(b.id ?? 0);
+    }),
+});
+
+const sortRules = (rules) =>
+  [...rules].sort((a, b) => {
+    if (a.category_id == null && b.category_id == null) return 0;
+    if (a.category_id == null) return 1;
+    if (b.category_id == null) return -1;
+    return a.category_id - b.category_id;
+  });
+
+const mapSubjectPayload = (
+  subjectId,
+  subject,
+  rules,
+  childSubjects = [],
+  rulesByGradeSubjectId = new Map(),
+  gradeId = null,
+) => ({
+  subject_id: subjectId,
+  subject: subject
+    ? {
+        name_en: subject.name_en ?? null,
+        name_kh: subject.name_kh ?? null,
+      }
+    : null,
+  rules: sortRules(rules),
+  child_subjects: [...childSubjects]
+    .sort((a, b) =>
+      String(a.name_en ?? "").localeCompare(String(b.name_en ?? "")),
+    )
+    .map((child) =>
+      mapSubjectPayload(
+        child.id,
+        child,
+        rulesByGradeSubjectId.get(gradeSubjectRulesKey(gradeId, child.id)) ??
+          [],
+        [],
+        rulesByGradeSubjectId,
+        gradeId,
+      ),
+    ),
+});
+
+const fetchGrades1 = async () => {
+  isLoading.value = true;
+  try {
+    const { data: ruleRows, error: rulesError } = await supabase
+      .from("grade_subject_grading_rule")
+      .select(`
+        id,
+        grade_id,
+        year_id,
+        subject_id,
+        category_id,
+        percentage,
+        max_score,
+        grade:grades(name_en, name_kh),
+        year:school_year(year_name),
+        subject:subjects(name_en, name_kh, parent_id),
+        category:grading_category(name_en, name_kh),
+        assessments:assessment_items(id, item_name, max_score, sequence_no, subject_id)
+      `)
+      .eq("year_id", yearId);
+
+    if (rulesError) throw rulesError;
+
+    const rows = ruleRows ?? [];
+    const rulesByGradeSubjectId = new Map();
+    const groupedByGrade = new Map();
+
+    for (const row of rows) {
+      const ruleKey = gradeSubjectRulesKey(row.grade_id, row.subject_id);
+      if (!rulesByGradeSubjectId.has(ruleKey)) {
+        rulesByGradeSubjectId.set(ruleKey, []);
+      }
+      rulesByGradeSubjectId.get(ruleKey).push(mapRulePayload(row));
+
+      if (!groupedByGrade.has(row.grade_id)) {
+        groupedByGrade.set(row.grade_id, {
+          grade_id: row.grade_id,
+          year_id: row.year_id,
+          grade: row.grade ?? null,
+          year: row.year ?? null,
+          subjects: [],
+        });
+      }
+
+      const gradeGroup = groupedByGrade.get(row.grade_id);
+      let subjectGroup = gradeGroup.subjects.find(
+        (subject) => subject.subject_id === row.subject_id,
+      );
+
+      if (!subjectGroup) {
+        subjectGroup = {
+          subject_id: row.subject_id,
+          subjectRow: row.subject ?? null,
+        };
+        gradeGroup.subjects.push(subjectGroup);
+      }
+    }
+
+    const parentSubjectIds = [
+      ...new Set(
+        [...groupedByGrade.values()].flatMap((gradeGroup) =>
+          gradeGroup.subjects
+            .filter((subjectGroup) => !subjectGroup.subjectRow?.parent_id)
+            .map((subjectGroup) => subjectGroup.subject_id),
+        ),
+      ),
+    ];
+
+    let childSubjectRows = [];
+    if (parentSubjectIds.length) {
+      const { data: childRows, error: childError } = await supabase
+        .from("subjects")
+        .select("id, name_en, name_kh, parent_id")
+        .in("parent_id", parentSubjectIds);
+
+      if (childError) throw childError;
+      childSubjectRows = childRows ?? [];
+    }
+
+    const childrenByParentId = new Map();
+    for (const child of childSubjectRows) {
+      if (!childrenByParentId.has(child.parent_id)) {
+        childrenByParentId.set(child.parent_id, []);
+      }
+      childrenByParentId.get(child.parent_id).push(child);
+    }
+
+    const result = [...groupedByGrade.values()]
+      .map((gradeGroup) => ({
+        grade_id: gradeGroup.grade_id,
+        year_id: gradeGroup.year_id,
+        grade: gradeGroup.grade,
+        year: gradeGroup.year,
+        subjects: gradeGroup.subjects
+          .filter((subjectGroup) => !subjectGroup.subjectRow?.parent_id)
+          .map((subjectGroup) =>
+            mapSubjectPayload(
+              subjectGroup.subject_id,
+              subjectGroup.subjectRow,
+              rulesByGradeSubjectId.get(
+                gradeSubjectRulesKey(
+                  gradeGroup.grade_id,
+                  subjectGroup.subject_id,
+                ),
+              ) ?? [],
+              childrenByParentId.get(subjectGroup.subject_id) ?? [],
+              rulesByGradeSubjectId,
+              gradeGroup.grade_id,
+            ),
+          )
+          .sort((a, b) =>
+            String(a.subject?.name_en ?? "").localeCompare(
+              String(b.subject?.name_en ?? ""),
+            ),
+          ),
+      }))
+      .sort((a, b) =>
+        String(a.grade?.name_en ?? "").localeCompare(String(b.grade?.name_en ?? "")),
+      );
+
+    const path = `${window.location.origin}${window.location.pathname}`;
+
+    const response = {
+      status: true,
+      data: {
+        data: result,
+        links: {
+          first: `${path}?page=1`,
+          last: `${path}?page=1`,
+          next: null,
+          prev: null,
+        },
+        meta: {
+          current_page: 1,
+          from: result.length ? 1 : 0,
+          to: result.length,
+          last_page: 1,
+          per_page: 10,
+          total: result.length,
+          path: `${path}/`,
+          links: [
+            {
+              url: null,
+              label: "&laquo; Previous",
+              page: null,
+              active: false,
+            },
+            {
+              url: `${path}?page=1`,
+              label: "1",
+              page: 1,
+              active: true,
+            },
+            {
+              url: null,
+              label: "Next &raquo;",
+              page: null,
+              active: false,
+            },
+          ],
+        },
+      },
+    };
+
+    grades.value = response.data.data;
+
+    if (grades.value.length && openGradeId.value === null) {
+      openGradeId.value = grades.value[0].grade_id;
+    }
+
+    return response;
+  } catch (error) {
+    console.error("Failed to fetch data from Supabase:", error);
+    grades.value = [];
+    return {
+      status: false,
+      data: {
+        data: [],
+      },
+      message: error.message || "Failed to fetch data from Supabase.",
+    };
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 const openCreateDialog = () => {
   formData.value = {};
   isDialogVisible.value = true;
 };
 
+const openAssessmentDialog = (rule, subjectId) => {
+  const ruleAssessments = (rule.assessments ?? []).filter(
+    (assessment) =>
+      assessment.subject_id == null ||
+      Number(assessment.subject_id) === Number(subjectId),
+  );
+
+  const existingUsedScore = ruleAssessments.reduce(
+    (sum, assessment) => sum + Number(assessment.max_score || 0),
+    0,
+  );
+
+  assessmentFormData.value = {
+    grading_rule_id: rule.grading_rule_id,
+    subject_id: subjectId,
+    category_name: rule.category?.name_en ?? null,
+    category_max_score: rule.max_score ?? null,
+    category_percentage: rule.percentage ?? null,
+    existing_used_score: existingUsedScore,
+    existing_count: ruleAssessments.length,
+  };
+  isAssessmentDialogVisible.value = true;
+};
+
+const onCreateAssessment = async (data, callback) => {
+  try {
+    isLoading.value = true;
+
+    const payload = (data.assessments ?? []).map((row) => ({
+      grade_subject_grading_rule_id: data.grading_rule_id,
+      item_name: row.item_name,
+      max_score: Number(row.max_score),
+      sequence_no: row.sequence_no ? Number(row.sequence_no) : null,
+      subject_id: data.subject_id ?? null,
+    }));
+
+    if (!payload.length) {
+      throw new Error("Please add at least one assessment.");
+    }
+
+    const { data: ruleRow, error: ruleError } = await supabase
+      .from("grade_subject_grading_rule")
+      .select("max_score, subject_id")
+      .eq("id", data.grading_rule_id)
+      .single();
+
+    if (ruleError) throw ruleError;
+
+    if (
+      data.subject_id != null &&
+      Number(ruleRow.subject_id) !== Number(data.subject_id)
+    ) {
+      throw new Error("This category does not belong to the selected subject.");
+    }
+
+    let existingItemsQuery = supabase
+      .from("assessment_items")
+      .select("max_score")
+      .eq("grade_subject_grading_rule_id", data.grading_rule_id);
+
+    if (data.subject_id != null) {
+      existingItemsQuery = existingItemsQuery.eq("subject_id", data.subject_id);
+    }
+
+    const { data: existingItems, error: existingError } = await existingItemsQuery;
+
+    if (existingError) throw existingError;
+
+    const categoryMaxScore = Number(ruleRow?.max_score);
+    if (Number.isFinite(categoryMaxScore)) {
+      const existingTotal = (existingItems ?? []).reduce(
+        (sum, item) => sum + Number(item.max_score || 0),
+        0,
+      );
+      const newTotal = payload.reduce(
+        (sum, item) => sum + Number(item.max_score || 0),
+        0,
+      );
+
+      if (existingTotal + newTotal > categoryMaxScore) {
+        throw new Error(
+          `Total assessment score (${existingTotal + newTotal} pts) exceeds category max (${categoryMaxScore} pts).`,
+        );
+      }
+    }
+
+    const { error } = await supabase.from("assessment_items").insert(payload);
+
+    if (error) throw error;
+
+    successAlert.fire({
+      icon: "success",
+      title:
+        payload.length === 1
+          ? "Assessment created successfully"
+          : `${payload.length} assessments created successfully`,
+    });
+
+    await fetchGrades1();
+    isAssessmentDialogVisible.value = false;
+    callback(true);
+  } catch (error) {
+    console.error("Failed to create assessment:", error);
+    successAlert.fire({
+      icon: "error",
+      title: error.message || "Failed to create assessment",
+    });
+    callback(false);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 onMounted(async () => {
   subjects.value = await getSubjects();
-  await fetchGrades();
   await fetchGrades1();
 });
 </script>
@@ -462,6 +1070,13 @@ onMounted(async () => {
     :data="subjects"
     @on-create="onCreate"
     @on-update="onUpdate"
+  />
+
+  <AddEditAssessmentDialog
+    v-model:isDialogVisible="isAssessmentDialogVisible"
+    :item-data="assessmentFormData"
+    :loading="isLoading"
+    @on-create="onCreateAssessment"
   />
 
   <div class="grading-rules-scroll">
@@ -612,8 +1227,8 @@ onMounted(async () => {
                   "
                 >
                   <div class="d-flex align-center gap-3">
-                    <VAvatar color="warning" size="36" rounded="lg">
-                      <VIcon icon="tabler-book" size="18" />
+                    <VAvatar color="lightprimary" variant="tonal" size="36" rounded="lg">
+                      <VIcon icon="tabler-book" color="lightprimary" size="18" />
                     </VAvatar>
                     <div>
                       <div class="text-body-1 font-weight-bold">
@@ -673,12 +1288,21 @@ onMounted(async () => {
                       </VBtn>
                     </div>
 
+                    <!-- child subjects count -->
+                    <VChip
+                      
+                      size="small"
+                      color="secondary"
+                      variant="tonal"
+                    >
+                      {{ subject.child_subjects.length }} {{ t("children") }}
+                    </VChip>
                     <VChip size="small" color="primary" text-color="white">
                       {{ (subject.rules || []).length }} {{ t("rules") }}
                     </VChip>
                     <VIcon
                       :icon="
-                        openSubjects[`${grade.grade_id}-${subject.subject_id}`]
+                        isSubjectOpen(grade.grade_id, subject.subject_id)
                           ? 'tabler-chevron-up'
                           : 'tabler-chevron-down'
                       "
@@ -720,7 +1344,7 @@ onMounted(async () => {
                     variant="text"
                     size="small"
                     density="comfortable"
-                    @click.stop="onDelete(subject.subject_id)"
+                    @click.stop="onDelete(subject.subject_id, grade.grade_id)"
                   >
                     {{ t("Delete") }}
                   </VBtn>
@@ -728,77 +1352,373 @@ onMounted(async () => {
 
                 <VExpandTransition>
                   <div
-                    v-show="
-                      openSubjects[`${grade.grade_id}-${subject.subject_id}`]
-                    "
+                    v-show="isSubjectOpen(grade.grade_id, subject.subject_id)"
                   >
                     <!-- <VDivider /> -->
 
-                    <!-- category rows: click a category to expand its assessments -->
+                    <!-- drill-down: Child | Category -->
                     <div class="d-flex flex-column gap-3 pa-4">
+                      <!-- Child section -->
                       <VCard
-                        v-for="rule in subject.rules"
-                        :key="rule.grading_rule_id ?? rule.category_id"
                         variant="outlined"
                         rounded="lg"
-                        class="rule-card"
+                        class="panel-section-card"
                       >
-                        <!-- category header -->
                         <div
-                          class="d-flex align-center justify-space-between pa-3 cursor-pointer"
+                          class="d-flex align-center justify-space-between pa-4 cursor-pointer"
                           @click="
-                            toggleRule(
-                              ruleKey(grade.grade_id, subject.subject_id, rule),
+                            toggleSubjectSection(
+                              grade.grade_id,
+                              subject.subject_id,
+                              'child',
                             )
                           "
                         >
-                        
                           <div class="d-flex align-center gap-3">
-                            <VAvatar color="info" size="32" rounded="lg">
-                              <VIcon icon="tabler-category" size="16" />
+                            <VAvatar color="lightprimary" variant="tonal" size="36" rounded="lg">
+                              <VIcon icon="tabler-folders" color="lightprimary" size="18" />
                             </VAvatar>
                             <div>
-                              <div class="text-body-2 font-weight-bold">
-                                {{ rule.category?.name_en }}
+                              <div class="text-body-1 font-weight-bold">
+                                {{ t("Child") }}
                               </div>
                               <div class="text-caption text-medium-emphasis">
-                                {{ rule.category?.name_kh }}
+                                {{ (subject.child_subjects || []).length }}
+                                {{ t("subjects") }}
                               </div>
                             </div>
                           </div>
+                          <VIcon
+                            :icon="
+                              openSubjectSections[
+                                subjectSectionKey(
+                                  grade.grade_id,
+                                  subject.subject_id,
+                                )
+                              ] === 'child'
+                                ? 'tabler-chevron-up'
+                                : 'tabler-chevron-down'
+                            "
+                          />
+                        </div>
 
-                          
+                        <VExpandTransition>
+                          <div
+                            v-show="
+                              openSubjectSections[
+                                subjectSectionKey(
+                                  grade.grade_id,
+                                  subject.subject_id,
+                                )
+                              ] === 'child'
+                            "
+                          >
+                            <VDivider />
+
+                            <div
+                              v-if="!(subject.child_subjects || []).length"
+                              class="pa-4 text-caption text-medium-emphasis text-center"
+                            >
+                              {{ t("No child subjects yet.") }}
+                            </div>
+
+                            <div v-else class="d-flex flex-column gap-3 pa-4">
+                              <VCard
+                                v-for="childSubject in subject.child_subjects"
+                                :key="childSubject.subject_id"
+                                variant="outlined"
+                                rounded="lg"
+                                class="child-subject-card"
+                              >
+                                <div
+                                  class="d-flex align-center justify-space-between pa-4 cursor-pointer"
+                                  @click.stop="
+                                    toggleChildSubject(
+                                      grade.grade_id,
+                                      subject.subject_id,
+                                      childSubject.subject_id,
+                                    )
+                                  "
+                                >
+                                  <div class="d-flex align-center gap-3">
+                                    <VAvatar
+                                      color="secondary"
+                                      variant="tonal"
+                                      size="36"
+                                      rounded="lg"
+                                    >
+                                      <VIcon icon="tabler-book-2" color="secondary" size="18" />
+                                    </VAvatar>
+                                    <div>
+                                      <div class="text-body-1 font-weight-bold">
+                                        {{ childSubject.subject?.name_en }}
+                                      </div>
+                                      <div
+                                        class="text-caption text-medium-emphasis"
+                                      >
+                                        {{ childSubject.subject?.name_kh }}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div class="d-flex align-center gap-2">
+                                    <div
+                                      v-if="mdAndUp"
+                                      class="d-flex align-center"
+                                    >
+                                      <VBtn
+                                        icon="tabler-plus"
+                                        color="success"
+                                        variant="text"
+                                        size="small"
+                                        density="comfortable"
+                                        @click.stop="
+                                          openCreateDialog();
+                                          formData = {
+                                            subject_id: childSubject.subject_id,
+                                            grade_id: grade.grade_id,
+                                            existingRules: childSubject.rules,
+                                            isEdit: false,
+                                          };
+                                        "
+                                      />
+                                      <VBtn
+                                        icon="tabler-pencil"
+                                        color="warning"
+                                        variant="text"
+                                        size="small"
+                                        density="comfortable"
+                                        @click.stop="
+                                          onEdit(
+                                            childSubject.subject_id,
+                                            'subject',
+                                            grade.grade_id,
+                                          )
+                                        "
+                                      />
+                                      <VBtn
+                                        icon="tabler-trash"
+                                        color="error"
+                                        variant="text"
+                                        size="small"
+                                        density="comfortable"
+                                        @click.stop="
+                                          onDelete(
+                                            childSubject.subject_id,
+                                            grade.grade_id,
+                                          )
+                                        "
+                                      />
+                                    </div>
+
+                                    <VChip
+                                      size="small"
+                                      color="secondary"
+                                      variant="tonal"
+                                    >
+                                      {{ (childSubject.rules || []).length }}
+                                      {{ t("rules") }}
+                                    </VChip>
+                                    <VIcon
+                                      size="18"
+                                      :icon="
+                                        isChildSubjectOpen(
+                                          grade.grade_id,
+                                          subject.subject_id,
+                                          childSubject.subject_id,
+                                        )
+                                          ? 'tabler-chevron-up'
+                                          : 'tabler-chevron-down'
+                                      "
+                                    />
+                                  </div>
+                                </div>
+
+                                <div
+                                  v-if="!mdAndUp"
+                                  class="d-flex align-center px-2 pb-2 justify-space-between"
+                                >
+                                  <VBtn
+                                    prepend-icon="tabler-plus"
+                                    color="primary"
+                                    variant="text"
+                                    size="small"
+                                    density="comfortable"
+                                    @click.stop="
+                                      openCreateDialog();
+                                      formData = {
+                                        subject_id: childSubject.subject_id,
+                                        grade_id: grade.grade_id,
+                                        existingRules: childSubject.rules,
+                                        isEdit: false,
+                                      };
+                                    "
+                                  >
+                                    {{ t("Add Rule") }}
+                                  </VBtn>
+                                  <VBtn
+                                    prepend-icon="tabler-pencil"
+                                    color="warning"
+                                    variant="text"
+                                    size="small"
+                                    density="comfortable"
+                                    @click.stop="
+                                      onEdit(
+                                        childSubject.subject_id,
+                                        'subject',
+                                        grade.grade_id,
+                                      )
+                                    "
+                                  >
+                                    {{ t("Edit") }}
+                                  </VBtn>
+                                  <VBtn
+                                    prepend-icon="tabler-trash"
+                                    color="error"
+                                    variant="text"
+                                    size="small"
+                                    density="comfortable"
+                                    @click.stop="
+                                      onDelete(
+                                        childSubject.subject_id,
+                                        grade.grade_id,
+                                      )
+                                    "
+                                  >
+                                    {{ t("Delete") }}
+                                  </VBtn>
+                                </div>
+
+                                <VExpandTransition>
+                                  <div
+                                    v-show="
+                                      isChildSubjectOpen(
+                                        grade.grade_id,
+                                        subject.subject_id,
+                                        childSubject.subject_id,
+                                      )
+                                    "
+                                  >
+                                    <VDivider />
+
+                                    <div
+                                      v-if="!(childSubject.rules || []).length"
+                                      class="pa-4 text-caption text-medium-emphasis text-center"
+                                    >
+                                      {{ t("No categories yet.") }}
+                                    </div>
+
+                                    <div
+                                      v-else
+                                      class="d-flex flex-column gap-2 pa-4 pl-6"
+                                    >
+                                      <SubjectSettingRuleList
+                                        :grade-id="grade.grade_id"
+                                        :subject-id="childSubject.subject_id"
+                                        :rules="childSubject.rules"
+                                        :active-rule-key="openRuleKey"
+                                        compact
+                                        @toggle-rule="toggleRule"
+                                        @edit-rule="onEdit($event, 'rule')"
+                                        @delete-rule="onDeleteRule"
+                                        @add-assessment="
+                                          openAssessmentDialog(
+                                            $event,
+                                            childSubject.subject_id,
+                                          )
+                                        "
+                                      />
+
+                                      <div
+                                        class="d-flex justify-end ga-3 px-1 py-1 text-caption text-medium-emphasis"
+                                      >
+                                        <span class="font-weight-bold font-mono">
+                                          {{ totalMaxScore(childSubject) }}pts
+                                        </span>
+                                        <span class="font-weight-bold font-mono">
+                                          {{ totalPercentage(childSubject) }}%
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </VExpandTransition>
+                              </VCard>
+                            </div>
+                          </div>
+                        </VExpandTransition>
+                      </VCard>
+
+                      <!-- Category section (parent rules) -->
+                      <VCard
+                        variant="outlined"
+                        rounded="lg"
+                        class="panel-section-card"
+                      >
+                        <div
+                          class="d-flex align-center justify-space-between pa-4 cursor-pointer"
+                          @click="
+                            toggleSubjectSection(
+                              grade.grade_id,
+                              subject.subject_id,
+                              'category',
+                            )
+                          "
+                        >
+                          <div class="d-flex align-center gap-3">
+                            <VAvatar color="info" variant="tonal" size="36" rounded="lg">
+                              <VIcon icon="tabler-category" color="info" size="18" />
+                            </VAvatar>
+                            <div>
+                              <div class="text-body-1 font-weight-bold">
+                                {{ t("Category") }}
+                              </div>
+                              <div class="text-caption text-medium-emphasis">
+                                {{ (subject.rules || []).length }}
+                                {{ t("categories") }}
+                              </div>
+                            </div>
+                          </div>
                           <div class="d-flex align-center gap-2">
-                            
-                            <!-- edit -->
-                            <VBtn
-                              color="warning"
-                              icon="tabler-pencil"
-                              variant="text"
-                              size="small"
-                              density="comfortable"
-                              @click.stop="onEdit(rule.grading_rule_id, 'rule')"
-                            />
-                            <!-- delete -->
-                            <VBtn
-                              icon="tabler-trash"
-                              variant="text"
-                              size="small"
-                              density="comfortable"
-                              color="error"
-                              @click.stop="onDeleteRule(rule.grading_rule_id)"
-                            />
-
+                            <div v-if="mdAndUp" class="d-flex align-center">
+                              <VBtn
+                                icon="tabler-plus"
+                                color="success"
+                                variant="text"
+                                size="small"
+                                density="comfortable"
+                                @click.stop="
+                                  openCreateDialog();
+                                  formData = {
+                                    subject_id: subject.subject_id,
+                                    grade_id: grade.grade_id,
+                                    existingRules: subject.rules,
+                                    isEdit: false,
+                                  };
+                                "
+                              />
+                              <VBtn
+                                icon="tabler-pencil"
+                                color="warning"
+                                variant="text"
+                                size="small"
+                                density="comfortable"
+                                @click.stop="
+                                  onEdit(
+                                    subject.subject_id,
+                                    'subject',
+                                    grade.grade_id,
+                                  )
+                                "
+                              />
+                            </div>
                             <VIcon
-                              size="18"
                               :icon="
-                                openRules[
-                                  ruleKey(
+                                openSubjectSections[
+                                  subjectSectionKey(
                                     grade.grade_id,
                                     subject.subject_id,
-                                    rule,
                                   )
-                                ]
+                                ] === 'category'
                                   ? 'tabler-chevron-up'
                                   : 'tabler-chevron-down'
                               "
@@ -806,75 +1726,93 @@ onMounted(async () => {
                           </div>
                         </div>
 
-                        
+                        <div
+                          v-if="!mdAndUp"
+                          class="d-flex align-center px-2 pb-2 justify-space-between"
+                        >
+                          <VBtn
+                            prepend-icon="tabler-plus"
+                            color="primary"
+                            variant="text"
+                            size="small"
+                            density="comfortable"
+                            @click.stop="
+                              openCreateDialog();
+                              formData = {
+                                subject_id: subject.subject_id,
+                                grade_id: grade.grade_id,
+                                existingRules: subject.rules,
+                                isEdit: false,
+                              };
+                            "
+                          >
+                            {{ t("Add Rule") }}
+                          </VBtn>
+                          <VBtn
+                            prepend-icon="tabler-pencil"
+                            color="warning"
+                            variant="text"
+                            size="small"
+                            density="comfortable"
+                            @click.stop="
+                              onEdit(subject.subject_id, 'subject', grade.grade_id)
+                            "
+                          >
+                            {{ t("Edit") }}
+                          </VBtn>
+                        </div>
 
-                        <!-- assessments -->
                         <VExpandTransition>
                           <div
                             v-show="
-                              openRules[
-                                ruleKey(grade.grade_id, subject.subject_id, rule)
-                              ]
+                              openSubjectSections[
+                                subjectSectionKey(
+                                  grade.grade_id,
+                                  subject.subject_id,
+                                )
+                              ] === 'category'
                             "
                           >
                             <VDivider />
 
                             <div
-                              v-if="!(rule.assessments || []).length"
+                              v-if="!(subject.rules || []).length"
                               class="pa-4 text-caption text-medium-emphasis text-center"
                             >
-                              {{ t("No assessments yet.") }}
+                              {{ t("No categories yet.") }}
                             </div>
 
-                            <div v-else class="pa-3 d-flex flex-column gap-2">
-                              <div
-                                v-for="(assessment, index) in rule.assessments"
-                                :key="assessment.id"
-                                class="assessment-row d-flex align-center justify-space-between px-3 py-2 rounded-lg"
+                            <div v-else class="d-flex flex-column gap-2 pa-4">
+                              <SubjectSettingRuleList
+                                :grade-id="grade.grade_id"
+                                :subject-id="subject.subject_id"
+                                :rules="subject.rules"
+                                :active-rule-key="openRuleKey"
+                                @toggle-rule="toggleRule"
+                                @edit-rule="onEdit($event, 'rule')"
+                                @delete-rule="onDeleteRule"
+                                @add-assessment="
+                                  openAssessmentDialog(
+                                    $event,
+                                    subject.subject_id,
+                                  )
+                                "
+                              />
+
+                              <!-- <div
+                                class="d-flex justify-end ga-3 px-1 py-2 text-caption text-medium-emphasis"
                               >
-                                <div class="d-flex align-center gap-3">
-                                  <VAvatar
-                                    size="26"
-                                    color="secondary"
-                                    variant="tonal"
-                                  >
-                                    <span class="text-caption font-weight-bold">
-                                      {{ assessment.sequence_no ?? index + 1 }}
-                                    </span>
-                                  </VAvatar>
-                                  <div class="text-body-2 font-weight-medium">
-                                    {{ assessment.item_name }}
-                                  </div>
-                                </div>
-
-                                <VChip size="small" color="primary" variant="tonal">
-                                  {{ assessment.max_score }} {{ t("pts") }}
-                                </VChip>
-                              </div>
+                                <span class="font-weight-bold font-mono">
+                                  {{ totalMaxScore(subject) }}pts
+                                </span>
+                                <span class="font-weight-bold font-mono">
+                                  {{ totalPercentage(subject) }}%
+                                </span>
+                              </div> -->
                             </div>
-                            <div class=" d-flex justify-end ga-3 px-4 py-3 text-caption text-medium-emphasis">
-                              <span class="font-weight-bold font-mono">
-                                {{ rule.max_score }}pts 
-                              </span>
-                              <span class="font-weight-bold font-mono">
-                                 {{ rule.percentage }}%
-                              </span>
-                          </div>
                           </div>
                         </VExpandTransition>
                       </VCard>
-                    </div>
-
-                    <div
-                      class="d-flex justify-end ga-3 px-4 py-3 text-caption text-medium-emphasis"
-                    >
-                      <span class="font-weight-bold font-mono">
-                        {{ totalMaxScore(subject) }}pts
-                      </span>
-
-                      <span class="font-weight-bold font-mono">
-                        {{ totalPercentage(subject) }}%
-                      </span>
                     </div>
                   </div>
                 </VExpandTransition>
@@ -892,16 +1830,20 @@ onMounted(async () => {
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  /* leave room so the scrollbar doesn't sit flush against card edges */
   padding-right: 4px;
+}
+
+.panel-section-card {
+  border-width: 2px;
+}
+
+.child-subject-card {
+  border-width: 2px;
+  border-color: rgba(var(--v-theme-lightprimary), 0.3);
+  margin-left: 12px;
 }
 
 .font-mono {
   font-family: ui-monospace, monospace;
-}
-
-.assessment-row {
-  background: rgba(var(--v-theme-on-surface), 0.04);
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
 </style>
