@@ -1,8 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
+import { listBehaviors, createBehavior, updateBehavior, deleteBehavior } from "@/services/api/behaviors";
 import { useI18n } from "vue-i18n";
 import { useDisplay } from "vuetify";
-import supabase from "@/utils/supabase.js";
 import successAlert from "@/helper/successAlert.js";
 import DeleteAlert from "@/helper/deleteAlert.js";
 import { usePartStore } from "@/stores/partStore";
@@ -93,15 +93,8 @@ async function loadBehaviors() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("behaviors")
-      .select(
-        "id, name_en, name_kh, name_cn, description, cur_id, is_active, created_at",
-      )
-      .eq("cur_id", partStore.cur_id)
-      .is("deleted_at", null)
-      .eq("is_deleted", false)
-      .order("id", { ascending: true });
+    const data = await listBehaviors();
+    const error = null;
 
     if (error) throw error;
     behaviors.value = data ?? [];
@@ -122,14 +115,7 @@ const onDelete = async (item) => {
     try {
       isLoading.value = true;
 
-      const { error } = await supabase
-        .from("behaviors")
-        .update({
-          is_deleted: true,
-          deleted_at: new Date().toISOString(),
-          is_active: false,
-        })
-        .eq("id", item.id);
+      const error = await deleteBehavior(item.id).then(() => null).catch((e) => e);
 
       if (error) throw error;
 
@@ -168,7 +154,7 @@ const onCreate = async (data, callback) => {
       is_deleted: false,
     };
 
-    const { error } = await supabase.from("behaviors").insert(payload);
+    const error = await createBehavior(payload).then(() => null).catch((e) => e);
     if (error) throw error;
 
     successAlert.fire({
@@ -208,10 +194,7 @@ const onUpdate = async (data, callback) => {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
-      .from("behaviors")
-      .update(payload)
-      .eq("id", data.id);
+    const error = await updateBehavior({ ...payload, id: data.id }).then(() => null).catch((e) => e);
 
     if (error) throw error;
 

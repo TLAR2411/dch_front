@@ -1,7 +1,7 @@
 <script setup>
 import { getSubjects, getWeekdays } from "@/services/dataService";
+import { listSchedules, createSchedules, updateSchedule, deleteSchedule, deleteSchedulesForClasses } from "@/services/api/schedules";
 import { useSettingStore } from "@/stores/settingStore";
-import supabase from "@/utils/supabase";
 import headerReportImage from "@/assets/images/pages/headerReportImage.png";
 import FooterRepor from "@/views/global/components/footerRepor.vue";
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
@@ -417,12 +417,10 @@ async function findOverlappingClassIds(classIds, from, to, start, end) {
       continue;
     }
 
-    const { data, error } = await supabase
-      .from("schedules")
-      .select("*")
-      .eq("class_id", classId);
-
-    if (error) {
+    let data;
+    try {
+      data = await listSchedules({ class_id: classId });
+    } catch (error) {
       console.log(error);
       continue;
     }
@@ -525,12 +523,9 @@ async function save() {
   isSaving.value = true;
   try {
     if (editingId.value) {
-      const { error } = await supabase
-        .from("schedules")
-        .update(payload)
-        .eq("id", editingId.value);
-
-      if (error) {
+      try {
+        await updateSchedule({ ...payload, id: editingId.value });
+      } catch (error) {
         console.log(error);
         alert("Failed to update schedule.");
         return;
@@ -543,9 +538,9 @@ async function save() {
         class_id,
       }));
 
-      const { error } = await supabase.from("schedules").insert(rows);
-
-      if (error) {
+      try {
+        await createSchedules(rows);
+      } catch (error) {
         console.log(error);
         alert("Failed to add schedule.");
         return;
@@ -562,9 +557,9 @@ async function save() {
 }
 
 async function remove(id) {
-  const { error } = await supabase.from("schedules").delete().eq("id", id);
-
-  if (error) {
+  try {
+    await deleteSchedule(id);
+  } catch (error) {
     alert("Failed to delete schedule.");
     console.log(error);
     return;
@@ -629,22 +624,17 @@ async function applyScheduleToClasses() {
 
   isApplying.value = true;
   try {
-    const { error: deleteError } = await supabase
-      .from("schedules")
-      .delete()
-      .in("class_id", targetIds);
-
-    if (deleteError) {
+    try {
+      await deleteSchedulesForClasses(targetIds);
+    } catch (deleteError) {
       console.log(deleteError);
       alert("Failed to clear target class schedules.");
       return;
     }
 
-    const { error: insertError } = await supabase
-      .from("schedules")
-      .insert(rows);
-
-    if (insertError) {
+    try {
+      await createSchedules(rows);
+    } catch (insertError) {
       console.log(insertError);
       alert("Failed to apply schedule to other classes.");
       return;
@@ -671,17 +661,9 @@ function formatTime(t) {
 
 const getSchedules = async () => {
   try {
-    const { data, error } = await supabase
-      .from("schedules")
-      .select(
-        `
-        *,
-        subjects (id, name_en),
-        weekday!schedules_day_id_fkey (id, name_en)
-      `,
-      )
-      .eq("class_id", props.class_id);
-    if (error) throw error;
+    // listSchedules returns the same nested `subjects` and `weekday` objects
+    // the PostgREST embed produced.
+    const data = await listSchedules({ class_id: props.class_id });
     schedules.value = data.map((s) => ({
       ...s,
       color: s.color || getSubjectColor(s.subject_id),

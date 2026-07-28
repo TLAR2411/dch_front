@@ -1,10 +1,10 @@
 <script setup>
 import AddEditClosedDayDialog from "@/views/admin/closed-days/AddEditDialog.vue";
+import { createHolidays } from "@/services/api/holiday";
 import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { computed } from "vue";
 import AddEditImportHoliday from "./AddEditImportHoliday.vue";
-import supabase from "@/utils/supabase.js";
 import formatDate from "@/utils/formater/formatDate.js";
 
 definePage({
@@ -217,9 +217,9 @@ const onCreateHoliday = async (payload, callback) => {
       is_deleted: false,
     }));
 
-    const { error } = await supabase.from("holiday").insert(insertPayload);
-
-    if (error) {
+    try {
+      await createHolidays(insertPayload);
+    } catch (error) {
       console.error("Insert error:", error);
       callback(false);
       return;
