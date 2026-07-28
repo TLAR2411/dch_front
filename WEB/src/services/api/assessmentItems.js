@@ -12,3 +12,12 @@ export const updateAssessmentItem = (row) =>
 
 export const deleteAssessmentItem = (id) =>
   api.post("/api/grade-assessment-delete", { id }).then((r) => r.data.data);
+
+/**
+ * Creates one placeholder item and RESOLVES TO IT. The grid keys every cell on
+ * the returned id, so createAssessmentItem (/grade-assessment-store) cannot be
+ * used here: it returns only a status, requires an academic_period_id these
+ * items do not carry, and overrides sequence_no.
+ */
+export const ensureAssessmentItem = (row) =>
+  api.post("/api/grade-assessment-ensure", row).then((r) => r.data.data);

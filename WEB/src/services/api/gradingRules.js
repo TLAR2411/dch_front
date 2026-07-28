@@ -15,3 +15,14 @@ export const updateGradingRule = (row) =>
 
 export const deleteGradingRule = (id) =>
   api.post("/api/grading-rule-delete", { id }).then((r) => r.data.data);
+
+/**
+ * Flat grading-rule rows for the score-entry grid, each with its category and
+ * assessment items. Pass one subject id or several — the child-component
+ * layout is the same query over the child subjects.
+ *
+ * Not listGradingRules, which aggregates to one row per subject, paginates,
+ * and omits assessment_items.subject_id that the grid keys its cells on.
+ */
+export const listGradingLayout = (filter) =>
+  api.post("/api/grading-rule-layout", filter).then((r) => r.data.data);
