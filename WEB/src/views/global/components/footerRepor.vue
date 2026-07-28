@@ -11,6 +11,10 @@ import { Cropper } from "vue-advanced-cropper";
 import "vue-advanced-cropper/dist/style.css";
 import { toKhmerLunarDate } from "khmer-chhankitek-calendar";
 import supabase from "@/utils/supabase";
+import {
+  showReportSignatures,
+  saveReportSignatures,
+} from "@/services/api/reportSignatures";
 import { useSettingStore } from "@/stores/settingStore";
 import { usePartStore } from "@/stores/partStore";
 import successAlert from "@/helper/successAlert.js";
@@ -314,14 +318,8 @@ async function loadSignatures() {
 
   loading.value = true;
   try {
-    const { data, error } = await supabase
-      .from("report_signatures")
-      .select("*")
-      .eq("branch_id", branchId)
-      .eq("cur_id", curId.value)
-      .maybeSingle();
-
-    if (error) throw error;
+    // branch and curriculum travel as headers; the endpoint keys on them.
+    const data = await showReportSignatures();
 
     const defaults = localeDefaults();
     if (data) {
@@ -537,21 +535,11 @@ async function persistSignatures(
   const payload = buildPayload(source);
   saving.value = true;
   try {
-    if (recordId.value) {
-      const { error } = await supabase
-        .from("report_signatures")
-        .update(payload)
-        .eq("id", recordId.value);
-      if (error) throw error;
-    } else {
-      const { data, error } = await supabase
-        .from("report_signatures")
-        .upsert(payload, { onConflict: "branch_id,cur_id" })
-        .select("id")
-        .single();
-      if (error) throw error;
-      recordId.value = data?.id ?? null;
-    }
+    // One idempotent call for both cases. The endpoint upserts on
+    // (branch_id, cur_id), so the insert-or-update split the two branches used
+    // to make is no longer the client's business.
+    const saved = await saveReportSignatures(payload);
+    recordId.value = saved?.id ?? recordId.value;
 
     const defaults = localeDefaults();
     form.value = {

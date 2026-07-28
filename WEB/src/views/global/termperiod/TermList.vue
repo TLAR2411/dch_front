@@ -3,7 +3,11 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { useDisplay } from "vuetify";
-import supabase from "@/utils/supabase.js";
+import {
+  listTermPeriods,
+  createAcademicPeriod,
+  updateSchoolDayCounts,
+} from "@/services/api/academicPeriod";
 import { calculateSchoolDayCountsForTerm } from "@/utils/schoolDays.js";
 import { usePartStore } from "@/stores/partStore";
 import { useSettingStore } from "@/stores/settingStore";
@@ -120,42 +124,8 @@ const filteredPeriods = computed(() => {
 async function loadPeriods() {
   isLoading.value = true;
   try {
-    let query = supabase
-      .from("academic_period")
-      .select(
-        `
-        id,
-        name_en,
-        name_kh,
-        name_cn,
-        symbol,
-        description,
-        start_date,
-        end_date,
-        year_id,
-        branch_id,
-        is_active,
-        total_days,
-        weekend_days,
-        holiday_days,
-        school_event_days,
-        school_days,
-        school_days_calculated_at,
-        school_year:school_year(id, year_name, start_date, end_date)
-      `,
-      )
-      .is("deleted_at", null)
-      .order("start_date", { ascending: true });
-
-    if (settingStore.branch_id != null) {
-      query = query.eq("branch_id", settingStore.branch_id);
-    }
-    if (yearStore.year_id != null) {
-      query = query.eq("year_id", yearStore.year_id);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
+    // Branch comes from the request header; only the year is a body filter.
+    const data = await listTermPeriods({ year_id: yearStore.year_id ?? null });
 
     const rows = data ?? [];
 
@@ -179,14 +149,8 @@ async function loadPeriods() {
           branchId: settingStore.branch_id ?? row.branch_id,
         });
 
-        const { error: updateError } = await supabase
-          .from("academic_period")
-          .update(counts)
-          .eq("id", row.id);
-
-        if (!updateError) {
-          Object.assign(row, counts);
-        }
+        await updateSchoolDayCounts({ id: row.id, ...counts });
+        Object.assign(row, counts);
       } catch (backfillError) {
         console.error("Failed to backfill school days:", backfillError);
       }
@@ -243,13 +207,13 @@ const onCreate = async (data, callback) => {
       start_date: data.start_date || null,
       end_date: data.end_date || null,
       year_id: data.year_id || null,
-      branch_id: settingStore.branch_id ?? null,
       is_active: true,
       ...schoolDayCounts,
     };
 
-    const { error } = await supabase.from("academic_period").insert(payload);
-    if (error) throw error;
+    // branch_id is not sent: the endpoint takes it from the caller's
+    // entitlement, so a term cannot be created in someone else's branch.
+    await createAcademicPeriod(payload);
 
     await loadPeriods();
     isDialogVisible.value = false;
@@ -288,13 +252,11 @@ const onUpdate = async (data, callback) => {
     const res = await api.post("academics-periods-update", data);
 
     if (res.data.status) {
-      // Keep API update, then refresh school-day stats via Supabase
+      // The dates may have moved, so the derived counts are recomputed and
+      // stored separately from the term's own fields.
       try {
         const schoolDayCounts = await buildSchoolDayCounts(data);
-        await supabase
-          .from("academic_period")
-          .update(schoolDayCounts)
-          .eq("id", data.id);
+        await updateSchoolDayCounts({ id: data.id, ...schoolDayCounts });
       } catch (countError) {
         console.error("Failed to refresh school day counts:", countError);
       }

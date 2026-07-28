@@ -1,8 +1,19 @@
-import supabase from "@/utils/supabase.js";
+import { listHolidayCalendar } from "@/services/api/holiday";
+import { listSchedules } from "@/services/api/schedules";
 
 function normalizeDate(value) {
   if (!value) return null;
   return String(value).slice(0, 10);
+}
+
+/**
+ * Ids arrive as numbers from the API but sometimes as strings from route
+ * params. PostgREST coerced both against an int column; these filters run in
+ * JS, where 3 !== "3" would silently drop every row.
+ */
+function sameId(a, b) {
+  if (a == null || b == null) return false;
+  return String(a) === String(b);
 }
 
 function eachDateInclusive(startDate, endDate) {
@@ -53,45 +64,28 @@ export async function fetchClosedDatesForTerm({
     ),
   ];
 
-  const { data: publicRows, error: publicError } = await supabase
-    .from("holiday")
-    .select("date, year")
-    .eq("is_public", true)
-    .eq("is_deleted", false)
-    .gte("date", start)
-    .lte("date", end)
-    .in("year", calendarYears);
-
-  if (publicError) throw publicError;
-
-  let eventQuery = supabase
-    .from("holiday")
-    .select("date, year_id, cur_id, branch_id")
-    .eq("is_public", false)
-    .eq("is_deleted", false)
-    .gte("date", start)
-    .lte("date", end);
-
-  if (yearId != null) {
-    eventQuery = eventQuery.eq("year_id", yearId);
-  }
-  if (curId != null) {
-    eventQuery = eventQuery.eq("cur_id", curId);
-  }
-  if (branchId != null) {
-    eventQuery = eventQuery.eq("branch_id", branchId);
-  }
-
-  const { data: eventRows, error: eventError } = await eventQuery;
-  if (eventError) throw eventError;
+  // One call for both kinds of row. The endpoint already drops soft-deleted
+  // rows and scopes branch events to the caller's entitlement.
+  //
+  // year_id and cur_id are deliberately NOT sent as endpoint filters: they
+  // would apply to public holidays too, and public rows carry neither, so the
+  // whole national-holiday set would vanish. They are applied below, to the
+  // event rows only — which is what the two separate queries did.
+  const rows = await listHolidayCalendar({ from: start, to: end });
 
   const publicDates = new Set(
-    (publicRows ?? [])
+    (rows ?? [])
+      .filter((row) => row.is_public === true)
+      .filter((row) => calendarYears.includes(String(row.year)))
       .map((row) => normalizeDate(row.date))
       .filter(Boolean),
   );
   const eventDates = new Set(
-    (eventRows ?? [])
+    (rows ?? [])
+      .filter((row) => row.is_public !== true)
+      .filter((row) => yearId == null || sameId(row.year_id, yearId))
+      .filter((row) => curId == null || sameId(row.cur_id, curId))
+      .filter((row) => branchId == null || sameId(row.branch_id, branchId))
       .map((row) => normalizeDate(row.date))
       .filter(Boolean),
   );
@@ -177,16 +171,13 @@ export async function fetchScheduledDowsForSubject({
 } = {}) {
   if (!classId || !subjectId) return null;
 
-  const { data, error } = await supabase
-    .from("schedules")
-    .select("day_id")
-    .eq("class_id", classId)
-    .eq("subject_id", subjectId);
-
-  if (error) throw error;
+  // The endpoint filters by class; subject is filtered here because a class
+  // timetable is a handful of rows and this saves a second endpoint shape.
+  const data = await listSchedules({ class_id: classId });
 
   const dows = new Set(
     (data ?? [])
+      .filter((row) => sameId(row.subject_id, subjectId))
       .map((row) => Number(row.day_id))
       .filter((id) => Number.isFinite(id) && id >= 0 && id <= 6),
   );
