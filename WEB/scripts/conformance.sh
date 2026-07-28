@@ -34,12 +34,12 @@ fi
 # F2 — the supabase client may only be imported where it is genuinely needed.
 #   login.vue / authStore.js  supabase.auth — Supabase is the identity
 #                             provider and the JWT it issues is what the API
-#                             verifies. Documented exception.
-#   footerRepor.vue           supabase.storage — signature image upload. NOT
-#                             yet behind the API; a real remaining bypass,
-#                             tracked separately. Remove from this list when
-#                             the upload endpoint lands.
-allowed="src/pages/login.vue src/stores/authStore.js src/views/global/components/footerRepor.vue"
+#                             verifies. The one documented exception.
+#
+# footerRepor.vue was on this list for its signature upload and came off when
+# /api/report-signatures-upload replaced it. Nothing else belongs here: adding
+# a file means adding a way around the permission layer.
+allowed="src/pages/login.vue src/stores/authStore.js"
 actual=$(grep -rln 'from "@/utils/supabase' src 2>/dev/null | sort)
 expected=$(printf '%s\n' $allowed | sort)
 if [ "$actual" = "$expected" ]; then

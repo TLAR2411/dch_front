@@ -10,10 +10,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Cropper } from "vue-advanced-cropper";
 import "vue-advanced-cropper/dist/style.css";
 import { toKhmerLunarDate } from "khmer-chhankitek-calendar";
-import supabase from "@/utils/supabase";
 import {
   showReportSignatures,
   saveReportSignatures,
+  uploadSignature,
 } from "@/services/api/reportSignatures";
 import { useSettingStore } from "@/stores/settingStore";
 import { usePartStore } from "@/stores/partStore";
@@ -29,7 +29,6 @@ const props = defineProps({
 const settingStore = useSettingStore();
 const partStore = usePartStore();
 
-const SIGNATURE_BUCKET = "report-signatures";
 /** Max upload size — matches bucket file_size_limit (2MB) */
 const MAX_SIGNATURE_BYTES = 2 * 1024 * 1024;
 /** Stored as % of signature box (scales correctly in print/PDF) */
@@ -445,21 +444,10 @@ async function applyCrop() {
       );
     }
 
-    const path = `${branchId}/${curId.value}/${side}-${Date.now()}.png`;
-
-    const { error: uploadError } = await supabase.storage
-      .from(SIGNATURE_BUCKET)
-      .upload(path, blob, {
-        contentType: "image/png",
-        upsert: true,
-      });
-    if (uploadError) throw uploadError;
-
-    const { data: publicData } = supabase.storage
-      .from(SIGNATURE_BUCKET)
-      .getPublicUrl(path);
-
-    const url = publicData?.publicUrl || "";
+    // The path is composed server-side from the caller's own branch. It used
+    // to be built here and sent, which is how any holder of the publishable
+    // key could overwrite or delete another branch's signature.
+    const { url } = await uploadSignature({ side, blob });
     draft.value[`${side}_signature_url`] = url;
     draft.value[`${side}_signature_x`] = DEFAULT_SIGNATURE_X;
     draft.value[`${side}_signature_y`] = DEFAULT_SIGNATURE_Y;
