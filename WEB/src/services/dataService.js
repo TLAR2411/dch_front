@@ -404,10 +404,15 @@ export const getClasses = async () => {
 }
 export const getWeekdays = async () => {
     try {
-        return await allWeekdays();
+        return (await allWeekdays()) ?? [];
     } catch (error) {
+        // Returns [] rather than null. Every caller treats this as a list and
+        // reads .length or .find on it, so null turned one transient API 500
+        // into a hard TypeError that killed the whole page. /api/weekday-all
+        // does intermittently crash on Vercel today, so this path is live, not
+        // theoretical.
         console.error("Server weekdays error:", error);
-        return null;
+        return [];
     }
 };
 

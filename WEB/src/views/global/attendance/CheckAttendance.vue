@@ -196,17 +196,31 @@ watch(date, async (newDate) => {
 
   console.log("1");
 
-  if (!DAYS.value.length) {
-    await new Promise((resolve) => {
+  // Two guards, both load-bearing. getWeekdays() used to return null on any
+  // API error, so `DAYS.value.length` threw and took the page down — and
+  // /api/weekday-all does intermittently 500 in production today.
+  //
+  // The wait also needed a timeout: if the days never arrive, the original
+  // promise never resolved and everything below it silently never ran, so the
+  // page looked fine while day_id stayed unset.
+  if (!DAYS.value?.length) {
+    const arrived = await new Promise((resolve) => {
       const stop = watch(DAYS, (val) => {
-        if (val.length) {
+        if (val?.length) {
           stop();
-          resolve();
+          resolve(true);
         }
       });
+      setTimeout(() => {
+        stop();
+        resolve(false);
+      }, 5000);
     });
+    if (!arrived) return;
   }
+
   const day = DAYS.value.find((item) => item.id === dayNumber);
+  if (!day) return;
 
   form.value.day_id = day.id;
   if (form.value.class_id) {
