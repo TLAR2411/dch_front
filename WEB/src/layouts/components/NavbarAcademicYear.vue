@@ -12,13 +12,23 @@ const yearStore = useYearStore();
 const partStore = usePartStore();
 const { year_id } = storeToRefs(yearStore);
 
-const years = ref(app()?.years);
+// `app()` reads localStorage["app"], which NOTHING in this codebase ever
+// writes — no commit in the repo's history contains a setItem for that key. So
+// this was always undefined, and the `?.` protected the app() call while
+// leaving `years.value` unguarded one line below.
+//
+// This component sits in DefaultLayoutWithVerticalNav, so the throw took out
+// every page using that layout: 65 of 82 routes rendered the error boundary
+// instead of their content. Defaulting to [] degrades to an empty year picker
+// rather than a dead app.
+const years = ref(app()?.years ?? []);
 
-const currentYear = computed(
-  () =>
-    years.value.find((item) => item.id === year_id.value) ??
-    years.value[years.value.length - 1],
-);
+const currentYear = computed(() => {
+  const list = years.value ?? [];
+  if (!list.length) return null;
+
+  return list.find((item) => item.id === year_id.value) ?? list[list.length - 1];
+});
 
 const navigateToPartDashboard = () => {
   const dashboardRoute = getPartDashboardRoute(partStore.system_part);
