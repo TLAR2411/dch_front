@@ -5,7 +5,6 @@ import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { useAppStore } from "@/stores/appStore.js";
 import { useDisplay } from "vuetify";
-import supabase from "@/utils/supabase";
 const { mdAndUp } = useDisplay();
 definePage({
   meta: {

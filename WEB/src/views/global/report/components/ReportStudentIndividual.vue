@@ -4,9 +4,9 @@
  * Download: Print (PDF) via v-print, or PNG via html2canvas.
  */
 import { computed, nextTick, ref, watch } from "vue";
+import { listStudentRecommendations } from "@/services/api/studentRecommendations";
 import html2canvas from "html2canvas";
 import FileSaver from "file-saver";
-import supabase from "@/utils/supabase.js";
 import { app } from "@/utils/app";
 import { roundScore } from "@/utils/gradeCalculation.js";
 import { buildTeacherRecommendation } from "@/utils/teacherRecommendation.js";
@@ -214,21 +214,17 @@ async function fetchStudentComment(studentId, subjectList, scoreTotals) {
       ? props.formSearch.term_id ?? null
       : null;
 
-  let query = supabase
-    .from("student_teacher_recommendations")
-    .select("recommendation, generated_text")
-    .eq("class_id", props.formSearch.class_id)
-    .eq("year_id", yearId.value)
-    .eq("student_id", studentId);
-
-  if (periodId != null) {
-    query = query.eq("academic_period_id", periodId);
-  } else {
-    query = query.is("academic_period_id", null);
-  }
-
-  const { data, error } = await query.maybeSingle();
-  if (error) throw error;
+  // academic_period_null distinguishes "the row with NO period" from "any
+  // period" — passing a null id alone would match every period.
+  const rows = await listStudentRecommendations({
+    class_id: props.formSearch.class_id,
+    year_id: yearId.value,
+    student_ids: [studentId],
+    ...(periodId != null
+      ? { academic_period_id: periodId }
+      : { academic_period_null: true }),
+  });
+  const data = rows[0] ?? null;
 
   if (data?.recommendation?.trim()) return data.recommendation.trim();
   if (data?.generated_text?.trim()) return data.generated_text.trim();

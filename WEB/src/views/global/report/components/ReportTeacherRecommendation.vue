@@ -3,7 +3,7 @@
  * Teacher recommendations — auto from subject averages, editable + save.
  */
 import { computed, ref, watch } from "vue";
-import supabase from "@/utils/supabase.js";
+import { listStudentRecommendations, saveStudentRecommendations } from "@/services/api/studentRecommendations";
 import { getCurrentYearId } from "@/services/getCurrentYearId";
 import { usePartStore } from "@/stores/partStore";
 import { getEntityLabel } from "@/utils/reportLabels.js";
@@ -61,22 +61,15 @@ async function fetchSavedRecommendations(studentIds) {
     return new Map();
   }
 
-  let query = supabase
-    .from("student_teacher_recommendations")
-    .select(
-      "id, student_id, class_id, academic_period_id, year_id, recommendation, generated_text, is_edited",
-    )
-    .eq("class_id", props.formSearch.class_id)
-    .eq("year_id", yearId.value)
-    .in("student_id", studentIds);
-
-  if (periodId.value != null) {
-    query = query.eq("academic_period_id", periodId.value);
-  } else {
-    query = query.is("academic_period_id", null);
-  }
-
-  const { data, error } = await query;
+  const data = await listStudentRecommendations({
+    class_id: props.formSearch.class_id,
+    year_id: yearId.value,
+    student_ids: studentIds,
+    ...(periodId.value != null
+      ? { academic_period_id: periodId.value }
+      : { academic_period_null: true }),
+  });
+  const error = null;
   if (error) throw error;
 
   return new Map((data ?? []).map((row) => [row.student_id, row]));
@@ -281,14 +274,9 @@ async function saveAll() {
       updated_at: new Date().toISOString(),
     }));
 
-    const { data, error } = await supabase
-      .from("student_teacher_recommendations")
-      .upsert(payload, {
-        onConflict: "student_id,class_id,academic_period_id,year_id",
-      })
-      .select("id, student_id");
-
-    if (error) throw error;
+    // Returns the upserted rows so db_id can be mapped back, same as the
+    // .select("id, student_id") the PostgREST upsert used.
+    const data = await saveStudentRecommendations(payload);
 
     const idByStudent = new Map((data ?? []).map((r) => [r.student_id, r.id]));
     for (const row of rows.value) {

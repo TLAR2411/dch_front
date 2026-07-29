@@ -11,7 +11,15 @@
  *   7. ensureCategoryItems (lazy create for single-score cats)
  *   8. upsertScores
  */
-import supabase from "@/utils/supabase.js";
+import { listTermPeriods } from "@/services/api/academicPeriod";
+import { showClassDetail } from "@/services/api/classes";
+import { listGradeSubjectAssignments } from "@/services/api/gradeSubject";
+import { listGradingLayout } from "@/services/api/gradingRules";
+import { listSubjectParentMap } from "@/services/api/subjects";
+import { listClassRoster } from "@/services/api/studentClasses";
+import { listStudentScores, saveStudentScores } from "@/services/api/studentScores";
+import { listAttendanceRange } from "@/services/api/attendance";
+import { ensureAssessmentItem } from "@/services/api/assessmentItems";
 import {
   categorySortIndex,
   normalizeCategoryKey,
@@ -40,54 +48,26 @@ export function resolveCurrentTermId(terms = []) {
 
 /** Load academic periods for a school year (prefer school_days column). */
 export async function fetchTerms(yearId) {
-  let query = supabase
-    .from("academic_period")
-    .select(
-      "id, name_en, name_kh, name_cn, start_date, end_date, year_id, school_days, is_active",
-    )
-    .is("deleted_at", null)
-    .order("start_date", { ascending: true });
-
-  if (yearId != null) {
-    query = query.eq("year_id", yearId);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return data ?? [];
+  // Same endpoint the term table uses: whole set for the branch+year, ordered
+  // by start_date, soft-deleted rows excluded.
+  return await listTermPeriods({ year_id: yearId ?? null });
 }
 
 export async function resolveClassGradeId(classId) {
   if (!classId) return null;
 
-  const { data, error } = await supabase
-    .from("classes")
-    .select("id, grade_id")
-    .eq("id", classId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data?.grade_id ?? null;
+  const detail = await showClassDetail(classId);
+  return detail?.grade_id ?? detail?.grade?.id ?? null;
 }
 
 /** Parent subjects assigned to grade for the year. */
 export async function fetchSubjectsForGrade(yearId, gradeId) {
   if (!yearId || !gradeId) return [];
 
-  const { data, error } = await supabase
-    .from("grade_subject")
-    .select(`
-      id,
-      grade_id,
-      subject_id,
-      subject:subjects(id, name_en, name_kh, name_cn, parent_id)
-    `)
-    .eq("year_id", yearId)
-    .eq("grade_id", gradeId)
-    .is("deleted_at", null)
-    .eq("is_active", true);
-
-  if (error) throw error;
+  const { assignments: data } = await listGradeSubjectAssignments({
+    year_id: yearId,
+    grade_id: gradeId,
+  });
 
   return (data ?? [])
     .filter((row) => row.subject && !row.subject.parent_id)
@@ -107,31 +87,11 @@ export async function fetchSubjectsForGrade(yearId, gradeId) {
 export async function fetchGradingLayout({ yearId, gradeId, subjectId }) {
   if (!yearId || !gradeId || !subjectId) return [];
 
-  const { data, error } = await supabase
-    .from("grade_subject_grading_rule")
-    .select(`
-      id,
-      grade_id,
-      year_id,
-      subject_id,
-      category_id,
-      percentage,
-      max_score,
-      category:grading_category(id, name_en, name_kh, symbol),
-      assessments:assessment_items(
-        id,
-        item_name,
-        max_score,
-        sequence_no,
-        grade_subject_grading_rule_id,
-        subject_id
-      )
-    `)
-    .eq("year_id", yearId)
-    .eq("grade_id", gradeId)
-    .eq("subject_id", subjectId);
-
-  if (error) throw error;
+  const data = await listGradingLayout({
+    year_id: yearId,
+    grade_id: gradeId,
+    subject_ids: [subjectId],
+  });
 
   const rows = (data ?? []).map((row) => {
     const items = sortAssessmentItems(row.assessments ?? []).filter(
@@ -167,14 +127,7 @@ export async function fetchGradingLayout({ yearId, gradeId, subjectId }) {
 export async function fetchChildSubjects(parentSubjectId) {
   if (!parentSubjectId) return [];
 
-  const { data, error } = await supabase
-    .from("subjects")
-    .select("id, name_en, name_kh, name_cn, parent_id")
-    .eq("parent_id", parentSubjectId)
-    .order("name_en");
-
-  if (error) throw error;
-  return data ?? [];
+  return await listSubjectParentMap([parentSubjectId]);
 }
 
 function sortAssessmentItems(items = []) {
@@ -212,30 +165,11 @@ export async function fetchChildGradingRules({
   const map = new Map();
   if (!yearId || !gradeId || !childSubjectIds?.length) return map;
 
-  const { data, error } = await supabase
-    .from("grade_subject_grading_rule")
-    .select(`
-      id,
-      grade_id,
-      year_id,
-      subject_id,
-      category_id,
-      percentage,
-      max_score,
-      assessments:assessment_items(
-        id,
-        item_name,
-        max_score,
-        sequence_no,
-        grade_subject_grading_rule_id,
-        subject_id
-      )
-    `)
-    .eq("year_id", yearId)
-    .eq("grade_id", gradeId)
-    .in("subject_id", childSubjectIds);
-
-  if (error) throw error;
+  const data = await listGradingLayout({
+    year_id: yearId,
+    grade_id: gradeId,
+    subject_ids: childSubjectIds,
+  });
 
   for (const row of data ?? []) {
     if (!map.has(row.subject_id)) map.set(row.subject_id, []);
@@ -306,18 +240,9 @@ export function buildCompositeLayout(
 export async function fetchClassStudents(classId) {
   if (!classId) return [];
 
-  const { data, error } = await supabase
-    .from("student_classes")
-    .select(`
-      student_id,
-      index,
-      student:students(id, name_en, name_kh, gender)
-    `)
-    .eq("class_id", classId)
-    .is("deleted_at", null)
-    .order("index", { ascending: true });
-
-  if (error) throw error;
+  // listClassRoster reproduces the {student_id, index, student:{...}} shape
+  // the embedded query returned, from the paginated API.
+  const data = await listClassRoster(classId);
 
   return (data ?? []).map((row, i) => ({
     student_id: row.student_id,
@@ -343,18 +268,12 @@ export async function fetchExistingScores({
     return [];
   }
 
-  const { data, error } = await supabase
-    .from("student_scores")
-    .select(
-      "id, student_id, assessment_item_id, score, academic_period_id, class_id",
-    )
-    .eq("academic_period_id", academicPeriodId)
-    .eq("class_id", classId)
-    .in("student_id", studentIds)
-    .in("assessment_item_id", assessmentItemIds);
-
-  if (error) throw error;
-  return data ?? [];
+  return await listStudentScores({
+    academic_period_id: academicPeriodId,
+    class_id: classId,
+    student_ids: studentIds,
+    assessment_item_ids: assessmentItemIds,
+  });
 }
 
 /**
@@ -371,15 +290,12 @@ export async function fetchAttendanceDays({
 }) {
   if (!classId || !subjectId || !startDate || !endDate) return new Map();
 
-  const { data, error } = await supabase
-    .from("students_attendance")
-    .select("student_id, date, subject_id, present, late, ask_permission")
-    .eq("class_id", classId)
-    .eq("subject_id", subjectId)
-    .gte("date", normalizeDate(startDate))
-    .lte("date", normalizeDate(endDate));
-
-  if (error) throw error;
+  const data = await listAttendanceRange({
+    class_id: classId,
+    subject_ids: [subjectId],
+    from: normalizeDate(startDate),
+    to: normalizeDate(endDate),
+  });
 
   const daysByStudent = new Map();
 
@@ -393,9 +309,6 @@ export async function fetchAttendanceDays({
 
   return daysByStudent;
 }
-
-const assessmentItemSelect =
-  "id, item_name, max_score, sequence_no, grade_subject_grading_rule_id, subject_id";
 
 /**
  * Ensure each category without assessment items has one placeholder item.
@@ -417,19 +330,15 @@ export async function ensureCategoryItems(categories, { subjectId, attendanceMax
         const ruleId = item.child_rule_id ?? item.grade_subject_grading_rule_id;
         const itemSubjectId = item.child_subject_id ?? item.subject_id;
 
-        const { data, error } = await supabase
-          .from("assessment_items")
-          .insert({
-            grade_subject_grading_rule_id: ruleId,
-            item_name: item.item_name,
-            max_score: item.max_score,
-            sequence_no: item.sequence_no ?? 1,
-            subject_id: itemSubjectId ?? null,
-          })
-          .select(assessmentItemSelect)
-          .single();
-
-        if (error) throw error;
+        // -ensure, not -store: the grid keys its cells on the returned id,
+        // and -store returns only a status.
+        const data = await ensureAssessmentItem({
+          grade_subject_grading_rule_id: ruleId,
+          item_name: item.item_name,
+          max_score: item.max_score,
+          sequence_no: item.sequence_no ?? 1,
+          subject_id: itemSubjectId ?? null,
+        });
 
         ensuredItems.push({
           ...data,
@@ -456,19 +365,13 @@ export async function ensureCategoryItems(categories, { subjectId, attendanceMax
       ? "DAYS"
       : cat.symbol || cat.name_en || "Score";
 
-    const { data, error } = await supabase
-      .from("assessment_items")
-      .insert({
-        grade_subject_grading_rule_id: cat.rule_id,
-        item_name: itemName,
-        max_score: maxScore,
-        sequence_no: 1,
-        subject_id: subjectId ?? null,
-      })
-      .select(assessmentItemSelect)
-      .single();
-
-    if (error) throw error;
+    const data = await ensureAssessmentItem({
+      grade_subject_grading_rule_id: cat.rule_id,
+      item_name: itemName,
+      max_score: maxScore,
+      sequence_no: 1,
+      subject_id: subjectId ?? null,
+    });
 
     result.push({
       ...cat,
@@ -494,12 +397,7 @@ export async function upsertScores(rows) {
     score: row.score === "" || row.score == null ? null : Number(row.score),
   }));
 
-  const { error } = await supabase.from("student_scores").upsert(payload, {
-    onConflict:
-      "student_id,assessment_item_id,academic_period_id,class_id",
-  });
-
-  if (error) throw error;
+  await saveStudentScores(payload);
 }
 
 /**

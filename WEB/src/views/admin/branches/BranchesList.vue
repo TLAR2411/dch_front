@@ -4,7 +4,6 @@ import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { useAppStore } from "@/stores/appStore.js";
 import { useDisplay } from "vuetify";
-import supabase from "@/utils/supabase";
 import AppStatusChip from "@/components/AppStatusChip.vue";
 const { mdAndUp } = useDisplay();
 
@@ -145,24 +144,12 @@ const onDisable = async (item) => {
   }
 };
 
-const branches = ref([]);
+// Removed: a direct supabase.from() fetch that pulled the whole table on
+// mount, console.logged it, and assigned nothing. The visible list comes
+// from the API via AppCardTable/AppDataTable. See
+// dch_app/docs/frontend-integration-contract.md
+// The live one is useAppStore().getBranches(), called throughout this file.
 
-const getBranches = async () => {
-  await supabase
-    .from("branches")
-    .select("*")
-    .then(({ data, error }) => {
-      if (error) {
-        console.error("Error with the response:", error);
-      } else {
-        console.log(data);
-      }
-    });
-};
-
-onMounted(() => {
-  getBranches();
-});
 </script>
 
 <template>

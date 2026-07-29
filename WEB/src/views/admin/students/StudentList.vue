@@ -1,7 +1,6 @@
 <script setup>
 import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
-import { onMounted } from "vue";
 import { useDisplay } from "vuetify";
 import AppName from "@/components/AppName.vue";
 import formatGender from "@/utils/formater/formatGender";
@@ -90,32 +89,15 @@ const onDelete = async (item) => {
   }
 };
 
-const students = ref([]);
-const getStudents = async () => {
-  try {
-    await supabase
-      .from("students")
-      .select("*")
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Error with the response:", error);
-        } else {
-          console.log(data);
-        }
-      });
-  } catch (error) {
-    console.error("Failed to fetch data:", error);
-  } finally {
-  }
-};
+// Removed: a direct supabase.from() fetch that pulled the whole table on
+// mount, console.logged it, and assigned nothing. The visible list comes
+// from the API via AppCardTable/AppDataTable. See
+// dch_app/docs/frontend-integration-contract.md
 
 const onEdit = async (item) => {
   router.push({ name: "admin-students-edit-id", params: { id: item.id } });
 };
 
-onMounted(() => {
-  getStudents();
-});
 </script>
 
 <template>

@@ -1,5 +1,5 @@
 <script setup>
-import AddEditRoomsDialog from "./AddEditRoomsDialog.vue";
+import AddEditSubjectsDialog from "./AddEditSubjectsDialog.vue";
 import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { useDisplay } from "vuetify";
@@ -115,7 +115,7 @@ const onUpdate = async (data, callback) => {
 </script>
 
 <template>
-  <AddEditRoomsDialog
+  <AddEditSubjectsDialog
     v-model:isDialogVisible="isDialogVisible"
     :item-data="formData"
     :loading="isLoading"

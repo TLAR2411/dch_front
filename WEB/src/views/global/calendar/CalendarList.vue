@@ -1,5 +1,5 @@
 <script setup>
-import supabase from "@/utils/supabase";
+import { listHolidayCalendar, createHolidays, updateHoliday, deleteHoliday } from "@/services/api/holiday";
 import { ref, onMounted, computed, watch } from "vue";
 import { usePartStore } from "@/stores/partStore";
 import { useSettingStore } from "@/stores/settingStore";
@@ -166,23 +166,14 @@ function goToday() {
 const getHoliday = async () => {
   loading.value = true;
   try {
-    const { data: publicData, error: e1 } = await supabase
-      .from("holiday")
-      .select("*")
-      .eq("is_public", true)
-      .eq("year", currentYear.value);
-    if (e1) throw e1;
-
-    const { data: evData, error: e2 } = await supabase
-      .from("holiday")
-      .select("*")
-      .eq("is_public", false)
-      .eq("cur_id", cur_id)
-      .eq("branch_id", branch_id)
-      .eq("year_id", year_id);
-    if (e2) throw e2;
-
-    holiday.value = [...(publicData || []), ...(evData || [])];
+    // One call returns BOTH kinds: public holidays (national, no branch) and
+    // this branch's own events. The endpoint applies the branch filter only to
+    // the non-public rows, which is what the two separate queries did.
+    holiday.value = await listHolidayCalendar({
+      year: currentYear.value,
+      cur_id,
+      year_id,
+    });
   } catch (err) {
     console.error(err);
   } finally {
@@ -224,14 +215,9 @@ async function saveEvent() {
     };
 
     if (selectedHoliday.value?.id) {
-      const { error } = await supabase
-        .from("holiday")
-        .update(payload)
-        .eq("id", selectedHoliday.value.id);
-      if (error) throw error;
+      await updateHoliday({ ...payload, id: selectedHoliday.value.id });
     } else {
-      const { error } = await supabase.from("holiday").insert(payload);
-      if (error) throw error;
+      await createHolidays(payload);
     }
     await getHoliday();
     closeDialog();
@@ -246,11 +232,7 @@ async function deleteEvent() {
   if (!selectedHoliday.value?.id) return;
   saving.value = true;
   try {
-    const { error } = await supabase
-      .from("holiday")
-      .delete()
-      .eq("id", selectedHoliday.value.id);
-    if (error) throw error;
+    await deleteHoliday(selectedHoliday.value.id);
     await getHoliday();
     closeDialog();
   } catch (err) {
@@ -309,8 +291,7 @@ const onCreateHoliday = async (payload, callback) => {
       is_deleted: false,
     }));
 
-    const { error } = await supabase.from("holiday").insert(insertPayload);
-    if (error) throw error;
+    await createHolidays(insertPayload);
 
     await getHoliday();
     isDialogImportHoliday.value = false;

@@ -2,7 +2,11 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { getGrades, getSubjects } from "@/services/dataService.js";
-import supabase from "@/utils/supabase.js";
+import {
+  listGradeSubjectAssignments,
+  createGradeSubject,
+  deleteGradeSubject,
+} from "@/services/api/gradeSubject";
 import successAlert from "@/helper/successAlert.js";
 import DeleteAlert from "@/helper/deleteAlert.js";
 import { useYearStore } from "@/stores/yearStore.js";
@@ -98,41 +102,18 @@ const fetchGradeSubjects = async () => {
   try {
     const gradeRows = (await getGrades()) ?? [];
 
-    const { data: assignmentRows, error: assignmentError } = await supabase
-      .from("grade_subject")
-      .select(`
-        id,
-        grade_id,
-        subject_id,
-        year_id,
-        subject:subjects(id, name_en, name_kh, parent_id)
-      `)
-      .eq("year_id", yearId.value)
-      .is("deleted_at", null)
-      .eq("is_active", true);
-
-    if (assignmentError) throw assignmentError;
+    // The endpoint returns the assignments AND the child subjects of every
+    // assigned parent, because the second set is derived entirely from the
+    // first — it used to be a follow-up query keyed on the ids just fetched.
+    const { assignments: assignmentRows, children } =
+      await listGradeSubjectAssignments({ year_id: yearId.value });
 
     const assignments = assignmentRows ?? [];
     const parentAssignments = assignments.filter(
       (row) => !row.subject?.parent_id,
     );
 
-    const parentSubjectIds = [
-      ...new Set(parentAssignments.map((row) => row.subject_id)),
-    ];
-
-    let childSubjectRows = [];
-    if (parentSubjectIds.length) {
-      const { data: childRows, error: childError } = await supabase
-        .from("subjects")
-        .select("id, name_en, name_kh, parent_id")
-        .in("parent_id", parentSubjectIds)
-        .is("deleted_at", null);
-
-      if (childError) throw childError;
-      childSubjectRows = childRows ?? [];
-    }
+    const childSubjectRows = children ?? [];
 
     const childrenByParentId = new Map();
     for (const child of childSubjectRows) {
@@ -256,15 +237,12 @@ const onCreate = async (data, callback) => {
       throw new Error("Please select at least one subject.");
     }
 
-    const payload = subjectIds.map((subjectId) => ({
+    // The endpoint takes the whole set of subject ids in one call.
+    await createGradeSubject({
       grade_id: data.grade_id,
-      subject_id: subjectId,
+      subject_id: subjectIds,
       year_id: yearId.value,
-      is_active: true,
-    }));
-
-    const { error } = await supabase.from("grade_subject").insert(payload);
-    if (error) throw error;
+    });
 
     successAlert.fire({
       icon: "success",
@@ -291,12 +269,8 @@ const onDelete = async (gradeSubjectId) => {
     try {
       isLoading.value = true;
 
-      const { error } = await supabase
-        .from("grade_subject")
-        .update({ deleted_at: new Date().toISOString(), is_active: false })
-        .eq("id", gradeSubjectId);
-
-      if (error) throw error;
+      // Soft delete, as before — scores and grading rules reference the row.
+      await deleteGradeSubject(gradeSubjectId);
 
       successAlert.fire({
         icon: "success",
