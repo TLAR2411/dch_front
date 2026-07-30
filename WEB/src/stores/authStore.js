@@ -68,8 +68,6 @@ export const useAuthStore = defineStore("auth", {
             redirectTo = "/hr";
           } else if (defaultPart === 'admin') {
             redirectTo = "/admin";
-          } else if (defaultPart === 'accounting') {
-            redirectTo = "/accounting";
           } else if (defaultPart === 'pos') {
             redirectTo = "/pos";
           } else if (defaultPart === 'stock') {

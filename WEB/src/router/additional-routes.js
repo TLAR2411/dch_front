@@ -74,15 +74,6 @@ export const redirects = [
     },
   },
   {
-    path: '/accounting',
-    name: 'accounting',
-    redirect: () => {
-      return hasPermission('accounting-allow-part')
-        ? { name: 'accounting-dashboards' }
-        : { name: 'dashboards' }
-    },
-  },
-  {
     path: '/hr',
     name: 'hr',
     redirect: () => {

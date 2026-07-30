@@ -73,13 +73,6 @@ const systemParts = ref([
     permission: "loan-allow-part",
   },
   {
-    title: "Accounting System",
-    icon: "tabler-calculator",
-    part: "accounting",
-    active: setting.system_part == "accounting",
-    permission: "accounting-allow-part",
-  },
-  {
     title: "HR System",
     icon: "tabler-users",
     part: "human-resource",
@@ -105,13 +98,6 @@ watch(
         part: "loan",
         active: newVal == "loan",
         permission: "loan-allow-part",
-      },
-      {
-        title: "Accounting System",
-        icon: "tabler-calculator",
-        part: "accounting",
-        active: newVal == "accounting",
-        permission: "accounting-allow-part",
       },
       {
         title: "HR System",
