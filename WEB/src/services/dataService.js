@@ -8,6 +8,7 @@ export const getTables = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -17,6 +18,7 @@ export const getItemOptions = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -26,6 +28,7 @@ export const getItemSizes = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -35,6 +38,7 @@ export const getCategories = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 export const getApproveRanks = async () => {
@@ -43,6 +47,7 @@ export const getApproveRanks = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 export const getVendors = async () => {
@@ -51,6 +56,7 @@ export const getVendors = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -60,6 +66,7 @@ export const getPeople = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -69,6 +76,7 @@ export const getJournalClasses = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -78,6 +86,7 @@ export const getAccountants = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -87,6 +96,7 @@ export const getIdentities = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -96,6 +106,7 @@ export const getPositions = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -105,6 +116,7 @@ export const getDepartments = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -114,6 +126,7 @@ export const getCurrencies = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -123,6 +136,7 @@ export const getRoles = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -132,6 +146,7 @@ export const getPermissions = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -141,6 +156,7 @@ export const getMenuItems = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -150,6 +166,7 @@ export const getUsers = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -159,6 +176,7 @@ export const getCo = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -168,6 +186,7 @@ export const getApprover = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -177,6 +196,7 @@ export const getCashDenominationPurposes = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -186,6 +206,7 @@ export const getOccupations = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -195,6 +216,7 @@ export const getMainSourceIncomes = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -204,6 +226,7 @@ export const getClients = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -213,6 +236,7 @@ export const getClientsNonLoans = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -224,6 +248,7 @@ export const getLoanDurations = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -234,6 +259,7 @@ export const getLoanTerms = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -243,6 +269,7 @@ export const getLoanRepayments = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 export const getBank = async () => {
@@ -251,6 +278,7 @@ export const getBank = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -260,6 +288,7 @@ export const getRestructureSettings = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -269,6 +298,7 @@ export const getReceiveDays = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -278,6 +308,7 @@ export const getBadDebtStatuses = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -287,6 +318,7 @@ export const getBadDebtDays = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -296,6 +328,7 @@ export const getFollowUpStatuses = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 
@@ -305,6 +338,7 @@ export const getFollowUpDays = async () => {
         return response.data.data;
     } catch (error) {
         console.error("Server error: ", error);
+        return [];
     }
 };
 

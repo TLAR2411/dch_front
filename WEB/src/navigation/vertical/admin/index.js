@@ -138,13 +138,6 @@ export default [
         icon: { icon: "tabler-users" },
         permission: "view-users"
     },
-    {
-        title: "Activity Log",
-        to: { name: "admin-activity-log" },
-        icon: { icon: "tabler-file-text-shield" },
-        permission: "view-activity-log"
-    },
-
 
     {
         title: "Auth",
@@ -158,13 +151,6 @@ export default [
                     name: "admin-roles",
                 },
                 // permission: "view-roles",
-            },
-            {
-                title: "Positions",
-                to: {
-                    name: "admin-positions",
-                },
-                permission: "view-positions",
             },
         ],
     },
