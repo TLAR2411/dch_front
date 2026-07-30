@@ -2,7 +2,7 @@
 import { onMounted, ref, watch } from "vue";
 import { listSchedules } from "@/services/api/schedules";
 import DateNavigator from "../components/DateNavigator.vue";
-import { getClasses, getWeekdays } from "@/services/dataService.js";
+import { getClasses } from "@/services/dataService.js";
 import { useRoute } from "vue-router";
 import { api } from "@/utils/api.js";
 import AppCombobox from "@/@core/components/app-form-elements/AppCombobox.vue";
@@ -16,7 +16,6 @@ const subjectSchedules = ref([]);
 
 const date = ref("");
 
-const DAYS = ref([]);
 
 const isSearch = ref(false); // loading find data
 
@@ -48,7 +47,9 @@ watch(
   () => form.value.class_id,
   () => {
     if (form.value.date) getData();
-    if (form.value.day_id) {
+    // Explicit null check, not truthiness: Sunday's day_id is 0, so `if
+    // (form.value.day_id)` silently skipped the schedule fetch every Sunday.
+    if (form.value.day_id !== null && form.value.day_id !== undefined) {
       getSubjectSchedule(form.value.day_id);
     }
   },
@@ -192,39 +193,20 @@ watch(date, async (newDate) => {
     getData();
     form.value.subject_id = null;
   }
+  // public.weekday.id IS the JavaScript getDay() value — 0 Sunday .. 6 Saturday,
+  // verified against the table. So day_id is derived locally and does NOT depend
+  // on /api/weekday-all being reachable.
+  //
+  // This previously fetched the weekday list and looked the day up in it, which
+  // made saving attendance fail whenever that endpoint was down: the list came
+  // back empty, the lookup found nothing, day_id stayed null, and the save
+  // returned 400 "day_id is required". The list was never rendered anywhere —
+  // it existed only to turn a number into the same number.
   const dayNumber = new Date(newDate).getDay();
 
-  console.log("1");
-
-  // Two guards, both load-bearing. getWeekdays() used to return null on any
-  // API error, so `DAYS.value.length` threw and took the page down — and
-  // /api/weekday-all does intermittently 500 in production today.
-  //
-  // The wait also needed a timeout: if the days never arrive, the original
-  // promise never resolved and everything below it silently never ran, so the
-  // page looked fine while day_id stayed unset.
-  if (!DAYS.value?.length) {
-    const arrived = await new Promise((resolve) => {
-      const stop = watch(DAYS, (val) => {
-        if (val?.length) {
-          stop();
-          resolve(true);
-        }
-      });
-      setTimeout(() => {
-        stop();
-        resolve(false);
-      }, 5000);
-    });
-    if (!arrived) return;
-  }
-
-  const day = DAYS.value.find((item) => item.id === dayNumber);
-  if (!day) return;
-
-  form.value.day_id = day.id;
+  form.value.day_id = dayNumber;
   if (form.value.class_id) {
-    getSubjectSchedule(day.id);
+    getSubjectSchedule(dayNumber);
   }
 });
 
@@ -242,9 +224,9 @@ const getSubjectSchedule = async (dayId) => {
 };
 
 onMounted(async () => {
-  DAYS.value = await getWeekdays();
-  console.log(DAYS.value);
-
+  // The weekday fetch that used to be here is gone. day_id comes from
+  // getDay() now, and DAYS was never rendered, so this was one blocking
+  // request on every page load whose only failure mode was breaking saves.
   classes.value = await getClasses();
   date.value = new Date().toISOString().split("T")[0];
   // if (route.params.id) {
