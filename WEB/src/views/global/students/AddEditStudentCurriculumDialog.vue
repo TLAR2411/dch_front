@@ -51,16 +51,6 @@ const itemData = ref({
   ...props.itemData,
 });
 
-watch(
-  () => useSettingStore().branch_id,
-  async (newVal) => {
-    if (newVal) {
-      await getAllStudents();
-    }
-  },
-  { immediate: true },
-);
-
 const getAllStudents = async () => {
   try {
     loadingtable.value = true;
@@ -74,6 +64,21 @@ const getAllStudents = async () => {
     loadingtable.value = false;
   }
 };
+
+// Declared AFTER getAllStudents on purpose. This watch is `immediate`, so it
+// runs synchronously during setup — when it sat above the `const` it hit the
+// temporal dead zone and threw "Cannot access 'getAllStudents' before
+// initialization", killing /global/student/. A function declaration would
+// hoist; a const arrow does not.
+watch(
+  () => useSettingStore().branch_id,
+  async (newVal) => {
+    if (newVal) {
+      await getAllStudents();
+    }
+  },
+  { immediate: true },
+);
 
 watch(
   () => props.itemData,

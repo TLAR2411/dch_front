@@ -77,5 +77,30 @@ else
   fails=$((fails+1))
 fi
 
+# F5 — the /api prefix must be normalised centrally, and VITE_API_URL must
+# stay the bare origin.
+#
+# Two call-site conventions coexist: 59 paths written "/api/weekday-all" and
+# 219 written bare as "years-all". They need OPPOSITE VITE_API_URL values, so
+# no env setting satisfies both — with a trailing /api the first group becomes
+# /api/api/... ("Cannot POST /api/api/academics-periods-terms"); without it the
+# second group 404s. The request interceptor in src/utils/api.js reconciles
+# them. Checking individual call sites would be wrong now: both spellings are
+# legal. What must not regress is the normaliser itself.
+if grep -qE 'startsWith\("api/"\)' src/utils/api.js 2>/dev/null; then
+  echo "PASS  F5 api path normaliser present in src/utils/api.js"
+else
+  echo "FAIL  F5 api path normaliser missing — bare paths like api.post(\"years-all\") will lose the /api prefix"
+  fails=$((fails+1))
+fi
+# The normaliser only holds if baseURL is the bare origin. A trailing /api in
+# the example env would put every path back to /api/api/...
+if grep -qE '^VITE_API_URL=.*/api/?$' .env.example 2>/dev/null; then
+  echo "FAIL  F5b .env.example VITE_API_URL must be the bare origin, with no /api suffix"
+  fails=$((fails+1))
+else
+  echo "PASS  F5b .env.example VITE_API_URL has no /api suffix"
+fi
+
 echo
 [ $fails -eq 0 ] && echo "conformance: ALL PASS" || { echo "conformance: $fails FAILURE(S)"; exit 1; }

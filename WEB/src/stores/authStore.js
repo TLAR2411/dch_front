@@ -126,7 +126,12 @@ export const useAuthStore = defineStore("auth", {
       }
 
       try {
-        const response = await api.post("/auth/verify-session", {
+        // "/api/auth/verify-session", not "/auth/...". Every other call site
+        // in the app (58 of them) includes the /api prefix and VITE_API_URL is
+        // the bare origin. This one was the sole exception, which forced
+        // VITE_API_URL to carry a trailing /api to keep login working — and
+        // that in turn doubled every other path into /api/api/...
+        const response = await api.post("/api/auth/verify-session", {
           google_id: this.googleId,
         });
         console.log("verify-session:", response.data.data.branches);

@@ -57,6 +57,27 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  // Normalise every path to /api/... exactly once.
+  //
+  // Two conventions coexist here and they are mutually exclusive:
+  //   - 59 call sites (the src/services/api/* layer) use "/api/weekday-all"
+  //     and need VITE_API_URL to be the bare origin.
+  //   - 219 call sites across 54 older files use a bare "years-all" and
+  //     relied on VITE_API_URL carrying a trailing /api.
+  // With the /api suffix the first group doubles into /api/api/... — the
+  // "Cannot POST /api/api/academics-periods-terms" report. Without it, the
+  // second group loses the prefix and 404s. There is no VITE_API_URL value
+  // that satisfies both.
+  //
+  // Doing it here fixes both with one rule instead of 219 edits, and keeps
+  // VITE_API_URL as the bare origin. It runs BEFORE the cancellation logic
+  // below on purpose, so request keys are built from the final URL and the
+  // same endpoint written both ways dedupes as one.
+  if (config.url && !/^https?:\/\//i.test(config.url)) {
+    const path = config.url.replace(/^\/+/, "");
+    config.url = path === "api" || path.startsWith("api/") ? `/${path}` : `/api/${path}`;
+  }
+
   const settingStore = useSettingStore();
   const accessToken = getAccessToken();
   const part = usePartStore();
