@@ -21,19 +21,33 @@ const NON_CANCELLABLE_ENDPOINTS = [
 
 /**
  * Generates a unique key for the request.
- * Includes method, URL, and serialized params for better uniqueness.
+ * Includes method, URL, query params, AND body — otherwise parallel POSTs to
+ * the same path with different bodies (e.g. grading-rule-layout per subject)
+ * look identical and abort each other (CanceledError on Individual report).
  */
 const getRequestKey = (config) => {
-  const params = config.params ? JSON.stringify(config.params) : '';
-  return `${config.method}::${config.url}::${params}`;
+  const params = config.params ? JSON.stringify(config.params) : "";
+  const data =
+    config.data == null
+      ? ""
+      : typeof config.data === "string"
+        ? config.data
+        : JSON.stringify(config.data);
+  return `${config.method}::${config.url}::${params}::${data}`;
 };
 
 /**
  * Determines if a request should be cancellable based on its endpoint
  */
 const isCancellable = (url) => {
-  return !NON_CANCELLABLE_ENDPOINTS.some(endpoint => url.includes(endpoint));
+  return !NON_CANCELLABLE_ENDPOINTS.some((endpoint) => url.includes(endpoint));
 };
+
+export const isRequestCanceled = (error) =>
+  axios.isCancel(error) ||
+  error?.code === "ERR_CANCELED" ||
+  error?.name === "CanceledError" ||
+  error?.message === "canceled";
 
 /**
  * Cleanup pending request from the map
@@ -163,10 +177,9 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-
-    // Handle cancelled requests silently
-    if (axios.isCancel(error)) {
-      console.debug('Request cancelled:', error.message);
+    // Handle cancelled requests silently (AbortController / axios v1 CanceledError)
+    if (isRequestCanceled(error)) {
+      console.debug("Request cancelled:", error.message);
       return Promise.reject(error);
     }
 
@@ -182,16 +195,13 @@ api.interceptors.response.use(
       authStore.unAuthenticated();
     }
 
-    // Show error dialog (skip for cancelled requests)
-    if (!axios.isCancel(error)) {
-      const { showDialog } = useDialog();
-      showDialog({
-        title: errorMessage,
-        icon: 'error',
-        isConfirm: false,
-        timer: 4000
-      });
-    }
+    const { showDialog } = useDialog();
+    showDialog({
+      title: errorMessage,
+      icon: "error",
+      isConfirm: false,
+      timer: 4000,
+    });
 
     return Promise.reject(error);
   }

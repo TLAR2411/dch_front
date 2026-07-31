@@ -143,14 +143,11 @@ export default [
         children: [
     
           {
-            title: "Behavior",
+            title: "Behavior & Rating",
             to: {
               name: "global-behavior",
             },
-            // permission: "view-grades",
           },
-          
-    
         ],
       },
 ];

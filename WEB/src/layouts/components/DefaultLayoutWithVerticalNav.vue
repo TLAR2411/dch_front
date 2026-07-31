@@ -118,6 +118,6 @@ onUnmounted(() => {
     </template>
 
     <!-- 👉 Customizer -->
-    <!-- <TheCustomizer /> -->
+    <TheCustomizer />
   </VerticalNavLayout>
 </template>

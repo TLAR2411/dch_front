@@ -13,6 +13,11 @@ import { app } from "@/utils/app";
 import ReportAttendanceLegend from "./ReportAttendanceLegend.vue";
 import dchLogoHeader from "../../../../../public/logo/dchlogoheader.png";
 import FooterRepor from "@/views/global/components/footerRepor.vue";
+import {
+  compareEntityNames,
+  getEntityLabel,
+} from "@/utils/reportLabels.js";
+
 const props = defineProps({
   class_id: {
     type: Number,
@@ -21,6 +26,11 @@ const props = defineProps({
 
 const yearStore = useYearStore();
 const partStore = usePartStore();
+const reportPart = computed(() => partStore.system_part || "english");
+
+function entityLabel(entity, fallback = "—") {
+  return getEntityLabel(entity, reportPart.value, fallback);
+}
 
 const loading = ref(false);
 const hasData = ref(false);
@@ -60,15 +70,15 @@ const selectedTerm = computed(() =>
 
 const programName = computed(() => {
   const cur = curriculums.value.find((c) => c.id === partStore.cur_id);
-  return cur?.name_en || cur?.name_kh || "—";
+  return entityLabel(cur);
 });
 
 const classLabel = computed(() => {
   const cls = selectedClass.value;
   if (!cls) return "—";
-  const gradeName = selectedGrade.value?.name_en || "";
+  const gradeName = entityLabel(selectedGrade.value, "");
   const symbol = cls.symbol ? ` ${cls.symbol}` : "";
-  return `${gradeName}${symbol}`.trim() || cls.name_en || "—";
+  return `${gradeName}${symbol}`.trim() || entityLabel(cls);
 });
 
 function formatDisplayDate(value) {
@@ -98,7 +108,7 @@ const termRangeLabel = computed(() => {
 const reportTitle = computed(() => {
   const term = selectedTerm.value;
   if (!term) return "Attendance Report by Term";
-  const name = term.name_en || term.name_kh || "Term";
+  const name = entityLabel(term, "Term");
   return termRangeLabel.value
     ? `Attendance Report for ${name} (${termRangeLabel.value})`
     : `Attendance Report for ${name}`;
@@ -139,7 +149,7 @@ const summaryTableColspan = computed(
 const canSearch = computed(() => Boolean(props.class_id && form.value.term_id));
 
 function termSelectLabel(term) {
-  const name = term.name_en || term.name_kh || "Term";
+  const name = entityLabel(term, "Term");
   const start = formatDisplayDate(term.start_date);
   const end = formatDisplayDate(term.end_date);
   return `${name} (${start} - ${end})`;
@@ -164,7 +174,7 @@ function buildSubjectOptions(assignments) {
       name_en: row.subject.name_en || "",
       name_kh: row.subject.name_kh || "",
     }))
-    .sort((a, b) => a.name_en.localeCompare(b.name_en));
+    .sort((a, b) => compareEntityNames(a, b, reportPart.value));
 }
 
 async function resolveClassGradeId() {
@@ -538,7 +548,7 @@ onMounted(async () => {
       <AppSelect
         v-model="form.term_id"
         :items="termOptions"
-        item-title="name_en"
+        :item-title="entityLabel"
         item-value="id"
         placeholder="Select term"
         autocomplete="off"
@@ -613,7 +623,7 @@ onMounted(async () => {
           <div><span class="meta-label">class:</span> {{ classLabel }}</div>
           <div v-if="selectedTerm">
             <span class="meta-label">term:</span>
-            {{ selectedTerm.name_en || selectedTerm.name_kh || "—" }}
+            {{ entityLabel(selectedTerm) }}
           </div>
           <div v-if="termRangeLabel">
             <span class="meta-label">period:</span>
@@ -641,7 +651,7 @@ onMounted(async () => {
                 colspan="4"
                 class="col-subject-group"
               >
-                {{ sub.name_en }}
+                {{ entityLabel(sub) }}
               </th>
             </tr>
             <tr>
@@ -656,7 +666,7 @@ onMounted(async () => {
           <tbody>
             <tr v-for="(student, i) in attData" :key="student.id ?? i">
               <td class="col-student">
-                <div class="name-main">{{ student.name_en }}</div>
+                <div class="name-main">{{ entityLabel(student) }}</div>
               </td>
               <td class="text-center">{{ genderLabel(student.gender) }}</td>
               <template v-for="sub in reportSubjects" :key="`${student.id}-${sub.id}`">

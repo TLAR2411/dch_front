@@ -103,7 +103,7 @@ onMounted(() => {
   <AppAddEditDialog
     v-if="!xs"
     max-width="700"
-    :title="itemData.id == null ? 'Create Grades' : 'Update Grades'"
+    :title="itemData.id == null ? t('Create Grades') : t('Update Grades')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
@@ -144,7 +144,7 @@ onMounted(() => {
   </AppAddEditDialog>
 
   <AppAddEditDrawer
-    :title="itemData.id == null ? 'Create Grades' : 'Update Grades'"
+    :title="itemData.id == null ? t('Create Grades') : t('Update Grades')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"

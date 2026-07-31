@@ -8,11 +8,15 @@ import AppCard from "@/components/AppCard.vue";
 import AppLabel from "@/components/AppLabel.vue";
 import { api } from "@/utils/api";
 import { app } from "@/utils/app";
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { getBranches, getRoles } from "@/services/dataService";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 
 const router = useRouter();
+const { t } = useI18n();
+const { selectItemTitle } = useEntityLabel();
 
 const roles = ref([]);
 
@@ -37,12 +41,12 @@ const nationOptions = [
   },
 ];
 
-const bmiStatusLabels = {
-  underweight: "Underweight",
-  normal: "Normal",
-  overweight: "Overweight",
-  obese: "Obese",
-};
+const bmiStatusLabels = computed(() => ({
+  underweight: t("Underweight"),
+  normal: t("Normal"),
+  overweight: t("Overweight"),
+  obese: t("Obese"),
+}));
 
 const MAX_PHOTO_SIZE = 800 * 1024; // 800KB
 
@@ -274,7 +278,7 @@ onMounted(async () => {
 
 <template>
   <AppCard
-    title="Create Teacher"
+    :title="t('Create Teacher')"
     title-icon="tabler-user-plus"
     is-submit
     :loading="isLoading"
@@ -299,7 +303,7 @@ onMounted(async () => {
                 color="orange mr-2"
               >
                 <VIcon icon="tabler-upload" class="d-sm-none" />
-                <span class="d-none d-sm-block">បញ្ចូលរូបភាព</span>
+                <span class="d-none d-sm-block">{{ t("Upload photo") }}</span>
               </VBtn>
 
               <input
@@ -313,20 +317,20 @@ onMounted(async () => {
             </div>
 
             <p class="text-body-2 mt-2 mb-0 customFontSiemreap">
-              អនុញ្ញាតបញ្ចូលបានតែ JPG, GIF ឬ PNG នឹងទំហំអតិបរិមា 800K
+              {{ t("Photo upload hint") }}
             </p>
           </form>
         </div>
       </VCol>
 
-      <AppLabel title="Personal Information" />
+      <AppLabel :title="t('Personal Information')" />
 
       <VCol cols="12">
         <VRow>
           <VCol cols="12" md="4" sm="6">
             <AppTextField
               v-model="formData.name_kh"
-              label="Name Khmer"
+              :label="t('Name Khmer')"
               :rules="[requiredValidator]"
               autocomplete="off"
             />
@@ -334,7 +338,7 @@ onMounted(async () => {
           <VCol cols="12" md="4" sm="6">
             <AppTextField
               v-model="formData.name_en"
-              label="Name English"
+              :label="t('Name English')"
               autocomplete="off"
             />
           </VCol>
@@ -344,7 +348,7 @@ onMounted(async () => {
               :items="genderOptions"
               item-title="name"
               item-value="value"
-              label="Gender"
+              :label="t('Gender')"
               :rules="[requiredValidator]"
               autocomplete="off"
             />
@@ -356,7 +360,7 @@ onMounted(async () => {
               :items="nationOptions"
               item-title="name"
               item-value="value"
-              label="Nation"
+              :label="t('Nation')"
               autocomplete="off"
             />
           </VCol>
@@ -364,7 +368,7 @@ onMounted(async () => {
           <VCol cols="12" md="4" sm="6">
             <AppTextField
               v-model="formData.email"
-              label="Email"
+              :label="t('email')"
               type="email"
               autocomplete="off"
             />
@@ -373,14 +377,14 @@ onMounted(async () => {
           <VCol cols="12" md="4" sm="6">
             <AppTextField
               v-model="formData.phone"
-              label="Phone"
+              :label="t('phone')"
               autocomplete="off"
             />
           </VCol>
           <VCol cols="12" md="4" sm="6">
             <AppAutocomplete
               v-model="formData.role_id"
-              label="Roles"
+              :label="t('Roles')"
               :items="roles"
               item-title="display_name"
               item-value="id"
@@ -391,7 +395,7 @@ onMounted(async () => {
           <VCol cols="12" md="4" sm="6">
             <AppAutocomplete
               v-model="formData.manage_branch"
-              label="Manage Branch"
+              :label="t('Manage Branch')"
               :items="manageBranch"
               item-title="name"
               item-value="value"
@@ -402,12 +406,12 @@ onMounted(async () => {
           <VCol cols="12" md="8" sm="12">
             <AppAutocomplete
               v-model="formData.branch_id"
-              label="Choose Branches"
+              :label="t('Choose Branches')"
               :items="branches"
               :disabled="
                 formData.manage_branch != 2 && formData.manage_branch != 4
               "
-              item-title="name_kh"
+              :item-title="selectItemTitle"
               item-value="id"
               multiple
               eager
@@ -419,11 +423,11 @@ onMounted(async () => {
         </VRow>
       </VCol>
 
-      <AppLabel title="Address" />
+      <AppLabel :title="t('Address')" />
       <VCol cols="6" lg="3" md="4" sm="6">
         <AppAutocomplete
           v-model="formData.province_code"
-          label="Province"
+          :label="t('Province')"
           :items="provinces"
           item-value="code"
           item-title="name_kh"
@@ -433,7 +437,7 @@ onMounted(async () => {
       <VCol cols="6" lg="3" md="4" sm="6">
         <AppAutocomplete
           v-model="formData.district_code"
-          label="District"
+          :label="t('District')"
           :items="districts"
           item-value="code"
           item-title="name_kh"
@@ -443,7 +447,7 @@ onMounted(async () => {
       <VCol cols="6" lg="3" md="4" sm="6">
         <AppAutocomplete
           v-model="formData.commune_code"
-          label="Commune"
+          :label="t('Commune')"
           :items="communes"
           item-value="code"
           item-title="name_kh"
@@ -453,7 +457,7 @@ onMounted(async () => {
       <VCol cols="6" lg="3" md="4" sm="6">
         <AppAutocomplete
           v-model="formData.village_code"
-          label="Village"
+          :label="t('Village')"
           :items="villages"
           item-value="code"
           item-title="name_kh"
@@ -461,7 +465,7 @@ onMounted(async () => {
         />
       </VCol>
 
-      <AppLabel title="Description" />
+      <AppLabel :title="t('Description')" />
       <VCol cols="12">
         <AppTextarea
           rows="2"

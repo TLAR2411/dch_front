@@ -4,7 +4,10 @@ import { debounce } from "lodash";
 import { useI18n } from "vue-i18n";
 import formatGender from "@/utils/formater/formatGender";
 
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
+
 const { t } = useI18n();
+const { entityLabel } = useEntityLabel();
 
 const props = defineProps({
   itemData: {
@@ -105,7 +108,7 @@ const headers = [
           {{ itemData.id ? t("Update student") : t("Add students to class") }}
           <span class="scd-chip">
             <VIcon icon="tabler-school" size="13" class="scd-chip-icon" />
-            {{ props.classData?.name_en }}
+            {{ entityLabel(props.classData) }}
           </span>
         </span>
         <button class="scd-close" type="button" @click="onCloseDialog">

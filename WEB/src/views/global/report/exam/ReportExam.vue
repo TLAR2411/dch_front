@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { allClasses } from "@/services/api/classes";
 import { getClasses, getGrades, getTerms } from "@/services/dataService";
 import { getCurrentYearId } from "@/services/getCurrentYearId";
@@ -13,6 +14,7 @@ import {
   getEntityLabel,
 } from "@/utils/reportLabels.js";
 
+const { t } = useI18n();
 const pathStore = usePartStore();
 
 const yearId = ref(getCurrentYearId());
@@ -27,13 +29,10 @@ function selectItemTitle(item) {
 
 const activeTab = ref("ranking");
 
-const reportTabs = [
-  { value: "ranking", title: "Ranking", icon: "tabler-trophy" },
-  // { value: "academics", title: "Academics", icon: "tabler-book" },
-  { value: "individual", title: "Individual", icon: "tabler-user" },
-  // { value: "behavior", title: "Behavior", icon: "tabler-mood-smile" },
-  // { value: "other", title: "Other", icon: "tabler-dots" },
-];
+const reportTabs = computed(() => [
+  { value: "ranking", title: t("Ranking"), icon: "tabler-trophy" },
+  { value: "individual", title: t("Individual"), icon: "tabler-user" },
+]);
 
 const reportTitle = ref("Report Exam");
 
@@ -55,10 +54,10 @@ const openedPanel = ref(0);
 /** Empty state stays until user clicks Search */
 const hasSearched = ref(false);
 
-const typeReport = [
-  { label: "Term", value: "Term" },
-  { label: "Final", value: "Final" },
-];
+const typeReport = computed(() => [
+  { label: t("Term"), value: "Term" },
+  { label: t("Final"), value: "Final" },
+]);
 
 /** Classes belonging to the selected grade only */
 const filteredClasses = computed(() => {
@@ -102,9 +101,9 @@ const filterSummary = computed(() => {
     );
   if (formSearch.value.type_report === "Term" && selectedTerm.value)
     parts.push(getEntityLabel(selectedTerm.value, reportPart.value, ""));
-  else if (formSearch.value.type_report === "Final") parts.push("Final");
+  else if (formSearch.value.type_report === "Final") parts.push(t("Final"));
 
-  return parts.length ? parts.join(" · ") : "Select filters to generate report";
+  return parts.length ? parts.join(" · ") : t("Select filters to generate report");
 });
 
 const canSearch = computed(() => {
@@ -154,11 +153,13 @@ function onClear() {
 const fetchClasses = async ()=>{
     loading.value = true;
     try {
-        classes.value = await allClasses({ year_id: yearId.value }) ?? [];
+        // classes.value = await allClasses({ year_id: yearId.value }) ?? [];
+        classes.value = await getClasses();
     } catch (error) {
         
     }
 }
+
 
 onMounted(async () => {
     await fetchClasses();
@@ -195,7 +196,7 @@ onMounted(async () => {
               <VIcon icon="tabler-filter" size="20" />
             </VAvatar>
             <div>
-              Search
+              {{ $t("Search") }}
             </div>
           </div>
         </VExpansionPanelTitle>
@@ -211,7 +212,7 @@ onMounted(async () => {
                 :item-title="selectItemTitle"
                 item-value="id"
                 
-                placeholder="Choose Grade"
+                :placeholder="$t('Choose Grade')"
                 clearable
                 :loading="loading"
               />
@@ -228,7 +229,7 @@ onMounted(async () => {
                 :item-title="selectItemTitle"
                 item-value="id"
                 
-                placeholder="Choose Class"
+                :placeholder="$t('Choose Class')"
                 clearable
                 :disabled="!formSearch.grade_id"
                 :loading="loading"
@@ -257,7 +258,7 @@ onMounted(async () => {
                 :item-title="selectItemTitle"
                 item-value="id"
                 
-                placeholder="Choose Term"
+                :placeholder="$t('Choose Term')"
                 clearable
                 :loading="loading"
               />
@@ -271,7 +272,7 @@ onMounted(async () => {
               prepend-icon="tabler-x"
               @click="onClear"
             >
-              Clear
+              {{ $t("Clear") }}
             </VBtn>
             <VBtn
               color="primary"
@@ -279,7 +280,7 @@ onMounted(async () => {
               :disabled="!canSearch"
               @click="onSearch"
             >
-              Search
+              {{ $t("Search") }}
             </VBtn>
       
             </VCol>
@@ -307,14 +308,14 @@ onMounted(async () => {
         </VAvatar>
 
         <div class="text-h6 font-weight-medium mb-1">
-          No exam report yet
+          {{ $t("No exam report yet") }}
         </div>
         <div class="text-body-2 text-medium-emphasis mb-6" style="max-width: 360px">
-          Open the filters above, choose a grade and class
+          {{ $t("Open the filters above, choose a grade and class") }}
           <template v-if="formSearch.type_report === 'Term'">
-            , then pick a term
+            {{ $t(", then pick a term") }}
           </template>
-          , and click Search.
+          {{ $t(", and click Search.") }}
         </div>
 
         <div class="d-flex flex-wrap justify-center ga-2">
@@ -324,7 +325,7 @@ onMounted(async () => {
             :variant="formSearch.grade_id ? 'flat' : 'tonal'"
             prepend-icon="tabler-stack-2"
           >
-            Grade
+            {{ $t("Grade") }}
           </VChip>
           <VIcon icon="tabler-chevron-right" size="16" class="text-medium-emphasis" />
           <VChip
@@ -333,7 +334,7 @@ onMounted(async () => {
             :variant="formSearch.class_id ? 'flat' : 'tonal'"
             prepend-icon="tabler-school"
           >
-            Class
+            {{ $t("Class") }}
           </VChip>
           <template v-if="formSearch.type_report === 'Term'">
             <VIcon icon="tabler-chevron-right" size="16" class="text-medium-emphasis" />
@@ -343,7 +344,7 @@ onMounted(async () => {
               :variant="formSearch.term_id ? 'flat' : 'tonal'"
               prepend-icon="tabler-calendar"
             >
-              Term
+              {{ $t("Term") }}
             </VChip>
           </template>
         </div>

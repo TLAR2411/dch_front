@@ -11,6 +11,7 @@
  *   6. sortRankingRows() only — no extra filters
  */
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { roundScore } from "@/utils/gradeCalculation.js";
 import {
   compareEntityNames,
@@ -32,6 +33,7 @@ const props = defineProps({
   },
 });
 
+const { t } = useI18n();
 const partStore = usePartStore();
 const reportPart = computed(() => partStore.system_part || "english");
 
@@ -65,12 +67,12 @@ const hasData = computed(
 
 const reportTitle = computed(() => {
   if (props.formSearch?.type_report === "Final") {
-    return "Student Ranking Report (Final)";
+    return t("Student Ranking Report (Final)");
   }
   const term = meta.value.termName;
   return term
-    ? `Student Ranking Report — ${term}`
-    : "Student Ranking Report";
+    ? t("Student Ranking Report — {term}", { term })
+    : t("Student Ranking Report");
 });
 
 const printObj = computed(() => ({
@@ -236,7 +238,7 @@ watch(
           :disabled="!hasData"
           v-print="printObj"
         >
-          Print
+          {{ $t("Print") }}
         </VBtn>
       </VCol>
     </VRow>
@@ -249,7 +251,7 @@ watch(
         width="3"
         class="mb-3"
       />
-      <div class="text-body-2 text-medium-emphasis">Loading ranking…</div>
+      <div class="text-body-2 text-medium-emphasis">{{ $t("Loading ranking…") }}</div>
     </div>
 
     <div v-else-if="errorMessage" class="pa-6 text-center text-body-2 text-medium-emphasis">
@@ -273,17 +275,17 @@ watch(
       <div class="report-meta d-flex justify-space-between mb-3">
         <div>
           <div>
-            <span class="meta-label">class:</span>
+            <span class="meta-label">{{ $t("class:") }}</span>
             {{ meta.className || "—" }}
           </div>
           <div>
-            <span class="meta-label">period:</span>
+            <span class="meta-label">{{ $t("period:") }}</span>
             {{ meta.termName || "—" }}
           </div>
         </div>
         <div class="text-end">
           <div>
-            <span class="meta-label">grade:</span>
+            <span class="meta-label">{{ $t("grade:") }}</span>
             {{ meta.gradeName || "—" }}
           </div>
         </div>
@@ -294,7 +296,7 @@ watch(
           <thead>
             <tr>
               <!-- <th class="col-no" rowspan="2">NO</th> -->
-              <th class="col-name" rowspan="2">STUDENT'S NAME</th>
+              <th class="col-name" rowspan="2">{{ $t("STUDENT'S NAME") }}</th>
               <th
                 v-for="subject in subjects"
                 :key="`h-${subject.id}`"
@@ -311,9 +313,9 @@ watch(
                   </div>
                 </div>
               </th>
-              <th class="col-total">Total</th>
-              <th class="col-average">Average</th>
-              <th class="col-rank" rowspan="2">Rank</th>
+              <th class="col-total">{{ $t("Total") }}</th>
+              <th class="col-average">{{ $t("Average") }}</th>
+              <th class="col-rank" rowspan="2">{{ $t("Rank") }}</th>
             </tr>
             <tr>
               <th

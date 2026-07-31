@@ -29,7 +29,7 @@ const isLoading = ref(true);
 
 definePage({
   meta: {
-    title: "Students",
+    title: "Teachers",
     layout: "default",
     subject: "Students",
     requiresAuth: true,

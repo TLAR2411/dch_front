@@ -114,7 +114,7 @@ const floor = ref([
   <div>
     <AppAddEditDialog
       v-if="!xs"
-      :title="itemData.id == null ? 'Create Rooms' : 'Update Rooms'"
+      :title="itemData.id == null ? t('Create Rooms') : t('Update Rooms')"
       :is-dialog-visible="isDialogVisible"
       :is-update="itemData.id != null ? true : false"
       :loading="loading"
@@ -166,7 +166,7 @@ const floor = ref([
 
     <AppAddEditDrawer
       v-else
-      :title="itemData.id == null ? 'Create Rooms' : 'Update Rooms'"
+      :title="itemData.id == null ? t('Create Rooms') : t('Update Rooms')"
       :is-dialog-visible="isDialogVisible"
       :is-update="itemData.id != null"
       :loading="loading"

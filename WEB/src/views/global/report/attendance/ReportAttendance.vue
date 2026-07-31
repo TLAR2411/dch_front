@@ -1,10 +1,19 @@
 <script setup>
 import { getClasses } from "@/services/dataService";
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+import { usePartStore } from "@/stores/partStore";
+import { getEntityLabel } from "@/utils/reportLabels.js";
 import ReportAttendanceByDay from "../components/ReportAttendanceByDay.vue";
 import ReportAttendanceByMonth from "../components/ReportAttendanceByMonth.vue";
 import ReportAttendanceByTerm from "../components/ReportAttendanceByTerm.vue";
 import ReportAttendanceByYear from "../components/ReportAttendanceByYear.vue";
+
+const partStore = usePartStore();
+const reportPart = computed(() => partStore.system_part || "english");
+
+function selectItemTitle(item) {
+  return getEntityLabel(item, reportPart.value, "");
+}
 
 const classes = ref([]);
 const reportType = ref("day");
@@ -25,10 +34,10 @@ onMounted(async () => {
         <AppSelect
           v-model="form.class_id"
           :items="classes"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           autocomplete="off"
-          placeholder="Choose Class"
+          :placeholder="$t('Choose Class')"
         />
       </VCol>
       <VCol cols="12" md="8">
@@ -39,10 +48,10 @@ onMounted(async () => {
           divided
           class="report-type-toggle w-100"
         >
-          <VBtn value="day" class="flex-grow-1">Day</VBtn>
-          <VBtn value="month" class="flex-grow-1">Month</VBtn>
-          <VBtn value="term" class="flex-grow-1">Term</VBtn>
-          <VBtn value="year" class="flex-grow-1">Year</VBtn>
+          <VBtn value="day" class="flex-grow-1">{{ $t("Day") }}</VBtn>
+          <VBtn value="month" class="flex-grow-1">{{ $t("Month") }}</VBtn>
+          <VBtn value="term" class="flex-grow-1">{{ $t("Term") }}</VBtn>
+          <VBtn value="year" class="flex-grow-1">{{ $t("Year") }}</VBtn>
         </VBtnToggle>
       </VCol>
     </VRow>
@@ -50,10 +59,10 @@ onMounted(async () => {
     <VCard v-if="!form.class_id" class="mt-3 pa-8 text-center">
       <VIcon size="48" class="mb-3" style="opacity: 0.35">tabler-school</VIcon>
       <div class="text-body-1 font-weight-medium">
-        Select a class to view attendance reports
+        {{ $t("Select a class to view attendance reports") }}
       </div>
       <div class="text-body-2 mt-1" style="opacity: 0.7">
-        Choose a class above, then pick Day, Month, Term, or Year.
+        {{ $t("Choose a class above, then pick Day, Month, Term, or Year.") }}
       </div>
     </VCard>
 

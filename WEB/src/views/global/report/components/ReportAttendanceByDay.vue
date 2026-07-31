@@ -1,7 +1,18 @@
 <script setup>
 import { api } from "@/utils/api";
 import { onMounted, ref, watch, computed } from "vue";
+import { useI18n } from "vue-i18n";
+import { usePartStore } from "@/stores/partStore";
+import { getEntityLabel } from "@/utils/reportLabels.js";
 import FooterRepor from "@/views/global/components/footerRepor.vue";
+
+const { t } = useI18n();
+const partStore = usePartStore();
+const reportPart = computed(() => partStore.system_part || "english");
+
+function entityLabel(entity, fallback = "—") {
+  return getEntityLabel(entity, reportPart.value, fallback);
+}
 
 const props = defineProps({
   class_id: {
@@ -22,16 +33,16 @@ const formDay = ref({
 });
 
 const printTitle = computed(() => {
-  if (!formDay.value.start_date) return "Attendance Report Daily";
+  if (!formDay.value.start_date) return t("Attendance Report Daily");
   const date = new Date(formDay.value.start_date);
-  if (Number.isNaN(date.getTime())) return "Attendance Report Daily";
+  if (Number.isNaN(date.getTime())) return t("Attendance Report Daily");
   const label = date.toLocaleDateString("en", {
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
   });
-  return `Attendance Report for ${label}`;
+  return t("Attendance Report for {date}", { date: label });
 });
 
 const printObj = computed(() => ({
@@ -75,17 +86,21 @@ function attStatus(att) {
   return null;
 }
 
-const statusProps = {
-  present: { dot: "dot-present", icon: "tabler-check", label: "Present" },
-  late: { dot: "dot-late", icon: "tabler-clock", label: "Late" },
-  permission: { dot: "dot-permission", icon: "tabler-file-check", label: "Permission" },
-  absent: { dot: "dot-absent", icon: "tabler-x", label: "Absent" },
-};
+const statusProps = computed(() => ({
+  present: { dot: "dot-present", icon: "tabler-check", label: t("Present") },
+  late: { dot: "dot-late", icon: "tabler-clock", label: t("Late") },
+  permission: {
+    dot: "dot-permission",
+    icon: "tabler-file-check",
+    label: t("Ask Permission"),
+  },
+  absent: { dot: "dot-absent", icon: "tabler-x", label: t("Absent") },
+}));
 
 function getStatus(att) {
   const status = attStatus(att);
   return status
-    ? statusProps[status]
+    ? statusProps.value[status]
     : { dot: "dot-none", icon: "tabler-minus", label: "—" };
 }
 
@@ -134,7 +149,7 @@ onMounted(() => {
     <VCol cols="9" md="3">
       <AppDateTimePicker
         v-model="formDay.start_date"
-        placeholder="Select date"
+        :placeholder="$t('Select date')"
       />
     </VCol>
     <VCol cols="3" md="5" class="d-flex gap-2">
@@ -146,7 +161,7 @@ onMounted(() => {
         :loading="loading"
         :disabled="loading"
         prepend-icon="tabler-search"
-        >Search</VBtn
+        >{{ $t("Search") }}</VBtn
       >
       <VBtn
         variant="tonal"
@@ -155,7 +170,7 @@ onMounted(() => {
         prepend-icon="tabler-printer"
         v-print="printObj"
       >
-        Print
+        {{ $t("Print") }}
       </VBtn>
     </VCol>
     <!-- <VCol cols="12" md="9" class="d-flex justify-end">
@@ -179,7 +194,7 @@ onMounted(() => {
               <VIcon size="18" color="medium-emphasis">tabler-users</VIcon>
             </div>
             <div class="stat-val">{{ stats.total }}</div>
-            <div class="stat-lbl">Total students</div>
+            <div class="stat-lbl">{{ $t("Total students") }}</div>
           </div>
         </VCol>
 
@@ -189,8 +204,8 @@ onMounted(() => {
               <VIcon size="18" color="medium-emphasis">tabler-check</VIcon>
             </div>
             <div class="stat-val">{{ stats.present }}</div>
-            <div class="stat-lbl">Present</div>
-            <div class="stat-sub">includes {{ stats.late }} late</div>
+            <div class="stat-lbl">{{ $t("Present") }}</div>
+            <div class="stat-sub">{{ $t("includes {n} late", { n: stats.late }) }}</div>
           </div>
         </VCol>
 
@@ -200,7 +215,7 @@ onMounted(() => {
               <VIcon size="18" color="medium-emphasis">tabler-clock</VIcon>
             </div>
             <div class="stat-val">{{ stats.late }}</div>
-            <div class="stat-lbl">Late</div>
+            <div class="stat-lbl">{{ $t("Late") }}</div>
             <div class="stat-sub">
               {{
                 stats.total
@@ -208,7 +223,7 @@ onMounted(() => {
                       (stats.late / (subjects.length * stats.total || 1)) * 100,
                     )
                   : 0
-              }}% of subjects
+              }}{{ $t("% of subjects") }}
             </div>
           </div>
         </VCol>
@@ -219,7 +234,7 @@ onMounted(() => {
               <VIcon size="18" color="medium-emphasis">tabler-file-check</VIcon>
             </div>
             <div class="stat-val">{{ stats.permission }}</div>
-            <div class="stat-lbl">Permission</div>
+            <div class="stat-lbl">{{ $t("Ask Permission") }}</div>
             <div class="stat-sub">
               {{
                 stats.total
@@ -229,7 +244,7 @@ onMounted(() => {
                         100,
                     )
                   : 0
-              }}% of subjects
+              }}{{ $t("% of subjects") }}
             </div>
           </div>
         </VCol>
@@ -240,7 +255,7 @@ onMounted(() => {
               <VIcon size="18" color="medium-emphasis">tabler-x</VIcon>
             </div>
             <div class="stat-val">{{ stats.absent }}</div>
-            <div class="stat-lbl">Absent</div>
+            <div class="stat-lbl">{{ $t("Absent") }}</div>
             <div class="stat-sub">
               {{
                 stats.total
@@ -249,7 +264,7 @@ onMounted(() => {
                         100,
                     )
                   : 0
-              }}% of subjects
+              }}{{ $t("% of subjects") }}
             </div>
           </div>
         </VCol>
@@ -260,7 +275,7 @@ onMounted(() => {
               <VIcon size="18" color="medium-emphasis">tabler-chart-bar</VIcon>
             </div>
             <div class="stat-val">{{ stats.avgPct }}%</div>
-            <div class="stat-lbl">Avg. attendance</div>
+            <div class="stat-lbl">{{ $t("Avg. attendance") }}</div>
           </div>
         </VCol>
       </template>
@@ -289,29 +304,29 @@ onMounted(() => {
         >
           <thead>
             <tr>
-              <th style="width: 24px" class="text-center">N°</th>
-              <th style="min-width: 160px">Student</th>
-              <th style="width: 60px" class="text-center">Gender</th>
+              <th style="width: 24px" class="text-center">{{ $t("No") }}</th>
+              <th style="min-width: 160px">{{ $t("Student") }}</th>
+              <th style="width: 60px" class="text-center">{{ $t("Gender") }}</th>
               <th
                 v-for="sub in subjects"
                 :key="sub.subject_id"
                 class="text-center"
                 style="min-width: 110px"
               >
-                <div class="subject-name">{{ sub.name_en }}</div>
+                <div class="subject-name">{{ entityLabel(sub) }}</div>
                 <!-- <div class="subject-kh">{{ sub.name_kh }}</div> -->
               </th>
-              <th class="text-center" style="width: 62px">Present</th>
-              <th class="text-center" style="width: 52px">Late</th>
-              <th class="text-center" style="width: 80px">Permission</th>
-              <th class="text-center" style="width: 60px">Absent</th>
+              <th class="text-center" style="width: 62px">{{ $t("Present") }}</th>
+              <th class="text-center" style="width: 52px">{{ $t("Late") }}</th>
+              <th class="text-center" style="width: 80px">{{ $t("Ask Permission") }}</th>
+              <th class="text-center" style="width: 60px">{{ $t("Absent") }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(student, i) in attData" :key="student.id">
               <td class="text-center ">{{ student.index ?? i + 1 }}</td>
               <td>
-                {{ student.name_en }}
+                {{ entityLabel(student) }}
                
               </td>
               <td class="text-center">
@@ -328,7 +343,7 @@ onMounted(() => {
                   "
                   :text="
                     getAtt(student, sub.subject_id)?.reason ||
-                    'No reason provided'
+                    $t('No reason provided')
                   "
                   location="right"
                   max-width="200"
@@ -412,11 +427,10 @@ onMounted(() => {
             <div class="student-card-head">
               <div class="d-flex align-center gap-2">
                 <div class="avi">
-                  {{ initials(student.name_en) }}
+                  {{ initials(entityLabel(student, student.name_en || "?")) }}
                 </div>
                 <div>
-                  <div class="name-main">{{ student.name_en }}</div>
-                  <div class="name-sub">{{ student.name_kh }}</div>
+                  <div class="name-main">{{ entityLabel(student) }}</div>
                 </div>
               </div>
               <span class="gender-tag">
@@ -432,13 +446,12 @@ onMounted(() => {
                 class="subject-row"
               >
                 <div class="subject-row-name">
-                  <div class="subject-name">{{ att.name_en }}</div>
-                  <div class="subject-kh">{{ att.name_kh }}</div>
+                  <div class="subject-name">{{ entityLabel(att) }}</div>
                 </div>
 
                 <VTooltip
                   v-if="attStatus(att) === 'permission'"
-                  :text="att.reason || 'No reason provided'"
+                  :text="att.reason || $t('No reason provided')"
                   location="right"
                   max-width="200"
                   open-on-click

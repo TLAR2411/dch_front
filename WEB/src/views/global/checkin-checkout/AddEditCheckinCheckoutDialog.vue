@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, nextTick, onMounted } from "vue";
+import { ref, watch, nextTick, onMounted, computed } from "vue";
 import { debounce } from "lodash";
 import { requiredValidator } from "@/@core/utils/validators";
 import AppTextarea from "@/@core/components/app-form-elements/AppTextarea.vue";
@@ -7,6 +7,8 @@ import { useI18n } from "vue-i18n";
 import { getCurriculumsAssignments, getYears } from "@/services/dataService";
 import { getCurriculums } from "@/services/dataService";
 import { getCurrentYearId } from "@/services/getCurrentYearId";
+import { usePartStore } from "@/stores/partStore";
+import { getEntityLabel } from "@/utils/reportLabels.js";
 
 import { useDisplay } from "vuetify";
 import AppAddEditDrawer from "@/components/AppAddEditDrawer.vue";
@@ -15,6 +17,12 @@ import AppAddEditDrawer from "@/components/AppAddEditDrawer.vue";
 const { xs } = useDisplay();
 
 const { t } = useI18n();
+const partStore = usePartStore();
+const reportPart = computed(() => partStore.system_part || "english");
+
+function selectItemTitle(item) {
+  return getEntityLabel(item, reportPart.value, "");
+}
 
 const curriculums = ref([]);
 
@@ -125,8 +133,8 @@ onMounted(async () => {
     max-width="700"
     :title="
       itemData.id == null
-        ? 'Create Checkin Checkout'
-        : 'Update Checkin Checkout'
+        ? t('Create Checkin Checkout')
+        : t('Update Checkin Checkout')
     "
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
@@ -139,7 +147,7 @@ onMounted(async () => {
         <AppAutocomplete
           v-model="itemData.cur_id"
           :items="curriculums"
-          item-title="name_kh"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Curriculum')"
           autocomplete="off"
@@ -208,8 +216,8 @@ onMounted(async () => {
     v-else
     :title="
       itemData.id == null
-        ? 'Create Checkin Checkout'
-        : 'Update Checkin Checkout'
+        ? t('Create Checkin Checkout')
+        : t('Update Checkin Checkout')
     "
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
@@ -222,7 +230,7 @@ onMounted(async () => {
         <AppAutocomplete
           v-model="itemData.cur_id"
           :items="curriculums"
-          item-title="name_kh"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Curriculum')"
           autocomplete="off"

@@ -3,7 +3,10 @@ import { api } from "@/utils/api";
 import { useSettingStore } from "@/stores/settingStore";
 import { useYearStore } from "@/stores/yearStore";
 import { computed, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import CalendarList from "@/views/global/calendar/CalendarList.vue";
 
+const { t } = useI18n();
 const settingStore = useSettingStore();
 const yearStore = useYearStore();
 
@@ -42,51 +45,42 @@ const maleStudents = computed(() =>
   Math.max(totalStudents.value - femaleStudents.value, 0),
 );
 
-const femalePercent = computed(() => {
-  if (!totalStudents.value) return 0;
-
-  return Math.round((femaleStudents.value / totalStudents.value) * 100);
-});
-
-const malePercent = computed(() => {
-  if (!totalStudents.value) return 0;
-
-  return Math.max(100 - femalePercent.value, 0);
-});
-
 const summaryCards = computed(() => [
   {
     key: "students",
-    title: "Students",
+    title: t("Students"),
     value: totalStudents.value,
-    subtitle: `${femaleStudents.value} female · ${maleStudents.value} male`,
+    subtitle: t("{female} female · {male} male", {
+      female: femaleStudents.value,
+      male: maleStudents.value,
+    }),
     icon: "tabler-users",
     color: "primary",
     to: { name: "global-student" },
   },
   {
     key: "teachers",
-    title: "Teachers",
+    title: t("Teachers"),
     value: toNumber(data.value?.teachers?.total_teachers),
-    subtitle: "Active teachers",
+    subtitle: t("Active teachers"),
     icon: "tabler-school",
     color: "success",
     to: { name: "global-teachers" },
   },
   {
     key: "classes",
-    title: "Classes",
+    title: t("Classes"),
     value: toNumber(data.value?.classes?.total_classes),
-    subtitle: "Active classes",
+    subtitle: t("Active classes"),
     icon: "tabler-chalkboard",
     color: "info",
     to: { name: "global-classes" },
   },
   {
     key: "rooms",
-    title: "Rooms",
+    title: t("Rooms"),
     value: toNumber(data.value?.rooms?.total_rooms),
-    subtitle: "Available rooms",
+    subtitle: t("Available rooms"),
     icon: "tabler-door",
     color: "warning",
     to: { name: "global-rooms" },
@@ -107,8 +101,6 @@ onMounted(() => {
 
 <template>
   <div class="dashboard-curriculum">
-   
-
     <VRow>
       <VCol
         v-for="card in summaryCards"
@@ -126,24 +118,24 @@ onMounted(() => {
             <div class="d-flex align-center justify-space-between mb-4">
               <div class="d-flex align-center gap-2">
                 <VAvatar
-                :color="card.color"
-                size="44"
-                rounded
-                variant="tonal"
-              >
-                <VIcon
-                  :icon="card.icon"
-                  size="24"
-                />
-              </VAvatar>
+                  :color="card.color"
+                  size="44"
+                  rounded
+                  variant="tonal"
+                >
+                  <VIcon
+                    :icon="card.icon"
+                    size="24"
+                  />
+                </VAvatar>
 
-              <div class="text-body-1 font-weight-medium">
-                {{ card.title }}
-              </div>
+                <div class="text-body-1 font-weight-medium">
+                  {{ card.title }}
+                </div>
               </div>
               <div class="text-h4 mb-1">
-              {{ loading ? "—" : card.value }}
-            </div>
+                {{ loading ? "—" : card.value }}
+              </div>
 
               <VProgressCircular
                 v-if="loading"
@@ -154,17 +146,17 @@ onMounted(() => {
               />
             </div>
 
-            
-            
             <div class="text-body-2 text-medium-emphasis mt-1">
-              {{ loading ? "Loading…" : card.subtitle }}
+              {{ loading ? $t("Loading…") : card.subtitle }}
             </div>
           </VCardText>
         </VCard>
       </VCol>
     </VRow>
 
-    
+    <div class="dashboard-calendar mt-6">
+      <CalendarList />
+    </div>
   </div>
 </template>
 

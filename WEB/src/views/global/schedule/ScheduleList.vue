@@ -1,7 +1,12 @@
 <script setup>
 import { getClasses } from "@/services/dataService";
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 import Schedule from "../components/Schedule.vue";
+
+const { t } = useI18n();
+const { selectItemTitle, entityLabel } = useEntityLabel();
 
 const classes = ref([]);
 
@@ -11,7 +16,7 @@ const form = ref({
 
 const selectedClassName = computed(() => {
   const match = classes.value.find((c) => c.id === form.value.class_id);
-  return match?.name_en || "";
+  return entityLabel(match, "");
 });
 
 onMounted(async () => {
@@ -30,9 +35,9 @@ onMounted(async () => {
         :loading="form.class_id == null"
         v-model="form.class_id"
         :items="classes"
-        item-title="name_en"
+        :item-title="selectItemTitle"
         item-value="id"
-        placeholder="Select Class"
+        :placeholder="t('Select Class')"
         autocomplete="off"
       />
     </VCol>

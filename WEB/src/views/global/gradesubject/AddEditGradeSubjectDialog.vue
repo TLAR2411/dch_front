@@ -6,8 +6,10 @@ import { useI18n } from "vue-i18n";
 import AppAutocomplete from "@/@core/components/app-form-elements/AppAutocomplete.vue";
 import AppTextField from "@/@core/components/app-form-elements/AppTextField.vue";
 import AppAddEditDialog from "@/components/AppAddEditDialog.vue";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 
 const { t } = useI18n();
+const { selectItemTitle } = useEntityLabel();
 
 const props = defineProps({
   itemData: {
@@ -114,7 +116,7 @@ const onCloseDialog = () => {
         <AppAutocomplete
           v-model="itemData.subject_ids"
           :items="availableSubjects"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Subjects')"
           :rules="[requiredValidator]"

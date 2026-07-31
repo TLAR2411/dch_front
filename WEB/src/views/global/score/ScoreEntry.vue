@@ -2,9 +2,10 @@
 /**
  * Score Entry page
  *
- * Tabs:
- *   1. Insert Score — Class + Subject + Term → grid
- *   2. Teacher Recommend — Class + Term → auto subject strengths/weaknesses
+ * Progressive tabs:
+ *   - No class → empty state (no tabs)
+ *   - Class selected → Teacher Recommend + Student Behavior
+ *   - Subject selected → also Insert Score
  *
  * FLOW (score tab):
  *   1. Pick Class → resolve grade_id → load Subjects
@@ -13,11 +14,15 @@
  *   4. Edit cells → Save upserts student_scores
  */
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { getClasses } from "@/services/dataService.js";
 import { useYearStore } from "@/stores/yearStore.js";
+import { usePartStore } from "@/stores/partStore";
+import { getEntityLabel } from "@/utils/reportLabels.js";
 import successAlert from "@/helper/successAlert.js";
 import { validateScore } from "@/utils/gradeCalculation.js";
 import { resolveSubjectAttendanceMax } from "@/utils/schoolDays.js";
+import { isRequestCanceled } from "@/utils/api.js";
 import ScoreEntryGrid from "./ScoreEntryGrid.vue";
 import ScoreEntryRecommendations from "./ScoreEntryRecommendations.vue";
 import {
@@ -38,10 +43,21 @@ import {
 } from "./scoreEntryService.js";
 import StudentBehavior from "./StudentBehavior.vue";
 
+const { t } = useI18n();
 const yearStore = useYearStore();
+const partStore = usePartStore();
 const yearId = computed(() => yearStore.year_id);
+const reportPart = computed(() => partStore.system_part || "english");
 
-const activeTab = ref("scores");
+function selectItemTitle(item) {
+  return getEntityLabel(item, reportPart.value, "");
+}
+
+function entityLabel(entity, fallback = "—") {
+  return getEntityLabel(entity, reportPart.value, fallback);
+}
+
+const activeTab = ref("recommend");
 
 const classes = ref([]);
 const subjects = ref([]);
@@ -75,6 +91,14 @@ const selectedClass = computed(
   () => classes.value.find((c) => Number(c.id) === Number(form.value.class_id)) ?? null,
 );
 
+const hasClass = computed(() => !!form.value.class_id);
+const hasSubject = computed(() => !!form.value.subject_id);
+
+/** Wait for class subjects before mounting tabs that also fetch grade subjects. */
+const classFiltersReady = computed(
+  () => hasClass.value && !!classGradeId.value && !loadingFilters.value,
+);
+
 const canLoad = computed(
   () =>
     !!form.value.class_id &&
@@ -82,6 +106,8 @@ const canLoad = computed(
     !!form.value.term_id &&
     !!yearId.value,
 );
+
+let subjectsLoadSeq = 0;
 
 const allItemIds = computed(() =>
   categories.value.flatMap((c) => (c.items || []).map((i) => i.id)),
@@ -107,6 +133,7 @@ function onUpdateScore({ studentId, itemId, value }) {
 }
 
 async function loadSubjects() {
+  const seq = ++subjectsLoadSeq;
   subjects.value = [];
   form.value.subject_id = null;
   classGradeId.value = null;
@@ -120,16 +147,22 @@ async function loadSubjects() {
       selectedClass.value?.grade_id ??
       (await resolveClassGradeId(form.value.class_id));
 
+    if (seq !== subjectsLoadSeq) return;
+
     classGradeId.value = gradeId;
-    subjects.value = await fetchSubjectsForGrade(yearId.value, gradeId);
+    const list = await fetchSubjectsForGrade(yearId.value, gradeId);
+    if (seq !== subjectsLoadSeq) return;
+
+    subjects.value = list;
   } catch (error) {
+    if (isRequestCanceled(error) || seq !== subjectsLoadSeq) return;
     console.error(error);
     successAlert.fire({
       icon: "error",
-      title: error.message || "Failed to load subjects",
+      title: error.message || t("Failed to load subjects"),
     });
   } finally {
-    loadingFilters.value = false;
+    if (seq === subjectsLoadSeq) loadingFilters.value = false;
   }
 }
 
@@ -178,7 +211,7 @@ async function loadGrid() {
     classGradeId.value = gradeId;
 
     if (!gradeId) {
-      throw new Error("Class has no grade assigned.");
+      throw new Error(t("Class has no grade assigned."));
     }
 
     let layout = await fetchGradingLayout({
@@ -276,7 +309,7 @@ async function loadGrid() {
     clearGrid();
     successAlert.fire({
       icon: "error",
-      title: error.message || "Failed to load scores",
+      title: error.message || t("Failed to load scores"),
     });
   } finally {
     loadingGrid.value = false;
@@ -297,7 +330,9 @@ function collectValidationErrors() {
         const value = scores[student.student_id]?.[item.id];
         const msg = validateScore(value, max);
         if (msg) {
-          errors.push(`${student.name_en} / ${item.item_name}: ${msg}`);
+          errors.push(
+            `${entityLabel(student, student.name_en)} / ${item.item_name}: ${msg}`,
+          );
         }
       }
     }
@@ -314,7 +349,10 @@ async function saveScores() {
     successAlert.fire({
       icon: "error",
       title: errors[0],
-      text: errors.length > 1 ? `+${errors.length - 1} more` : undefined,
+      text:
+        errors.length > 1
+          ? t("+{n} more", { n: errors.length - 1 })
+          : undefined,
     });
     return;
   }
@@ -341,13 +379,13 @@ async function saveScores() {
 
     successAlert.fire({
       icon: "success",
-      title: "Scores saved",
+      title: t("Scores saved"),
     });
   } catch (error) {
     console.error(error);
     successAlert.fire({
       icon: "error",
-      title: error.message || "Failed to save scores",
+      title: error.message || t("Failed to save scores"),
     });
   } finally {
     saving.value = false;
@@ -357,7 +395,21 @@ async function saveScores() {
 watch(
   () => form.value.class_id,
   () => {
+    if (!form.value.class_id) {
+      activeTab.value = "recommend";
+    } else if (activeTab.value === "scores" && !form.value.subject_id) {
+      activeTab.value = "recommend";
+    }
     loadSubjects();
+  },
+);
+
+watch(
+  () => form.value.subject_id,
+  (subjectId) => {
+    if (!subjectId && activeTab.value === "scores") {
+      activeTab.value = "recommend";
+    }
   },
 );
 
@@ -394,9 +446,9 @@ onMounted(async () => {
           <AppSelect
             v-model="form.class_id"
             :items="classes"
-            item-title="name_en"
+            :item-title="selectItemTitle"
             item-value="id"
-            placeholder="Class"
+            :placeholder="$t('Class')"
             clearable
             :disabled="loadingFilters"
           />
@@ -405,9 +457,9 @@ onMounted(async () => {
           <AppSelect
             v-model="form.term_id"
             :items="terms"
-            item-title="name_en"
+            :item-title="selectItemTitle"
             item-value="id"
-            placeholder="Term"
+            :placeholder="$t('Term')"
             clearable
             :disabled="loadingFilters"
           />
@@ -417,9 +469,9 @@ onMounted(async () => {
           <AppSelect
             v-model="form.subject_id"
             :items="subjects"
-            item-title="name_en"
+            :item-title="selectItemTitle"
             item-value="id"
-            placeholder="Subject"
+            :placeholder="$t('Subject')"
             clearable
             :disabled="!form.class_id || loadingFilters"
           />
@@ -429,107 +481,134 @@ onMounted(async () => {
           <VBtn
             v-if="activeTab === 'scores'"
             variant="tonal"
+            density="comfortable"
             color="secondary"
             :loading="loadingGrid"
             :disabled="!canLoad"
             @click="loadGrid"
           >
-            Refresh
+            {{ $t("Refresh") }}
           </VBtn>
           <VBtn
+           density="comfortable"
             v-if="activeTab === 'scores'"
             color="primary"
             :loading="saving"
             :disabled="!hasLoaded || !categories.length || loadingGrid"
             @click="saveScores"
           >
-            Save Scores
+            {{ $t("Save Scores") }}
           </VBtn>
         </VCol>
       </VRow>
     </VCard>
 
-    <VTabs v-model="activeTab" color="primary" class="mb-3">
-      <VTab value="scores" prepend-icon="tabler-table">
-        Insert Score
-      </VTab>
-      <VTab value="recommend" prepend-icon="tabler-message-2">
-        Teacher Recommend
-      </VTab>
-      <VTab value="behavior" prepend-icon="tabler-message-2">
-        Student Behavior
-      </VTab>
-    </VTabs>
+    <VCard v-if="!hasClass" class="pa-8 text-center">
+      <VIcon size="48" class="mb-3" style="opacity: 0.35">
+        tabler-report-analytics
+      </VIcon>
+      <div class="text-body-1 font-weight-medium">
+        {{ $t("Select Class, Subject, and Term") }}
+      </div>
+      <div class="text-body-2 mt-1" style="opacity: 0.7">
+        {{ $t("Choose a class above to continue.") }}
+      </div>
+    </VCard>
 
-    <VWindow v-model="activeTab" class="disable-tab-transition" :touch="false">
-      <VWindowItem value="scores">
-        <VCard v-if="!canLoad" class="pa-8 text-center">
-          <VIcon size="48" class="mb-3" style="opacity: 0.35">
-            tabler-report-analytics
-          </VIcon>
-          <div class="text-body-1 font-weight-medium">
-            Select Class, Subject, and Term
-          </div>
-          <div class="text-body-2 mt-1" style="opacity: 0.7">
-            Choose filters above once, then switch tabs for scores or
-            recommendations.
-          </div>
-        </VCard>
-
-        <VCard v-else-if="loadingGrid" class="pa-8 text-center">
-          <VProgressCircular indeterminate color="primary" class="mb-3" />
-          <div class="text-body-2">Loading score sheet…</div>
-        </VCard>
-
-        <VCard
-          v-else-if="hasLoaded && !categories.length"
-          class="pa-8 text-center"
+    <template v-else>
+      <VTabs v-model="activeTab" color="primary" class="mb-3">
+        <VTab
+          v-if="hasSubject"
+          value="scores"
+          prepend-icon="tabler-table"
         >
-          <VIcon size="48" class="mb-3" style="opacity: 0.35">
-            tabler-settings
-          </VIcon>
-          <div class="text-body-1 font-weight-medium">
-            No grading rules for this subject
-          </div>
-          <div class="text-body-2 mt-1" style="opacity: 0.7">
-            Configure categories and assessments in
-            <RouterLink :to="{ name: 'global-subjectsetting' }">
-              Subject Setting
-            </RouterLink>
-            first.
-          </div>
-        </VCard>
+          {{ $t("Insert Score") }}
+        </VTab>
+        <VTab value="recommend" prepend-icon="tabler-message-2">
+          {{ $t("Teacher Recommend") }}
+        </VTab>
+        <VTab value="behavior" prepend-icon="tabler-message-2">
+          {{ $t("Student Behavior") }}
+        </VTab>
+      </VTabs>
 
-        <VCard v-else-if="hasLoaded" class="pa-3">
-          <ScoreEntryGrid
-            :categories="categories"
-            :students="students"
-            :scores="scores"
-            :attendance-max="attendanceMax"
-            @update:score="onUpdateScore"
-          />
-        </VCard>
-      </VWindowItem>
+      <VWindow v-model="activeTab" class="disable-tab-transition" :touch="false">
+        <VWindowItem v-if="hasSubject" value="scores">
+          <VCard v-if="!canLoad" class="pa-8 text-center">
+            <VIcon size="48" class="mb-3" style="opacity: 0.35">
+              tabler-report-analytics
+            </VIcon>
+            <div class="text-body-1 font-weight-medium">
+              {{ $t("Select Class, Subject, and Term") }}
+            </div>
+            <div class="text-body-2 mt-1" style="opacity: 0.7">
+              {{ $t("Choose filters above once, then switch tabs for scores or recommendations.") }}
+            </div>
+          </VCard>
 
-      <VWindowItem value="recommend">
-        <VCard class="pa-3">
-          <ScoreEntryRecommendations
-            :class-id="form.class_id"
-            :term-id="form.term_id"
-            :grade-id="classGradeId ?? selectedClass?.grade_id"
-          />
-        </VCard>
-      </VWindowItem>
+          <VCard v-else-if="loadingGrid" class="pa-8 text-center">
+            <VProgressCircular indeterminate color="primary" class="mb-3" />
+            <div class="text-body-2">{{ $t("Loading score sheet…") }}</div>
+          </VCard>
 
-      <VWindowItem value="behavior">
-        <VCard class="pa-3">
-          <StudentBehavior
-            :class-id="form.class_id"
-            :term-id="form.term_id"
-            :grade-id="classGradeId ?? selectedClass?.grade_id"
-          />
-        </VCard>
-      </VWindowItem>
-    </VWindow>
+          <VCard
+            v-else-if="hasLoaded && !categories.length"
+            class="pa-8 text-center"
+          >
+            <VIcon size="48" class="mb-3" style="opacity: 0.35">
+              tabler-settings
+            </VIcon>
+            <div class="text-body-1 font-weight-medium">
+              {{ $t("No grading rules for this subject") }}
+            </div>
+            <div class="text-body-2 mt-1" style="opacity: 0.7">
+              {{ $t("Configure categories and assessments in") }}
+              <RouterLink :to="{ name: 'global-subjectsetting' }">
+                {{ $t("Subject Setting") }}
+              </RouterLink>
+              {{ $t("first.") }}
+            </div>
+          </VCard>
+
+          <VCard v-else-if="hasLoaded" class="pa-3">
+            <ScoreEntryGrid
+              :categories="categories"
+              :students="students"
+              :scores="scores"
+              :attendance-max="attendanceMax"
+              @update:score="onUpdateScore"
+            />
+          </VCard>
+        </VWindowItem>
+
+        <VWindowItem value="recommend">
+          <VCard v-if="!classFiltersReady" class="pa-8 text-center">
+            <VProgressCircular indeterminate color="primary" class="mb-3" />
+            <div class="text-body-2">{{ $t("Loading…") }}</div>
+          </VCard>
+          <VCard v-else class="pa-3">
+            <ScoreEntryRecommendations
+              :class-id="form.class_id"
+              :term-id="form.term_id"
+              :grade-id="classGradeId"
+            />
+          </VCard>
+        </VWindowItem>
+
+        <VWindowItem value="behavior">
+          <VCard v-if="!classFiltersReady" class="pa-8 text-center">
+            <VProgressCircular indeterminate color="primary" class="mb-3" />
+            <div class="text-body-2">{{ $t("Loading…") }}</div>
+          </VCard>
+          <VCard v-else class="pa-3">
+            <StudentBehavior
+              :class-id="form.class_id"
+              :term-id="form.term_id"
+              :grade-id="classGradeId"
+            />
+          </VCard>
+        </VWindowItem>
+      </VWindow>
+    </template>
   </div>
 </template>

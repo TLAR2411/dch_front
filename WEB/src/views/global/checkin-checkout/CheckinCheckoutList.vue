@@ -178,7 +178,7 @@ const onDisable = async (item) => {
   <AppCardTable
     v-model:isDialogCreateVisible="isDialogVisible"
     ref="dataTableRef"
-    title="Checkin Checkout"
+    :title="$t('Checkin Checkout')"
     title-icon="tabler-clock"
     saveHeaderName="header-checkin-checkout-list"
     saveStateName="save-state-checkin-checkout-list"

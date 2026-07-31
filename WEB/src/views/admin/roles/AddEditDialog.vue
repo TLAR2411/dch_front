@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, toRefs } from "vue";
+import { ref, computed, watch, toRefs,nextTick } from "vue";
 import { debounce } from "lodash";
 import AppTextField from "@core/components/app-form-elements/AppTextField.vue";
 import { requiredValidator } from "@/@core/utils/validators";
@@ -188,15 +188,23 @@ const unselectAllGlobal = () => {
   permissionsSelected.value = {};
 };
 
-const convertName = (inputString) => {
-  const parts = inputString.split("-");
+// const convertName = (inputString) => {
+//   const parts = inputString.split("-");
 
-  // 2. Capitalize the first letter of each part and join them with a space
-  const result = parts
+//   // 2. Capitalize the first letter of each part and join them with a space
+//   const result = parts
+//     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+//     .join(" ");
+
+//   return result;
+// };
+
+const convertName = (inputString) => {
+  if (!inputString) return "";
+  const parts = String(inputString).split("-");
+  return parts
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-
-  return result;
 };
 </script>
 
@@ -288,7 +296,7 @@ const convertName = (inputString) => {
                     -->
                     <VCheckbox
                       :model-value="!!permissionsSelected[item.id]"
-                      :label="convertName(item.display_name)"
+                      :label="convertName(item.display_name || item.name)"
                       @update:model-value="
                         (isChecked) => handleCheckboxChange(isChecked, item.id)
                       "

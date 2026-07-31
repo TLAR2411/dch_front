@@ -8,13 +8,14 @@ import AppCard from "@/components/AppCard.vue";
 import AppLabel from "@/components/AppLabel.vue";
 import { api } from "@/utils/api";
 import { app } from "@/utils/app";
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { useI18n } from "vue-i18n";
 import Address from "@/components/Address.vue";
 
 const router = useRouter();
-
 const route = useRoute();
+const { t } = useI18n();
 
 const genderOptions = [
   { name: "ប្រុស", value: "male" },
@@ -177,7 +178,7 @@ onMounted(() => {
 
 <template>
   <AppCard
-    title="Edit Teacher"
+    :title="t('Edit Teacher')"
     title-icon="tabler-user-plus"
     is-submit
     :loading="isLoading"
@@ -202,7 +203,7 @@ onMounted(() => {
                 color="orange mr-2"
               >
                 <VIcon icon="tabler-upload" class="d-sm-none" />
-                <span class="d-none d-sm-block">បញ្ចូលរូបភាព</span>
+                <span class="d-none d-sm-block">{{ t("Upload photo") }}</span>
               </VBtn>
 
               <input
@@ -216,20 +217,20 @@ onMounted(() => {
             </div>
 
             <p class="text-body-2 mt-2 mb-0 customFontSiemreap">
-              អនុញ្ញាតបញ្ចូលបានតែ JPG, GIF ឬ PNG នឹងទំហំអតិបរិមា 800K
+              {{ t("Photo upload hint") }}
             </p>
           </form>
         </div>
       </VCol>
 
-      <AppLabel title="Personal Information" />
+      <AppLabel :title="t('Personal Information')" />
 
       <VCol cols="12">
         <VRow>
           <VCol cols="12" md="4" sm="6">
             <AppTextField
               v-model="formData.name_kh"
-              label="Name Khmer"
+              :label="t('Name Khmer')"
               :rules="[requiredValidator]"
               autocomplete="off"
             />
@@ -237,7 +238,7 @@ onMounted(() => {
           <VCol cols="12" md="4" sm="6">
             <AppTextField
               v-model="formData.name_en"
-              label="Name English"
+              :label="t('Name English')"
               autocomplete="off"
             />
           </VCol>
@@ -247,7 +248,7 @@ onMounted(() => {
               :items="genderOptions"
               item-title="name"
               item-value="value"
-              label="Gender"
+              :label="t('Gender')"
               :rules="[requiredValidator]"
               autocomplete="off"
             />
@@ -259,7 +260,7 @@ onMounted(() => {
               :items="nationOptions"
               item-title="name"
               item-value="value"
-              label="Nation"
+              :label="t('Nation')"
               autocomplete="off"
             />
           </VCol>
@@ -267,7 +268,7 @@ onMounted(() => {
           <VCol cols="12" md="4" sm="6">
             <AppTextField
               v-model="formData.email"
-              label="Email"
+              :label="t('email')"
               type="email"
               autocomplete="off"
             />
@@ -276,14 +277,14 @@ onMounted(() => {
           <VCol cols="12" md="4" sm="6">
             <AppTextField
               v-model="formData.phone"
-              label="Phone"
+              :label="t('phone')"
               autocomplete="off"
             />
           </VCol>
         </VRow>
       </VCol>
 
-      <AppLabel title="Address" />
+      <AppLabel :title="t('Address')" />
       <VCol cols="12" md="12">
         <Address
           :loading="fieldLoading"

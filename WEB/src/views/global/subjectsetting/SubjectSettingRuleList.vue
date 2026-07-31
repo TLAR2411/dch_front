@@ -1,5 +1,6 @@
 <script setup>
 import { useI18n } from "vue-i18n";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 
 const props = defineProps({
   gradeId: {
@@ -32,6 +33,7 @@ const emit = defineEmits([
 ]);
 
 const { t } = useI18n();
+const { entityLabel, reportPart } = useEntityLabel();
 
 const ruleKey = (rule) =>
   `${props.gradeId}-${props.subjectId}-${rule.grading_rule_id ?? rule.category_id}`;
@@ -65,10 +67,14 @@ const ruleKey = (rule) =>
           <div
             :class="compact ? 'text-caption font-weight-bold' : 'text-body-2 font-weight-bold'"
           >
-            {{ rule.category?.name_en }}
+            {{ entityLabel(rule.category) }}
           </div>
           <div class="text-caption text-medium-emphasis">
-            {{ rule.category?.name_kh }}
+            {{
+              reportPart === "khmer" || reportPart === "chinese"
+                ? rule.category?.name_en
+                : rule.category?.name_kh
+            }}
           </div>
         </div>
       </div>

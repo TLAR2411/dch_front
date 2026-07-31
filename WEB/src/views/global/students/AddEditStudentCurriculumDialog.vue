@@ -156,7 +156,7 @@ onMounted(async () => {
   <AppAddEditDialog
     v-if="!xs"
     max-width="700"
-    :title="itemData.id == null ? 'Add Student ' : 'Update Student'"
+    :title="itemData.id == null ? t('Add Student') : t('Update Student')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
@@ -180,7 +180,7 @@ onMounted(async () => {
   <AppAddEditDrawer
     v-else
     max-width="700"
-    :title="itemData.id == null ? 'Add Student ' : 'Update Student'"
+    :title="itemData.id == null ? t('Add Student') : t('Update Student')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"

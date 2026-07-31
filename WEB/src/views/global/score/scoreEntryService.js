@@ -60,24 +60,38 @@ export async function resolveClassGradeId(classId) {
   return detail?.grade_id ?? detail?.grade?.id ?? null;
 }
 
+/** Share one in-flight request per year+grade (api.js aborts duplicate POSTs). */
+const subjectsForGradeInFlight = new Map();
+
 /** Parent subjects assigned to grade for the year. */
 export async function fetchSubjectsForGrade(yearId, gradeId) {
   if (!yearId || !gradeId) return [];
 
-  const { assignments: data } = await listGradeSubjectAssignments({
+  const key = `${yearId}:${gradeId}`;
+  const existing = subjectsForGradeInFlight.get(key);
+  if (existing) return existing;
+
+  const promise = listGradeSubjectAssignments({
     year_id: yearId,
     grade_id: gradeId,
-  });
+  })
+    .then(({ assignments: data }) =>
+      (data ?? [])
+        .filter((row) => row.subject && !row.subject.parent_id)
+        .map((row) => ({
+          id: row.subject_id,
+          name_en: row.subject.name_en || "",
+          name_kh: row.subject.name_kh || "",
+          name_cn: row.subject.name_cn || "",
+        }))
+        .sort((a, b) => a.name_en.localeCompare(b.name_en)),
+    )
+    .finally(() => {
+      subjectsForGradeInFlight.delete(key);
+    });
 
-  return (data ?? [])
-    .filter((row) => row.subject && !row.subject.parent_id)
-    .map((row) => ({
-      id: row.subject_id,
-      name_en: row.subject.name_en || "",
-      name_kh: row.subject.name_kh || "",
-      name_cn: row.subject.name_cn || "",
-    }))
-    .sort((a, b) => a.name_en.localeCompare(b.name_en));
+  subjectsForGradeInFlight.set(key, promise);
+  return promise;
 }
 
 /**

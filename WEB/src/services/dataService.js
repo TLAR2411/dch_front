@@ -431,6 +431,7 @@ export const getTerms = async (yearId) => {
 export const getClasses = async () => {
     try {
         const response = await api.post("classes-all");
+        console.log(response.data.data);
         return response.data.data;
     } catch (error) {
         console.error("Server classes error: ", error);

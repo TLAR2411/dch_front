@@ -416,6 +416,7 @@
     "getBilingualLabel": true,
     "getEntityLabel": true,
     "getSelectTitleField": true,
-    "resolveReportPart": true
+    "resolveReportPart": true,
+    "isRequestCanceled": true
   }
 }

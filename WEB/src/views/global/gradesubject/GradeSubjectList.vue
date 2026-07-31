@@ -12,8 +12,10 @@ import DeleteAlert from "@/helper/deleteAlert.js";
 import { useYearStore } from "@/stores/yearStore.js";
 import AddEditGradeSubjectDialog from "./AddEditGradeSubjectDialog.vue";
 import AppTextField from "@/@core/components/app-form-elements/AppTextField.vue";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 
 const { t } = useI18n();
+const { entityLabel, reportPart } = useEntityLabel();
 const yearStore = useYearStore();
 
 definePage({
@@ -166,7 +168,7 @@ const fetchGradeSubjects = async () => {
     console.error("Failed to fetch grade subjects:", error);
     successAlert.fire({
       icon: "error",
-      title: error.message || "Failed to fetch grade subjects",
+      title: error.message || t("Failed to fetch grade subjects"),
     });
   } finally {
     isLoading.value = false;
@@ -211,7 +213,7 @@ const filteredGrades = computed(() => {
 const openCreateDialog = (grade) => {
   formData.value = {
     grade_id: grade.grade_id,
-    grade_name: grade.grade?.name_en ?? null,
+    grade_name: entityLabel(grade.grade),
     assigned_subject_ids: (grade.subjects ?? []).map(
       (subject) => subject.subject_id,
     ),
@@ -223,7 +225,7 @@ const onCreate = async (data, callback) => {
   if (!yearId.value) {
     successAlert.fire({
       icon: "error",
-      title: "Please select a school year first",
+      title: t("Please select a school year first"),
     });
     callback(false);
     return;
@@ -234,7 +236,7 @@ const onCreate = async (data, callback) => {
 
     const subjectIds = [...new Set(data.subject_ids ?? [])];
     if (!subjectIds.length) {
-      throw new Error("Please select at least one subject.");
+      throw new Error(t("Please select at least one subject."));
     }
 
     // The endpoint takes the whole set of subject ids in one call.
@@ -246,7 +248,7 @@ const onCreate = async (data, callback) => {
 
     successAlert.fire({
       icon: "success",
-      title: "Subjects assigned successfully",
+      title: t("Subjects assigned successfully"),
     });
 
     await fetchGradeSubjects();
@@ -256,7 +258,7 @@ const onCreate = async (data, callback) => {
     console.error("Failed to assign subjects:", error);
     successAlert.fire({
       icon: "error",
-      title: error.message || "Failed to assign subjects",
+      title: error.message || t("Failed to assign subjects"),
     });
     callback(false);
   } finally {
@@ -274,14 +276,14 @@ const onDelete = async (gradeSubjectId) => {
 
       successAlert.fire({
         icon: "success",
-        title: "Subject removed from grade successfully",
+        title: t("Subject removed from grade successfully"),
       });
       await fetchGradeSubjects();
     } catch (error) {
       console.error("Failed to remove subject:", error);
       successAlert.fire({
         icon: "error",
-        title: error.message || "Failed to remove subject",
+        title: error.message || t("Failed to remove subject"),
       });
     } finally {
       isLoading.value = false;
@@ -361,10 +363,14 @@ watch(yearId, async () => {
             </VAvatar>
             <div>
               <div class="text-subtitle-1 font-weight-bold">
-                {{ grade.grade?.name_en }}
+                {{ entityLabel(grade.grade) }}
               </div>
               <div class="text-caption text-medium-emphasis">
-                {{ grade.grade?.name_kh }}
+                {{
+                  reportPart === "khmer" || reportPart === "chinese"
+                    ? grade.grade?.name_en
+                    : grade.grade?.name_kh
+                }}
               </div>
             </div>
           </div>
@@ -425,10 +431,14 @@ watch(yearId, async () => {
                     </VAvatar>
                     <div>
                       <div class="text-body-1 font-weight-bold">
-                        {{ subject.subject?.name_en }}
+                        {{ entityLabel(subject.subject) }}
                       </div>
                       <div class="text-caption text-medium-emphasis">
-                        {{ subject.subject?.name_kh }}
+                        {{
+                          reportPart === "khmer" || reportPart === "chinese"
+                            ? subject.subject?.name_en
+                            : subject.subject?.name_kh
+                        }}
                       </div>
                     </div>
                   </div>
@@ -500,10 +510,14 @@ watch(yearId, async () => {
                             </VAvatar>
                             <div>
                               <div class="text-body-2 font-weight-bold">
-                                {{ childSubject.subject?.name_en }}
+                                {{ entityLabel(childSubject.subject) }}
                               </div>
                               <div class="text-caption text-medium-emphasis">
-                                {{ childSubject.subject?.name_kh }}
+                                {{
+                                  reportPart === "khmer" || reportPart === "chinese"
+                                    ? childSubject.subject?.name_en
+                                    : childSubject.subject?.name_kh
+                                }}
                               </div>
                             </div>
                           </div>
@@ -536,7 +550,7 @@ watch(yearId, async () => {
                               class="pa-3 text-caption text-medium-emphasis text-center"
                             >
                               {{ t("Child subject of") }}
-                              {{ subject.subject?.name_en }}
+                              {{ entityLabel(subject.subject) }}
                             </div>
                           </div>
                         </VExpandTransition>

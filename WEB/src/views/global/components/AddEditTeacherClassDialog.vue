@@ -6,8 +6,10 @@ import AppTextarea from "@/@core/components/app-form-elements/AppTextarea.vue";
 import { useI18n } from "vue-i18n";
 import { getSubjects, getTeacher } from "@/services/dataService";
 import { useSettingStore } from "@/stores/settingStore";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 
 const store = useSettingStore();
+const { selectItemTitle } = useEntityLabel();
 
 const teachers = ref([]);
 
@@ -120,7 +122,7 @@ onMounted(async () => {
 <template>
   <AppAddEditDialog
     max-width="600"
-    :title="itemData.id == null ? 'Add Teacher Class' : 'Update Teacher Class'"
+    :title="itemData.id == null ? t('Add Teacher Class') : t('Update Teacher Class')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
@@ -132,7 +134,7 @@ onMounted(async () => {
         <AppAutocomplete
           v-model="itemData.teacher_id"
           :items="teachers"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Teachers')"
           autocomplete="off"
@@ -144,7 +146,7 @@ onMounted(async () => {
         <AppAutocomplete
           v-model="itemData.subject_id"
           :items="subjects"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Subject')"
           autocomplete="off"
@@ -152,8 +154,8 @@ onMounted(async () => {
         />
       </VCol>
       <VCol cols="12" sm="12" md="12" class="d-flex ga-5">
-        <VCheckbox v-model="itemData.is_assistance" label="Assistance" />
-        <VCheckbox v-model="itemData.is_classload" label="Classload" />
+        <VCheckbox v-model="itemData.is_assistance" :label="t('Assistance')" />
+        <VCheckbox v-model="itemData.is_classload" :label="t('Classload')" />
       </VCol>
 
       <VCol cols="12" sm="12" md="12">

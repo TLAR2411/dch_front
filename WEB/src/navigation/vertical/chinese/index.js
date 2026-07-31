@@ -80,4 +80,19 @@ export default [
 
         ],
     },
+
+    {
+        title: "Settings",
+        icon: { icon: "tabler-settings" },
+        permission: '',
+        children: [
+    
+          {
+            title: "Behavior & Rating",
+            to: {
+              name: "global-behavior",
+            },
+          },
+        ],
+      },
 ];

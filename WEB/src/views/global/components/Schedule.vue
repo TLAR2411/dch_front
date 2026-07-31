@@ -5,6 +5,26 @@ import { useSettingStore } from "@/stores/settingStore";
 import headerReportImage from "@/assets/images/pages/headerReportImage.png";
 import FooterRepor from "@/views/global/components/footerRepor.vue";
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
+
+const { t } = useI18n();
+const { selectItemTitle, entityLabel } = useEntityLabel();
+
+function dayLabel(d) {
+  return entityLabel(d, "");
+}
+
+function dayAbbrev(d) {
+  const label = dayLabel(d);
+  // Khmer day names are already short; avoid cutting grapheme clusters
+  if (/[\u1780-\u17FF]/.test(label)) return label;
+  return label.length > 3 ? label.slice(0, 3) : label;
+}
+
+function subjectLabel(subject) {
+  return entityLabel(subject, t("Untitled"));
+}
 
 const props = defineProps({
   class_id: {
@@ -68,22 +88,22 @@ const otherClasses = computed(() =>
   (props.classes || []).filter((c) => Number(c.id) !== Number(props.class_id)),
 );
 
-const COLOR_OPTIONS = [
-  { value: "s-blue", label: "Blue" },
-  { value: "s-orange", label: "Orange" },
-  { value: "s-green", label: "Green" },
-  { value: "s-purple", label: "Purple" },
-  { value: "s-red", label: "Red" },
-  { value: "s-pink", label: "Pink" },
-  { value: "s-teal", label: "Teal" },
-  { value: "s-yellow", label: "Yellow" },
-  { value: "s-indigo", label: "Indigo" },
-  { value: "s-cyan", label: "Cyan" },
-  { value: "s-lime", label: "Lime" },
-  { value: "s-amber", label: "Amber" },
-];
+const COLOR_OPTIONS = computed(() => [
+  { value: "s-blue", label: t("Blue") },
+  { value: "s-orange", label: t("Orange") },
+  { value: "s-green", label: t("Green") },
+  { value: "s-purple", label: t("Purple") },
+  { value: "s-red", label: t("Red") },
+  { value: "s-pink", label: t("Pink") },
+  { value: "s-teal", label: t("Teal") },
+  { value: "s-yellow", label: t("Yellow") },
+  { value: "s-indigo", label: t("Indigo") },
+  { value: "s-cyan", label: t("Cyan") },
+  { value: "s-lime", label: t("Lime") },
+  { value: "s-amber", label: t("Amber") },
+]);
 
-const COLORS = COLOR_OPTIONS.map((c) => c.value);
+const COLORS = computed(() => COLOR_OPTIONS.value.map((c) => c.value));
 
 const JS_DAY_NAMES = [
   "Sunday",
@@ -97,7 +117,9 @@ const JS_DAY_NAMES = [
 
 const reportTitle = computed(() => {
   const name = props.class_name?.trim();
-  return name ? `Daily Schedule for ${name}` : "Daily Schedule";
+  return name
+    ? t("Daily Schedule for {name}", { name })
+    : t("Daily Schedule");
 });
 
 const printObj = computed(() => ({
@@ -114,14 +136,19 @@ function getSubjectColor(subject_id) {
   if (!subjectColorMap.value[subject_id]) {
     const index = subjects.value.findIndex((s) => s.id === subject_id);
     subjectColorMap.value[subject_id] =
-      COLORS[(index >= 0 ? index : 0) % COLORS.length];
+      COLORS.value[(index >= 0 ? index : 0) % COLORS.value.length];
   }
   return subjectColorMap.value[subject_id];
 }
 
 function slotLabel(s) {
   if (s?.title?.trim()) return s.title.trim();
-  return s?.subjects?.name_en || "Untitled";
+  // Prefer full subject from loaded list (has name_kh), fall back to nested row
+  const fromList =
+    s?.subject_id != null
+      ? subjects.value.find((sub) => Number(sub.id) === Number(s.subject_id))
+      : null;
+  return subjectLabel(fromList || s?.subjects);
 }
 
 /** Normalize "07:30:00" / "7:30" → "07:30" for time inputs + comparisons. */
@@ -438,7 +465,7 @@ function classNameById(classId) {
   const match = (props.classes || []).find(
     (c) => Number(c.id) === Number(classId),
   );
-  return match?.name_en || `Class ${classId}`;
+  return entityLabel(match, `${t("Class")} ${classId}`);
 }
 
 async function save() {
@@ -446,12 +473,12 @@ async function save() {
   form.value.end = normalizeTime(form.value.end);
 
   if (!form.value.start || !form.value.end) {
-    alert("Please set both start and end time.");
+    alert(t("Please set both start and end time."));
     return;
   }
 
   if (toMin(form.value.end) <= toMin(form.value.start)) {
-    alert("End time must be after start time.");
+    alert(t("End time must be after start time."));
     return;
   }
 
@@ -460,21 +487,21 @@ async function save() {
 
   if (isTitleMode) {
     if (!title) {
-      alert("Please enter a title.");
+      alert(t("Please enter a title."));
       return;
     }
   } else if (!form.value.subject_id) {
-    alert("Please select a subject.");
+    alert(t("Please select a subject."));
     return;
   }
 
   if (!form.value.day_id) {
-    alert("Please select a day.");
+    alert(t("Please select a day."));
     return;
   }
 
   if (form.value.merge_days && !form.value.day_to_id) {
-    alert("Please select the end day for the merge.");
+    alert(t("Please select the end day for the merge."));
     return;
   }
 
@@ -483,7 +510,7 @@ async function save() {
     : [...new Set((form.value.class_ids || []).map(Number).filter(Boolean))];
 
   if (!targetClassIds.length) {
-    alert("Please select at least one class.");
+    alert(t("Please select at least one class."));
     return;
   }
 
@@ -498,7 +525,7 @@ async function save() {
 
   if (overlappingIds.length) {
     const names = overlappingIds.map(classNameById).join(", ");
-    alert(`This time slot overlaps in: ${names}`);
+    alert(t("This time slot overlaps in: {names}", { names }));
     return;
   }
 
@@ -527,7 +554,7 @@ async function save() {
         await updateSchedule({ ...payload, id: editingId.value });
       } catch (error) {
         console.log(error);
-        alert("Failed to update schedule.");
+        alert(t("Failed to update schedule."));
         return;
       }
 
@@ -542,7 +569,7 @@ async function save() {
         await createSchedules(rows);
       } catch (error) {
         console.log(error);
-        alert("Failed to add schedule.");
+        alert(t("Failed to add schedule."));
         return;
       }
 
@@ -560,7 +587,7 @@ async function remove(id) {
   try {
     await deleteSchedule(id);
   } catch (error) {
-    alert("Failed to delete schedule.");
+    alert(t("Failed to delete schedule."));
     console.log(error);
     return;
   }
@@ -570,11 +597,11 @@ async function remove(id) {
 
 function openApplyTo() {
   if (!schedules.value.length) {
-    alert("This class has no schedule to apply.");
+    alert(t("This class has no schedule to apply."));
     return;
   }
   if (!otherClasses.value.length) {
-    alert("No other classes available.");
+    alert(t("No other classes available."));
     return;
   }
   applyClassIds.value = [];
@@ -591,17 +618,20 @@ async function applyScheduleToClasses() {
   ].filter((id) => Number(id) !== Number(props.class_id));
 
   if (!targetIds.length) {
-    alert("Please select at least one class.");
+    alert(t("Please select at least one class."));
     return;
   }
 
   if (!schedules.value.length) {
-    alert("This class has no schedule to apply.");
+    alert(t("This class has no schedule to apply."));
     return;
   }
 
   const confirmed = window.confirm(
-    `Replace the schedule in ${targetIds.length} class(es) with "${props.class_name || "this class"}"?\n\nExisting slots in those classes will be deleted.`,
+    t("Replace schedule confirm", {
+      count: targetIds.length,
+      name: props.class_name || t("this class"),
+    }),
   );
   if (!confirmed) return;
 
@@ -628,7 +658,7 @@ async function applyScheduleToClasses() {
       await deleteSchedulesForClasses(targetIds);
     } catch (deleteError) {
       console.log(deleteError);
-      alert("Failed to clear target class schedules.");
+      alert(t("Failed to clear target class schedules."));
       return;
     }
 
@@ -636,13 +666,13 @@ async function applyScheduleToClasses() {
       await createSchedules(rows);
     } catch (insertError) {
       console.log(insertError);
-      alert("Failed to apply schedule to other classes.");
+      alert(t("Failed to apply schedule to other classes."));
       return;
     }
 
     applyDialog.value = false;
     applyClassIds.value = [];
-    alert(`Schedule applied to ${targetIds.length} class(es).`);
+    alert(t("Schedule applied to {count} class(es).", { count: targetIds.length }));
   } finally {
     isApplying.value = false;
   }
@@ -707,7 +737,7 @@ onUnmounted(() => {
     <VCardTitle
       class="d-flex align-center justify-space-between pa-4 flex-wrap gap-2 schedule-no-print"
     >
-      <VChip class="rounded-l" color="primary"> Weekly Schedule </VChip>
+      <VChip class="rounded-l" color="primary">{{ $t("Weekly Schedule") }}</VChip>
       <div class="d-flex align-center gap-2 flex-wrap">
         <VBtn
           color="primary"
@@ -717,7 +747,7 @@ onUnmounted(() => {
           :disabled="!schedules.length"
           v-print="printObj"
         >
-          Print / PDF
+          {{ $t("Print / PDF") }}
         </VBtn>
         <VBtn
           color="secondary"
@@ -727,7 +757,7 @@ onUnmounted(() => {
           :disabled="!schedules.length || !otherClasses.length"
           @click="openApplyTo"
         >
-          Apply To
+          {{ $t("Apply To") }}
         </VBtn>
         <VBtn
           color="primary"
@@ -735,7 +765,7 @@ onUnmounted(() => {
           prepend-icon="tabler-plus"
           @click="openAdd(selectedDayId)"
         >
-          Add slot
+          {{ $t("Add slot") }}
         </VBtn>
       </div>
     </VCardTitle>
@@ -751,7 +781,7 @@ onUnmounted(() => {
             :class="{ active: selectedDayId === d.id }"
             @click="selectDay(d.id)"
           >
-            {{ d.name_en.slice(0, 3) }}
+            {{ dayAbbrev(d) }}
             <span
               v-if="schedulesForDay(d.id).length > 0"
               class="day-badge"
@@ -763,9 +793,9 @@ onUnmounted(() => {
         </div>
 
         <div class="mobile-day-title">
-          <span>{{ selectedDay?.name_en }}</span>
+          <span>{{ dayLabel(selectedDay) }}</span>
           <span v-if="selectedDayId === todayDayId" class="today-badge">
-            Today
+            {{ $t("Today") }}
           </span>
         </div>
 
@@ -780,7 +810,7 @@ onUnmounted(() => {
             v-if="schedulesForDay(selectedDayId).length === 0"
             class="no-slots"
           >
-            No classes scheduled
+            {{ $t("No classes scheduled") }}
           </div>
 
           <div
@@ -794,7 +824,7 @@ onUnmounted(() => {
               <div class="mobile-slot-title">
                 {{ slotLabel(s) }}
                 <span v-if="isMergedSlot(s)" class="all-days-badge">
-                  {{ colSpan(s) }} days
+                  {{ $t("{n} days", { n: colSpan(s) }) }}
                 </span>
               </div>
               <div class="mobile-slot-time">
@@ -833,7 +863,7 @@ onUnmounted(() => {
           <table class="schedule-table">
             <thead>
               <tr>
-                <th v-for="d in DAYS" :key="d.id">{{ d.name_en }}</th>
+                <th v-for="d in DAYS" :key="d.id">{{ dayLabel(d) }}</th>
               </tr>
             </thead>
             <tbody>
@@ -882,7 +912,7 @@ onUnmounted(() => {
                         @click="openAdd(d.id)"
                       >
                         <span class="add-label schedule-no-print">
-                          <VIcon size="14">tabler-plus</VIcon> Add
+                          <VIcon size="14">tabler-plus</VIcon> {{ $t("Add") }}
                         </span>
                       </td>
                     </template>
@@ -892,7 +922,7 @@ onUnmounted(() => {
 
               <tr v-if="!TIMES.length">
                 <td :colspan="DAYS.length || 1" class="text-center pa-6 text-medium-emphasis">
-                  No schedule yet. Click Add slot to begin.
+                  {{ $t("No schedule yet. Click Add slot to begin.") }}
                 </td>
               </tr>
             </tbody>
@@ -910,13 +940,13 @@ onUnmounted(() => {
       <VCardTitle class="d-flex align-center justify-space-between pa-5 pb-2">
         <div>
           <div class="text-h6">
-            {{ editingId ? "Edit schedule slot" : "Create schedule slot" }}
+            {{ editingId ? t("Edit schedule slot") : t("Create schedule slot") }}
           </div>
           <div class="text-body-2 text-medium-emphasis mt-1">
             {{
               editingId
-                ? "Update this slot for the current class."
-                : "Apply to one class or many classes at once."
+                ? t("Update this slot for the current class.")
+                : t("Apply to one class or many classes at once.")
             }}
           </div>
         </div>
@@ -928,23 +958,23 @@ onUnmounted(() => {
       <VCardText class="pa-5 pt-3">
         <div v-if="!editingId" class="mb-5">
           <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-2">
-            <div class="text-body-2 font-weight-medium">Classes</div>
+            <div class="text-body-2 font-weight-medium">{{ t("Classes") }}</div>
             <div class="d-flex gap-2">
               <VBtn size="x-small" variant="text" @click="selectCurrentClassOnly">
-                This class
+                {{ t("This class") }}
               </VBtn>
               <VBtn size="x-small" variant="text" @click="selectAllClasses">
-                All classes
+                {{ t("All classes") }}
               </VBtn>
             </div>
           </div>
           <VSelect
             v-model="form.class_ids"
             :items="classes"
-            item-title="name_en"
+            :item-title="selectItemTitle"
             item-value="id"
-            label="Select class(es)"
-            placeholder="Choose one or more classes"
+            :label="t('Select class(es)')"
+            :placeholder="t('Choose one or more classes')"
             multiple
             chips
             closable-chips
@@ -959,7 +989,7 @@ onUnmounted(() => {
             :class="{ active: form.entry_type === 'subject' }"
             @click="setEntryType('subject')"
           >
-            Subject
+            {{ t("Subject") }}
           </button>
           <button
             type="button"
@@ -967,7 +997,7 @@ onUnmounted(() => {
             :class="{ active: form.entry_type === 'title' }"
             @click="setEntryType('title')"
           >
-            Title / Activity
+            {{ t("Title / Activity") }}
           </button>
         </div>
 
@@ -976,11 +1006,11 @@ onUnmounted(() => {
             <VSelect
               v-if="form.entry_type === 'subject'"
               :items="subjects"
-              item-title="name_en"
+              :item-title="selectItemTitle"
               item-value="id"
               v-model="form.subject_id"
-              label="Subject"
-              placeholder="Select subject"
+              :label="t('Subject')"
+              :placeholder="t('Select subject')"
               clearable
               class="mb-4"
             />
@@ -988,13 +1018,13 @@ onUnmounted(() => {
             <template v-else>
               <VTextField
                 v-model="form.title"
-                label="Title"
-                placeholder="e.g. Line up and Reminders of Rules"
+                :label="t('Title')"
+                :placeholder="t('e.g. Line up and Reminders of Rules')"
                 class="mb-4"
                 clearable
               />
 
-              <div class="mb-2 text-body-2 font-weight-medium">Color</div>
+              <div class="mb-2 text-body-2 font-weight-medium">{{ t("Color") }}</div>
               <div class="color-picker mb-4">
                 <button
                   v-for="opt in COLOR_OPTIONS"
@@ -1010,7 +1040,7 @@ onUnmounted(() => {
 
             <VSwitch
               v-model="form.merge_days"
-              label="Merge across days"
+              :label="t('Merge across days')"
               color="primary"
               hide-details
               class="mb-3"
@@ -1018,7 +1048,7 @@ onUnmounted(() => {
 
             <div v-if="form.merge_days" class="d-flex flex-wrap gap-2 mb-3">
               <VBtn size="small" variant="tonal" @click="setFullWeekMerge">
-                Mon – Fri
+                {{ t("Mon – Fri") }}
               </VBtn>
             </div>
 
@@ -1026,9 +1056,9 @@ onUnmounted(() => {
               v-if="!form.merge_days"
               v-model="form.day_id"
               :items="DAYS"
-              item-title="name_en"
+              :item-title="selectItemTitle"
               item-value="id"
-              label="Day"
+              :label="t('Day')"
               class="mb-2"
             />
 
@@ -1037,18 +1067,18 @@ onUnmounted(() => {
                 <VSelect
                   v-model="form.day_id"
                   :items="DAYS"
-                  item-title="name_en"
+                  :item-title="selectItemTitle"
                   item-value="id"
-                  label="From"
+                  :label="t('From')"
                 />
               </VCol>
               <VCol cols="12" sm="6">
                 <VSelect
                   v-model="form.day_to_id"
                   :items="DAYS"
-                  item-title="name_en"
+                  :item-title="selectItemTitle"
                   item-value="id"
-                  label="To"
+                  :label="t('To')"
                 />
               </VCol>
             </VRow>
@@ -1056,11 +1086,11 @@ onUnmounted(() => {
 
           <VCol cols="12" md="5">
             <div class="time-panel">
-              <div class="text-body-2 font-weight-medium mb-3">Time</div>
+              <div class="text-body-2 font-weight-medium mb-3">{{ t("Time") }}</div>
               <VTextField
                 v-model="form.start"
                 type="time"
-                label="Start"
+                :label="t('Start')"
                 step="60"
                 class="mb-4"
                 hide-details="auto"
@@ -1068,12 +1098,12 @@ onUnmounted(() => {
               <VTextField
                 v-model="form.end"
                 type="time"
-                label="End"
+                :label="t('End')"
                 step="60"
                 hide-details="auto"
               />
               <div class="text-caption text-medium-emphasis mt-3">
-                Enter start and end time yourself (no default).
+                {{ t("Enter start and end time yourself (no default).") }}
               </div>
             </div>
           </VCol>
@@ -1082,15 +1112,15 @@ onUnmounted(() => {
 
       <VCardActions class="pa-5 pt-0 justify-end gap-2">
         <VBtn variant="tonal" size="large" :disabled="isSaving" @click="dialog = false">
-          Cancel
+          {{ t("Cancel") }}
         </VBtn>
         <VBtn color="primary" size="large" :loading="isSaving" @click="save">
           {{
             editingId
-              ? "Save changes"
+              ? t("Save changes")
               : form.class_ids?.length > 1
-                ? `Add to ${form.class_ids.length} classes`
-                : "Add slot"
+                ? t("Add to {count} classes", { count: form.class_ids.length })
+                : t("Add slot")
           }}
         </VBtn>
       </VCardActions>
@@ -1102,11 +1132,11 @@ onUnmounted(() => {
     <VCard>
       <VCardTitle class="d-flex align-center justify-space-between pa-5 pb-2">
         <div>
-          <div class="text-h6">Apply schedule to classes</div>
+          <div class="text-h6">{{ t("Apply schedule to classes") }}</div>
           <div class="text-body-2 text-medium-emphasis mt-1">
-            Copy all slots from
-            <strong>{{ class_name || "this class" }}</strong>
-            to other classes. Existing schedules in those classes will be replaced.
+            {{ t("Copy all slots from") }}
+            <strong>{{ class_name || t("this class") }}</strong>
+            {{ t("to other classes. Existing schedules in those classes will be replaced.") }}
           </div>
         </div>
         <VBtn icon variant="text" :disabled="isApplying" @click="applyDialog = false">
@@ -1116,25 +1146,25 @@ onUnmounted(() => {
 
       <VCardText class="pa-5 pt-3">
         <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-2">
-          <div class="text-body-2 font-weight-medium">Target classes</div>
+          <div class="text-body-2 font-weight-medium">{{ t("Target classes") }}</div>
           <VBtn size="x-small" variant="text" @click="selectAllApplyClasses">
-            Select all
+            {{ t("Select all") }}
           </VBtn>
         </div>
         <VSelect
           v-model="applyClassIds"
           :items="otherClasses"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
-          label="Select class(es)"
-          placeholder="Choose one or more classes"
+          :label="t('Select class(es)')"
+          :placeholder="t('Choose one or more classes')"
           multiple
           chips
           closable-chips
           clearable
         />
         <div class="text-caption text-medium-emphasis mt-3">
-          {{ schedules.length }} slot(s) will be copied to each selected class.
+          {{ t("{count} slot(s) will be copied to each selected class.", { count: schedules.length }) }}
         </div>
       </VCardText>
 
@@ -1145,7 +1175,7 @@ onUnmounted(() => {
           :disabled="isApplying"
           @click="applyDialog = false"
         >
-          Cancel
+          {{ t("Cancel") }}
         </VBtn>
         <VBtn
           color="primary"
@@ -1156,8 +1186,8 @@ onUnmounted(() => {
         >
           {{
             applyClassIds.length > 1
-              ? `Apply to ${applyClassIds.length} classes`
-              : "Apply schedule"
+              ? t("Apply to {count} classes", { count: applyClassIds.length })
+              : t("Apply schedule")
           }}
         </VBtn>
       </VCardActions>

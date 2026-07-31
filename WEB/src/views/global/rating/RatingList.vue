@@ -1,12 +1,12 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
-import { listBehaviors, createBehavior, updateBehavior, deleteBehavior } from "@/services/api/behaviors";
+import { listRatings, createRating, updateRating, deleteRating } from "@/services/api/ratings";
 import { useI18n } from "vue-i18n";
 import { useDisplay } from "vuetify";
 import successAlert from "@/helper/successAlert.js";
 import DeleteAlert from "@/helper/deleteAlert.js";
 import { usePartStore } from "@/stores/partStore";
-import AddEditBehaviorDialog from "./AddEditBehaviorDialog.vue";
+import AddEditRatingDialog from "./AddEditRatingDialog.vue";
 
 const { mdAndUp } = useDisplay();
 const partStore = usePartStore();
@@ -15,7 +15,7 @@ const { t } = useI18n();
 const formData = ref({});
 const isDialogVisible = ref(false);
 const isLoading = ref(true);
-const behaviors = ref([]);
+const ratings = ref([]);
 
 watch(isDialogVisible, (visible) => {
   if (!visible) formData.value = {};
@@ -59,13 +59,13 @@ const headers = computed(() => {
   return cols;
 });
 
-const filteredBehaviors = computed(() => {
+const filteredRatings = computed(() => {
   const q = String(filter.value.search || "")
     .trim()
     .toLowerCase();
-  if (!q) return behaviors.value;
+  if (!q) return ratings.value;
 
-  return behaviors.value.filter((item) => {
+  return ratings.value.filter((item) => {
     const fields = [item.name_kh, item.description];
     if (isEnglishPart.value) fields.push(item.name_en);
     if (isChinesePart.value) fields.push(item.name_cn);
@@ -75,25 +75,22 @@ const filteredBehaviors = computed(() => {
   });
 });
 
-async function loadBehaviors() {
+async function loadRatings() {
   isLoading.value = true;
   try {
     if (partStore.cur_id == null) {
-      behaviors.value = [];
+      ratings.value = [];
       return;
     }
 
-    const data = await listBehaviors();
-    const error = null;
-
-    if (error) throw error;
-    behaviors.value = data ?? [];
+    const data = await listRatings();
+    ratings.value = data ?? [];
   } catch (error) {
-    console.error("Failed to fetch behaviors:", error);
-    behaviors.value = [];
+    console.error("Failed to fetch ratings:", error);
+    ratings.value = [];
     successAlert.fire({
       icon: "error",
-      title: error.message || t("Failed to fetch behaviors"),
+      title: error.message || t("Failed to fetch ratings"),
     });
   } finally {
     isLoading.value = false;
@@ -105,21 +102,15 @@ const onDelete = async (item) => {
     try {
       isLoading.value = true;
 
-      const error = await deleteBehavior(item.id).then(() => null).catch((e) => e);
+      const error = await deleteRating(item.id).then(() => null).catch((e) => e);
 
       if (error) throw error;
 
-      successAlert.fire({
-        icon: "success",
-        title: t("Behavior deleted successfully"),
-      });
-      await loadBehaviors();
+     
+      await loadRatings();
     } catch (error) {
-      console.error("Failed to delete behavior:", error);
-      successAlert.fire({
-        icon: "error",
-        title: error.message || t("Failed to delete behavior"),
-      });
+      console.error("Failed to delete rating:", error);
+     
     } finally {
       isLoading.value = false;
     }
@@ -144,23 +135,16 @@ const onCreate = async (data, callback) => {
       is_deleted: false,
     };
 
-    const error = await createBehavior(payload).then(() => null).catch((e) => e);
+    const error = await createRating(payload).then(() => null).catch((e) => e);
     if (error) throw error;
 
-    successAlert.fire({
-      icon: "success",
-      title: t("Behavior created successfully"),
-    });
 
-    await loadBehaviors();
+    await loadRatings();
     isDialogVisible.value = false;
     callback(true);
   } catch (error) {
-    console.error("Failed to create behavior:", error);
-    successAlert.fire({
-      icon: "error",
-      title: error.message || t("Failed to create behavior"),
-    });
+    console.error("Failed to create rating:", error);
+  
     callback(false);
   } finally {
     isLoading.value = false;
@@ -184,23 +168,23 @@ const onUpdate = async (data, callback) => {
       updated_at: new Date().toISOString(),
     };
 
-    const error = await updateBehavior({ ...payload, id: data.id }).then(() => null).catch((e) => e);
+    const error = await updateRating({ ...payload, id: data.id }).then(() => null).catch((e) => e);
 
     if (error) throw error;
 
     successAlert.fire({
       icon: "success",
-      title: t("Behavior updated successfully"),
+      title: t("Rating updated successfully"),
     });
 
-    await loadBehaviors();
+    await loadRatings();
     isDialogVisible.value = false;
     callback(true);
   } catch (error) {
-    console.error("Failed to update behavior:", error);
+    console.error("Failed to update rating:", error);
     successAlert.fire({
       icon: "error",
-      title: error.message || t("Failed to update behavior"),
+      title: error.message || t("Failed to update rating"),
     });
     callback(false);
   } finally {
@@ -211,17 +195,17 @@ const onUpdate = async (data, callback) => {
 watch(
   () => partStore.cur_id,
   async () => {
-    await loadBehaviors();
+    await loadRatings();
   },
 );
 
 onMounted(async () => {
-  await loadBehaviors();
+  await loadRatings();
 });
 </script>
 
 <template>
-  <AddEditBehaviorDialog
+  <AddEditRatingDialog
     v-model:isDialogVisible="isDialogVisible"
     :item-data="formData"
     :loading="isLoading"
@@ -231,13 +215,13 @@ onMounted(async () => {
 
   <AppCardTable
     v-model:isDialogCreateVisible="isDialogVisible"
-    :title="$t('Behavior')"
-    title-icon="tabler-mood-smile"
-    saveHeaderName="header-behavior-list"
-    saveStateName="save-state-behavior-list"
+    :title="$t('Rating')"
+    title-icon="tabler-star"
+    saveHeaderName="header-rating-list"
+    saveStateName="save-state-rating-list"
     v-model:loading="isLoading"
     v-model:filters="filter"
-    :items="filteredBehaviors"
+    :items="filteredRatings"
     :headers="headers"
     is-filter
     is-excel

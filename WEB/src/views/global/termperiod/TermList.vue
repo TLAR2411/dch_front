@@ -25,7 +25,7 @@ definePage({
   },
 });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const partStore = usePartStore();
 const settingStore = useSettingStore();
 const yearStore = useYearStore();
@@ -40,7 +40,9 @@ const filter = ref({
   search: null,
 });
 
-const headers = [
+const headers = computed(() => {
+  locale.value;
+  return [
   { title: t("Name Khmer"), key: "name_kh", visible: true },
   { title: t("Name English"), key: "name_en", visible: true },
   // { title: t("Name Chinese"), key: "name_cn", visible: true },
@@ -62,31 +64,31 @@ const headers = [
   //   visible: true,
   // },
   {
-    title: "Total",
+    title: t("Total"),
     key: "total_days",
     visible: true,
     align: "center",
   },
   {
-    title: "Weekend",
+    title: t("Weekend"),
     key: "weekend_days",
     visible: true,
     align: "center",
   },
   {
-    title: "Holiday",
+    title: t("Holiday"),
     key: "holiday_days",
     visible: true,
     align: "center",
   },
   {
-    title: "Event",
+    title: t("Event"),
     key: "school_event_days",
     visible: true,
     align: "center",
   },
   {
-    title: "School Days",
+    title: t("School Days"),
     key: "school_days",
     visible: true,
     align: "center",
@@ -99,6 +101,7 @@ const headers = [
     fixed: mdAndUp.value,
   },
 ];
+});
 
 const filteredPeriods = computed(() => {
   const q = String(filter.value.search || "")

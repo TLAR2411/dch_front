@@ -9,8 +9,10 @@ import { getSubjects } from "@/services/dataService";
 import { useDisplay } from "vuetify";
 import AppAddEditDialog from "@/components/AppAddEditDialog.vue";
 import AppAddEditDrawer from "@/components/AppAddEditDrawer.vue";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 
 const { xs } = useDisplay();
+const { selectItemTitle } = useEntityLabel();
 
 const curId = ref(usePartStore().cur_id);
 
@@ -129,7 +131,7 @@ onMounted(async () => {
   <AppAddEditDialog
     v-if="!xs"
     max-width="700"
-    :title="itemData.id == null ? 'Create Subjects' : 'Update Subjects'"
+    :title="itemData.id == null ? t('Create Subjects') : t('Update Subjects')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
@@ -165,7 +167,7 @@ onMounted(async () => {
         <AppAutocomplete
           v-model="itemData.parent_id"
           :items="subjects"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Main Subject')"
           autocomplete="off"
@@ -185,7 +187,7 @@ onMounted(async () => {
 
   <AppAddEditDrawer
     v-else
-    :title="itemData.id == null ? 'Create Subjects' : 'Update Subjects'"
+    :title="itemData.id == null ? t('Create Subjects') : t('Update Subjects')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
@@ -221,7 +223,7 @@ onMounted(async () => {
         <AppAutocomplete
           v-model="itemData.parent_id"
           :items="subjects"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Main Subject')"
           autocomplete="off"

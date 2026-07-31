@@ -9,12 +9,12 @@ defineProps({
 
 <template>
   <div class="report-legend">
-    <span class="legend-item"><strong>✓</strong> Present</span>
-    <span class="legend-item"><strong>A</strong> Absent</span>
-    <span class="legend-item"><strong>P</strong> Permission</span>
-    <span class="legend-item"><strong>L</strong> Late</span>
+    <span class="legend-item"><strong>✓</strong> {{ $t("Present") }}</span>
+    <span class="legend-item"><strong>A</strong> {{ $t("Absent") }}</span>
+    <span class="legend-item"><strong>P</strong> {{ $t("Ask Permission") }}</span>
+    <span class="legend-item"><strong>L</strong> {{ $t("Late") }}</span>
     <span v-if="showScheduleNote" class="legend-item legend-muted">
-      Grey cell = weekend, holiday, or subject not scheduled that day
+      {{ $t("Grey cell = weekend, holiday, or subject not scheduled that day") }}
     </span>
   </div>
 </template>

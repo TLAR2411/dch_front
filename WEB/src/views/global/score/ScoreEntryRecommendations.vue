@@ -4,13 +4,16 @@
  * Auto text from all grade subjects (strong ≥ 80, weak < 60).
  */
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { listAttendanceRange } from "@/services/api/attendance";
 import {
   listStudentRecommendations,
   saveStudentRecommendations,
 } from "@/services/api/studentRecommendations";
 import { useYearStore } from "@/stores/yearStore.js";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 import successAlert from "@/helper/successAlert.js";
+import { isRequestCanceled } from "@/utils/api.js";
 import { loadClassSubjectAverages } from "@/views/global/report/examReportScoreService.js";
 import { buildTeacherRecommendation } from "@/utils/teacherRecommendation.js";
 import { fetchTerms, resolveClassGradeId } from "./scoreEntryService.js";
@@ -31,8 +34,10 @@ const props = defineProps({
   },
 });
 
+const { t } = useI18n();
 const yearStore = useYearStore();
 const yearId = computed(() => yearStore.year_id);
+const { entityLabel, reportPart } = useEntityLabel();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -45,8 +50,30 @@ const canLoad = computed(
 
 const hasRows = computed(() => rows.value.length > 0);
 
+/** True when every student recommendation is saved (no unsaved edits). */
+const isSubmitted = computed(
+  () => hasRows.value && rows.value.every((row) => !row.dirty),
+);
+
 function isTruthyFlag(value) {
   return value === true || value === 1 || value === "1";
+}
+
+function genderLabel(gender) {
+  if (!gender) return "—";
+  const value = String(gender).toLowerCase();
+  const isKhmerPart = reportPart.value === "khmer";
+  if (value === "male" || value === "m") {
+    return isKhmerPart ? "ប្រុស" : t("male");
+  }
+  if (value === "female" || value === "f") {
+    return isKhmerPart ? "ស្រី" : t("female");
+  }
+  return gender;
+}
+
+function studentDisplayName(student) {
+  return entityLabel(student, student.name_en || student.name_kh || "Student");
 }
 
 /**
@@ -92,7 +119,7 @@ async function fetchAbsentDaysByStudent(classId, termId) {
 
 function draftForStudent(student, subjectList, scoreByStudent, absentByStudent) {
   return buildTeacherRecommendation({
-    name: student.name_en || student.name_kh || "Student",
+    name: studentDisplayName(student),
     gender: student.gender,
     studentId: student.student_id,
     subjects: subjectList,
@@ -173,7 +200,9 @@ async function loadRecommendations() {
         return {
           student_id: student.student_id,
           no: student.index ?? index + 1,
-          name_en: student.name_en || student.name_kh || "—",
+          name_en: student.name_en || "",
+          name_kh: student.name_kh || "",
+          display_name: studentDisplayName(student),
           gender: student.gender,
           recommendation: saved.recommendation ?? "",
           generated_text: saved.generated_text ?? generated,
@@ -185,7 +214,9 @@ async function loadRecommendations() {
       return {
         student_id: student.student_id,
         no: student.index ?? index + 1,
-        name_en: student.name_en || student.name_kh || "—",
+        name_en: student.name_en || "",
+        name_kh: student.name_kh || "",
+        display_name: studentDisplayName(student),
         gender: student.gender,
         recommendation: generated,
         generated_text: generated,
@@ -194,10 +225,11 @@ async function loadRecommendations() {
       };
     });
   } catch (error) {
+    if (isRequestCanceled(error)) return;
     console.error(error);
     rows.value = [];
     errorMessage.value =
-      error?.message || "Failed to load teacher recommendations.";
+      error?.message || t("Failed to load teacher recommendations.");
   } finally {
     loading.value = false;
   }
@@ -236,6 +268,7 @@ async function regenerateUnedited() {
         {
           student_id: row.student_id,
           name_en: row.name_en,
+          name_kh: row.name_kh,
           gender: row.gender,
         },
         result.subjects,
@@ -243,6 +276,7 @@ async function regenerateUnedited() {
         absentByStudent,
       );
       row.generated_text = generated;
+      row.display_name = studentDisplayName(row);
       if (!row.is_edited || !row.recommendation?.trim()) {
         row.recommendation = generated;
         row.is_edited = false;
@@ -253,7 +287,7 @@ async function regenerateUnedited() {
     console.error(error);
     successAlert.fire({
       icon: "error",
-      title: error.message || "Failed to generate",
+      title: error.message || t("Failed to generate"),
     });
   } finally {
     loading.value = false;
@@ -288,6 +322,7 @@ async function regenerateAllOverwrite() {
         {
           student_id: row.student_id,
           name_en: row.name_en,
+          name_kh: row.name_kh,
           gender: row.gender,
         },
         result.subjects,
@@ -295,6 +330,7 @@ async function regenerateAllOverwrite() {
         absentByStudent,
       );
       row.generated_text = generated;
+      row.display_name = studentDisplayName(row);
       row.recommendation = generated;
       row.is_edited = false;
       row.dirty = true;
@@ -303,7 +339,7 @@ async function regenerateAllOverwrite() {
     console.error(error);
     successAlert.fire({
       icon: "error",
-      title: error.message || "Failed to regenerate",
+      title: error.message || t("Failed to regenerate"),
     });
   } finally {
     loading.value = false;
@@ -332,13 +368,13 @@ async function saveAll() {
 
     successAlert.fire({
       icon: "success",
-      title: "Recommendations saved",
+      title: t("Recommendations saved"),
     });
   } catch (error) {
     console.error(error);
     successAlert.fire({
       icon: "error",
-      title: error.message || "Failed to save",
+      title: error.message || t("Failed to save"),
     });
   } finally {
     saving.value = false;
@@ -346,7 +382,13 @@ async function saveAll() {
 }
 
 watch(
-  () => [props.classId, props.termId, props.gradeId, yearId.value],
+  () => [
+    props.classId,
+    props.termId,
+    props.gradeId,
+    yearId.value,
+    reportPart.value,
+  ],
   () => {
     loadRecommendations();
   },
@@ -368,7 +410,7 @@ defineExpose({
         :loading="loading"
         @click="regenerateUnedited"
       >
-        Generate
+        {{ $t("Generate") }}
       </VBtn>
       <VBtn
         variant="tonal"
@@ -377,7 +419,7 @@ defineExpose({
         :disabled="!canLoad || loading || !hasRows"
         @click="regenerateAllOverwrite"
       >
-        Regenerate all
+        {{ $t("Regenerate all") }}
       </VBtn>
       <VBtn
         color="primary"
@@ -386,7 +428,7 @@ defineExpose({
         :loading="saving"
         @click="saveAll"
       >
-        Save
+        {{ $t("Save") }}
       </VBtn>
     </div>
 
@@ -395,10 +437,10 @@ defineExpose({
         tabler-message-2
       </VIcon>
       <div class="text-body-1 font-weight-medium">
-        Select Class and Term
+        {{ $t("Select Class and Term") }}
       </div>
       <div class="text-body-2 mt-1 text-medium-emphasis">
-        Recommendations use scores across all subjects in the grade.
+        {{ $t("Recommendations use scores across all subjects in the grade.") }}
       </div>
     </VCard>
 
@@ -408,7 +450,7 @@ defineExpose({
     >
       <VProgressCircular indeterminate color="primary" class="mb-3" />
       <div class="text-body-2 text-medium-emphasis">
-        Loading recommendations…
+        {{ $t("Loading recommendations…") }}
       </div>
     </div>
 
@@ -420,22 +462,61 @@ defineExpose({
     </div>
 
     <template v-else>
+      <div
+        v-if="hasRows"
+        class="submit-status-banner mb-3"
+        :class="isSubmitted ? 'is-submitted' : 'is-draft'"
+      >
+        <div class="d-flex align-center ga-2">
+          <VIcon
+            :icon="isSubmitted ? 'tabler-circle-check' : 'tabler-alert-circle'"
+            size="20"
+          />
+          <div>
+            <div class="status-title">
+              {{
+                isSubmitted
+                  ? $t("Already submitted")
+                  : $t("Not yet submitted")
+              }}
+            </div>
+            <div class="status-desc">
+              {{
+                isSubmitted
+                  ? $t(
+                      "Recommendations for this class and term have been saved.",
+                    )
+                  : $t("Review recommendations, then click Save.")
+              }}
+            </div>
+          </div>
+        </div>
+        <VChip
+          size="small"
+          label
+          :color="isSubmitted ? 'success' : 'warning'"
+          variant="flat"
+        >
+          {{ isSubmitted ? $t("Submitted") : $t("Draft") }}
+        </VChip>
+      </div>
+
       <div class="recommendation-table-wrap">
         <table class="recommendation-table">
           <thead>
             <tr>
-              <th class="col-no">No</th>
-              <th class="col-name">Student's Name</th>
-              <th class="col-gender">Gender</th>
-              <th class="col-rec">Teacher Recommendation</th>
-              <th class="col-status">Status</th>
+              <th class="col-no">{{ $t("No") }}</th>
+              <th class="col-name">{{ $t("Student's Name") }}</th>
+              <th class="col-gender">{{ $t("Gender") }}</th>
+              <th class="col-rec">{{ $t("Teacher Recommendation") }}</th>
+              <th class="col-status">{{ $t("Status") }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="row in rows" :key="row.student_id">
               <td class="text-center">{{ row.no }}</td>
-              <td class="col-name-cell">{{ row.name_en }}</td>
-              <td class="text-center">{{ row.gender }}</td>
+              <td class="col-name-cell">{{ row.display_name }}</td>
+              <td class="text-center">{{ genderLabel(row.gender) }}</td>
               <td>
                 <AppTextField
                   v-model="row.recommendation"
@@ -453,13 +534,13 @@ defineExpose({
                   :color="row.is_edited ? 'warning' : 'success'"
                   variant="tonal"
                 >
-                  {{ row.is_edited ? "Edited" : "Auto" }}
+                  {{ row.is_edited ? $t("Edited") : $t("Auto") }}
                 </VChip>
               </td>
             </tr>
             <tr v-if="!rows.length">
               <td colspan="5" class="text-center py-8 text-medium-emphasis">
-                No students in this class.
+                {{ $t("No students in this class.") }}
               </td>
             </tr>
           </tbody>
@@ -467,17 +548,17 @@ defineExpose({
       </div>
 
       <div class="recommend-legend">
-        <span class="legend-label">Legend</span>
+        <span class="legend-label">{{ $t("Legend") }}</span>
         <span class="legend-item">
-          <strong>≥ 80</strong> Strength
+          <strong>≥ 80</strong> {{ $t("Strength") }}
         </span>
         <span class="legend-sep">·</span>
         <span class="legend-item">
-          <strong>&lt; 60</strong> Improve
+          <strong>&lt; 60</strong> {{ $t("Improve") }}
         </span>
         <span class="legend-sep">·</span>
         <span class="legend-item">
-          <strong>≥ 5 absences</strong> Attendance note
+          <strong>≥ 5 absences</strong> {{ $t("Attendance note") }}
         </span>
       </div>
     </template>
@@ -485,6 +566,42 @@ defineExpose({
 </template>
 
 <style scoped>
+.submit-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+
+.submit-status-banner.is-draft {
+  background: rgba(var(--v-theme-warning), 0.1);
+  border-color: rgba(var(--v-theme-warning), 0.35);
+  color: rgb(var(--v-theme-warning));
+}
+
+.submit-status-banner.is-submitted {
+  background: rgba(var(--v-theme-success), 0.1);
+  border-color: rgba(var(--v-theme-success), 0.35);
+  color: rgb(var(--v-theme-success));
+}
+
+.status-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.status-desc {
+  font-size: 12px;
+  margin-top: 2px;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
 .recommendation-table-wrap {
   width: 100%;
   overflow-x: auto;

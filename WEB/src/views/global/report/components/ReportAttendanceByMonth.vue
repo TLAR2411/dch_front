@@ -18,6 +18,10 @@ import { app } from "@/utils/app";
 import ReportAttendanceLegend from "./ReportAttendanceLegend.vue";
 import dchLogoHeader from "../../../../../public/logo/dchlogoheader.png";
 import FooterRepor from "@/views/global/components/footerRepor.vue";
+import {
+  compareEntityNames,
+  getEntityLabel,
+} from "@/utils/reportLabels.js";
 
 const props = defineProps({
   class_id: {
@@ -28,6 +32,11 @@ const props = defineProps({
 const yearStore = useYearStore();
 const partStore = usePartStore();
 const settingStore = useSettingStore();
+const reportPart = computed(() => partStore.system_part || "english");
+
+function entityLabel(entity, fallback = "—") {
+  return getEntityLabel(entity, reportPart.value, fallback);
+}
 
 const loading = ref(false);
 const hasData = ref(false);
@@ -86,15 +95,15 @@ const selectedSubject = computed(() =>
 
 const programName = computed(() => {
   const cur = curriculums.value.find((c) => c.id === partStore.cur_id);
-  return cur?.name_en || cur?.name_kh || "—";
+  return entityLabel(cur);
 });
 
 const classLabel = computed(() => {
   const cls = selectedClass.value;
   if (!cls) return "—";
-  const gradeName = selectedGrade.value?.name_en || "";
+  const gradeName = entityLabel(selectedGrade.value, "");
   const symbol = cls.symbol ? ` ${cls.symbol}` : "";
-  return `${gradeName}${symbol}`.trim() || cls.name_en || "—";
+  return `${gradeName}${symbol}`.trim() || entityLabel(cls);
 });
 
 const monthLabel = computed(() => {
@@ -197,7 +206,7 @@ function buildSubjectOptions(assignments) {
       name_en: row.subject.name_en || "",
       name_kh: row.subject.name_kh || "",
     }))
-    .sort((a, b) => a.name_en.localeCompare(b.name_en));
+    .sort((a, b) => compareEntityNames(a, b, reportPart.value));
 }
 
 async function resolveClassGradeId() {
@@ -713,7 +722,7 @@ onMounted(async () => {
       <AppSelect
         v-model="form.subject_id"
         :items="subjectOptions"
-        item-title="name_en"
+        :item-title="entityLabel"
         item-value="id"
         placeholder="Select subject"
         autocomplete="off"
@@ -786,7 +795,7 @@ onMounted(async () => {
           <div><span class="meta-label">class:</span> {{ classLabel }}</div>
           <div v-if="reportType === 'daily'">
             <span class="meta-label">subject:</span>
-            {{ selectedSubject?.name_en || "—" }}
+            {{ entityLabel(selectedSubject) }}
           </div>
           <div v-if="reportType === 'daily' && scheduleDaysLabel">
             <span class="meta-label">schedule:</span>
@@ -848,7 +857,7 @@ onMounted(async () => {
           <tbody>
             <tr v-for="(student, i) in attData" :key="student.id ?? i">
               <td class="col-student">
-                <div class="name-main">{{ student.name_en }}</div>
+                <div class="name-main">{{ entityLabel(student) }}</div>
                 <!-- <div v-if="student.name_kh" class="name-sub">
                   {{ student.name_kh }}
                 </div> -->
@@ -900,7 +909,7 @@ onMounted(async () => {
                 colspan="4"
                 class="col-subject-group"
               >
-                {{ sub.name_en }}
+                {{ entityLabel(sub) }}
               </th>
             </tr>
             <tr>
@@ -915,7 +924,7 @@ onMounted(async () => {
           <tbody>
             <tr v-for="(student, i) in attData" :key="student.id ?? i">
               <td class="col-student">
-                <div class="name-main">{{ student.name_en }}</div>
+                <div class="name-main">{{ entityLabel(student) }}</div>
               </td>
               <td class="text-center">{{ genderLabel(student.gender) }}</td>
               <template v-for="sub in reportSubjects" :key="`${student.id}-${sub.id}`">

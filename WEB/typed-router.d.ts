@@ -60,6 +60,7 @@ declare module 'vue-router/auto-routes' {
     'global-dashboard': RouteRecordInfo<'global-dashboard', '/global/dashboard', Record<never, never>, Record<never, never>>,
     'global-grades': RouteRecordInfo<'global-grades', '/global/grades', Record<never, never>, Record<never, never>>,
     'global-gradesubject': RouteRecordInfo<'global-gradesubject', '/global/gradesubject', Record<never, never>, Record<never, never>>,
+    'global-rating': RouteRecordInfo<'global-rating', '/global/rating', Record<never, never>, Record<never, never>>,
     'global-report-attendance': RouteRecordInfo<'global-report-attendance', '/global/report/attendance', Record<never, never>, Record<never, never>>,
     'global-report-exam': RouteRecordInfo<'global-report-exam', '/global/report/exam', Record<never, never>, Record<never, never>>,
     'global-rooms': RouteRecordInfo<'global-rooms', '/global/rooms', Record<never, never>, Record<never, never>>,

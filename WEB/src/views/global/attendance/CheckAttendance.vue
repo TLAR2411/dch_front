@@ -1,12 +1,30 @@
 <script setup>
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { listSchedules } from "@/services/api/schedules";
-import DateNavigator from "../components/DateNavigator.vue";
 import { getClasses } from "@/services/dataService.js";
 import { useRoute } from "vue-router";
 import { api } from "@/utils/api.js";
 import AppCombobox from "@/@core/components/app-form-elements/AppCombobox.vue";
 import Loading from "../components/Loading.vue";
+import { usePartStore } from "@/stores/partStore";
+import { getEntityLabel } from "@/utils/reportLabels.js";
+
+const { t } = useI18n();
+const partStore = usePartStore();
+const reportPart = computed(() => partStore.system_part || "english");
+
+function selectItemTitle(item) {
+  return getEntityLabel(item, reportPart.value, "");
+}
+
+function subjectSelectTitle(item) {
+  return getEntityLabel(item?.subjects || item, reportPart.value, "");
+}
+
+function entityLabel(entity, fallback = "—") {
+  return getEntityLabel(entity, reportPart.value, fallback);
+}
 
 const dataAttendance = ref([]);
 const route = useRoute();
@@ -16,14 +34,13 @@ const subjectSchedules = ref([]);
 
 const date = ref("");
 
-
 const isSearch = ref(false); // loading find data
 
 const isLoading = ref(false); // for loading page
 
 const isApprove = ref(false); // for approve function
 
-const textApprove = ref("");
+const isApprovedFlag = ref(false);
 
 const errorMessage = ref("");
 
@@ -35,6 +52,16 @@ const form = ref({
   day_id: null,
   subject_id: null,
 });
+
+const textApprove = computed(() =>
+  isApprovedFlag.value ? t("Approve") : t("Disapprove"),
+);
+
+const reasons = computed(() => [
+  { title: t("Trip"), value: "Trip" },
+  { title: t("Busy"), value: "Busy" },
+  { title: t("Sick"), value: "Sick" },
+]);
 
 watch(
   () => route.params.id,
@@ -57,12 +84,10 @@ watch(
 
 watch(
   () => form.value.subject_id,
-  (newVal) => {
+  () => {
     getData();
   },
 );
-
-const reasons = ref(["Trip", "Busy", "Sick"]);
 
 const getData = async () => {
   isSearch.value = true;
@@ -88,20 +113,11 @@ const getData = async () => {
       }));
     }
 
-    const newData = dataAttendance.value.filter(
-      (item) => item.subject_id === 25,
-    );
-    console.log("newData", newData);
-
     if (dataAttendance.value.length === 0) {
-      textApprove.value = "Disapprove";
+      isApprovedFlag.value = false;
     } else {
-      textApprove.value = dataAttendance.value[0].is_approve
-        ? "Approve"
-        : "Disapprove";
+      isApprovedFlag.value = !!dataAttendance.value[0].is_approve;
     }
-
-    console.log("data", dataAttendance.value);
   } catch (error) {
     console.log(error);
   } finally {
@@ -109,7 +125,7 @@ const getData = async () => {
 
     if (dataAttendance.value.length === 0) {
       isSearch.value = false;
-      errorMessage.value = "Data Not Found";
+      errorMessage.value = t("Data Not Found");
     }
   }
 };
@@ -196,12 +212,6 @@ watch(date, async (newDate) => {
   // public.weekday.id IS the JavaScript getDay() value — 0 Sunday .. 6 Saturday,
   // verified against the table. So day_id is derived locally and does NOT depend
   // on /api/weekday-all being reachable.
-  //
-  // This previously fetched the weekday list and looked the day up in it, which
-  // made saving attendance fail whenever that endpoint was down: the list came
-  // back empty, the lookup found nothing, day_id stayed null, and the save
-  // returned 400 "day_id is required". The list was never rendered anywhere —
-  // it existed only to turn a number into the same number.
   const dayNumber = new Date(newDate).getDay();
 
   form.value.day_id = dayNumber;
@@ -216,22 +226,12 @@ const getSubjectSchedule = async (dayId) => {
       class_id: form.value.class_id,
       day_id: dayId,
     });
-
-    console.log("formSubject", form.value.subject_id);
-
-    console.log("subject", subjectSchedules.value);
   } catch (error) {}
 };
 
 onMounted(async () => {
-  // The weekday fetch that used to be here is gone. day_id comes from
-  // getDay() now, and DAYS was never rendered, so this was one blocking
-  // request on every page load whose only failure mode was breaking saves.
   classes.value = await getClasses();
   date.value = new Date().toISOString().split("T")[0];
-  // if (route.params.id) {
-  //   getData();
-  // }
 });
 </script>
 
@@ -242,33 +242,31 @@ onMounted(async () => {
         <AppSelect
           v-model="form.class_id"
           :items="classes"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           autocomplete="off"
-          placeholder="Choose Class"
+          :placeholder="$t('Choose Class')"
         />
       </VCol>
 
       <VCol cols="6" md="2">
-        <AppDateTimePicker v-model="date" placeholder="Select date" />
+        <AppDateTimePicker v-model="date" :placeholder="$t('Select date')" />
       </VCol>
 
       <VCol cols="6" md="2" v-if="isSearch">
         <AppSelect
           v-model="form.subject_id"
           :items="subjectSchedules"
-          item-title="subjects.name_en"
+          :item-title="subjectSelectTitle"
           item-value="subjects.id"
           autocomplete="off"
-          placeholder="Choose Subject"
+          :placeholder="$t('Choose Subject')"
           color="primary"
           clearable
         />
       </VCol>
 
       <VCol cols="6" md="2" class="d-flex ga-2">
-        <!-- <DateNavigator class="d-none d-sm-inline" v-model="date" /> -->
-
         <VBtn
           variant="tonal"
           color="success"
@@ -278,8 +276,7 @@ onMounted(async () => {
           prepend-icon="tabler-search"
           @click="getData"
         >
-          Search
-          <!-- <span class="d-none d-sm-inline"> Search </span> -->
+          {{ $t("Search") }}
         </VBtn>
       </VCol>
 
@@ -293,11 +290,11 @@ onMounted(async () => {
           @click="saveAttendance"
           density="comfortable"
         >
-          {{ isSubmit ? "Update" : "Submit" }}
+          {{ isSubmit ? $t("Update") : $t("Submit") }}
         </VBtn>
         <VBtn
           variant="tonal"
-          :color="textApprove == 'Disapprove' ? 'warning' : 'primary'"
+          :color="!isApprovedFlag ? 'warning' : 'primary'"
           :loading="isApprove"
           :disabled="isApprove || !isSubmit"
           @click="approveAttendance"
@@ -316,15 +313,10 @@ onMounted(async () => {
                 variant="tonal"
                 v-bind="props"
               >
-                Rule
+                {{ $t("Rule") }}
               </v-btn>
             </template>
-            <span
-              >All students are marked as Present by default <br />· Uncheck
-              Present = Absent <br />· Check Late = Present but arrived late
-              <br />· Check Permission = Excused absence (Present & Late are
-              disabled)</span
-            >
+            <span v-html="$t('Attendance rule hint')" />
           </v-tooltip>
         </div>
       </VCol>
@@ -345,13 +337,19 @@ onMounted(async () => {
             />
             <div>
               <div class="status-title">
-                {{ isSubmit ? "Already submitted" : "Not yet submitted" }}
+                {{
+                  isSubmit
+                    ? $t("Already submitted")
+                    : $t("Not yet submitted")
+                }}
               </div>
               <div class="status-desc">
                 {{
                   isSubmit
-                    ? "Attendance for this class, date, and subject has been saved."
-                    : "Mark attendance, then click Submit to save."
+                    ? $t(
+                        "Attendance for this class, date, and subject has been saved.",
+                      )
+                    : $t("Mark attendance, then click Submit to save.")
                 }}
               </div>
             </div>
@@ -362,7 +360,7 @@ onMounted(async () => {
             :color="isSubmit ? 'success' : 'warning'"
             variant="flat"
           >
-            {{ isSubmit ? "Submitted" : "Draft" }}
+            {{ isSubmit ? $t("Submitted") : $t("Draft") }}
           </VChip>
         </div>
 
@@ -374,47 +372,43 @@ onMounted(async () => {
           <thead>
             <tr>
               <th class="sticky-header" style="width: 270px">
-                <span class="d-none d-sm-inline">Name English</span>
-                <span class="d-inline d-sm-none">Name</span>
+                <span class="d-none d-sm-inline">{{ $t("Name") }}</span>
+                <span class="d-inline d-sm-none">{{ $t("Name") }}</span>
               </th>
               <th style="width: 20px">
-                <span class="d-none d-sm-inline">Gender</span>
-                <span class="d-inline d-sm-none">Gen</span>
+                <span class="d-none d-sm-inline">{{ $t("Gender") }}</span>
+                <span class="d-inline d-sm-none">{{ $t("Gen") }}</span>
               </th>
               <th style="width: 85px" class="text-center">
-                <span class="d-none d-sm-inline">Present</span>
+                <span class="d-none d-sm-inline">{{ $t("Present") }}</span>
                 <span class="d-inline d-sm-none">Pr</span>
               </th>
               <th style="width: 75px" class="text-center">
-                <span class="d-none d-sm-inline">Late</span>
+                <span class="d-none d-sm-inline">{{ $t("Late") }}</span>
                 <span class="d-inline d-sm-none">L</span>
               </th>
               <th style="width: 110px" class="text-center">
-                <span class="d-none d-sm-inline">Permission</span>
+                <span class="d-none d-sm-inline">{{ $t("Ask Permission") }}</span>
                 <span class="d-inline d-sm-none">P</span>
               </th>
-              <th style="min-width: 150px">Reason</th>
-              <th style="min-width: 150px">Description</th>
+              <th style="min-width: 150px">{{ $t("Reason") }}</th>
+              <th style="min-width: 150px">{{ $t("Description") }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr
-              v-for="(item, rowIndex) in dataAttendance"
+              v-for="item in dataAttendance"
               :key="item.student_id"
               :class="rowClass(item)"
             >
-              <!-- Name — use name_en from your API -->
               <td class="sticky-col">
-                <div class="name-col">{{ item.name_en }}</div>
-                <!-- <div class="name-kh">{{ item.name_kh }}</div> -->
+                <div class="name-col">{{ entityLabel(item) }}</div>
               </td>
 
-              <!-- Gender — use gender from your API -->
               <td v-if="item.gender == 'male'">M</td>
               <td v-else>F</td>
 
-              <!-- Present -->
               <td class="text-center">
                 <VCheckbox
                   v-model="item.present"
@@ -429,7 +423,6 @@ onMounted(async () => {
                 />
               </td>
 
-              <!-- Late -->
               <td class="text-center">
                 <VCheckbox
                   v-model="item.late"
@@ -444,7 +437,6 @@ onMounted(async () => {
                 />
               </td>
 
-              <!-- Ask Permission -->
               <td class="text-center">
                 <VCheckbox
                   v-model="item.ask_permission"
@@ -458,31 +450,29 @@ onMounted(async () => {
                 />
               </td>
 
-              <!-- Reason — only active when permission checked -->
-              <!-- :disabled="!item.ask_permission" -->
               <td>
                 <AppCombobox
                   v-model="item.reason"
                   :items="reasons"
+                  item-title="title"
+                  item-value="value"
                   placeholder="—"
                   density="compact"
                   hide-details
                 />
               </td>
 
-              <!-- Description -->
               <td>
                 <AppTextField
                   v-model="item.description"
                   autocomplete="off"
-                  placeholder="Note…"
+                  :placeholder="$t('Note…')"
                   density="compact"
                   hide-details
                 />
               </td>
             </tr>
 
-            <!-- empty state -->
             <tr v-if="!dataAttendance.length">
               <td colspan="8" class="text-center py-10">
                 <i
@@ -490,7 +480,7 @@ onMounted(async () => {
                   style="font-size: 36px; display: block; opacity: 0.25"
                 />
                 <span style="opacity: 0.45; font-size: 13px">
-                  Select a class and date to load students.
+                  {{ $t("Select a class and date to load students.") }}
                 </span>
               </td>
             </tr>
@@ -546,8 +536,6 @@ onMounted(async () => {
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
-/* legend */
-
 .legend-bar {
   display: flex;
   align-items: center;
@@ -585,7 +573,6 @@ onMounted(async () => {
   font-size: 12px;
 }
 
-/* cells */
 .name-col {
   font-weight: 500;
   font-size: 13px;
@@ -600,12 +587,6 @@ onMounted(async () => {
   opacity: 0.4;
 }
 
-/* .attendance-table tbody tr:hover td {
-  background: rgba(var(--v-theme-primary), 0.03) !important;
-  z-index: 0;
-} */
-
-/* center checkbox inside cell */
 .attendance-table :deep(.v-checkbox .v-selection-control) {
   justify-content: center;
 }
@@ -643,7 +624,6 @@ onMounted(async () => {
   background: white !important;
 }
 
-/* Top-left corner cell */
 .attendance-table thead th.sticky-header {
   z-index: 0;
 }

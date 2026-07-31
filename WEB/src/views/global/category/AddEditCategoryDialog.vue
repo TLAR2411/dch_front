@@ -97,7 +97,7 @@ const dialogModelValueUpdate = (newVal) => {
 <template>
   <AppAddEditDialog
     v-if="!xs"
-    :title="itemData.id == null ? 'Create Category' : 'Update Category'"
+    :title="itemData.id == null ? t('Create Category') : t('Update Category')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
@@ -140,7 +140,7 @@ const dialogModelValueUpdate = (newVal) => {
 
   <AppAddEditDrawer
     v-else
-    :title="itemData.id == null ? 'Create Category' : 'Update Category'"
+    :title="itemData.id == null ? t('Create Category') : t('Update Category')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"

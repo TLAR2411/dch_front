@@ -272,6 +272,8 @@ async function loadSetup() {
       termId: props.formSearch.term_id,
     });
 
+    console.log("result", result);
+
     if (result.error) {
       students.value = [];
       subjects.value = [];
@@ -447,9 +449,8 @@ watch(selectedStudentId, () => {
           :items="students"
           :item-title="selectItemTitle"
           item-value="student_id"
-          placeholder="Select student"
+          :placeholder="$t('Select student')"
           :loading="loading || loadingStudent"
-          :disabled="!students.length || loading"
           clearable
         />
       </VCol>
@@ -463,7 +464,7 @@ watch(selectedStudentId, () => {
           :loading="downloading"
           @click="downloadPng"
         >
-          Download PNG
+          {{ $t("Download PNG") }}
         </VBtn>
         <VBtn
           color="primary"
@@ -472,7 +473,7 @@ watch(selectedStudentId, () => {
           :disabled="!hasReport || downloading"
           v-print="printObj"
         >
-          Print / PDF
+          {{ $t("Print / PDF") }}
         </VBtn>
       </VCol>
     </VRow>
@@ -489,7 +490,7 @@ watch(selectedStudentId, () => {
         class="mb-3"
       />
       <div class="text-body-2 text-medium-emphasis">
-        Loading students…
+        {{ $t("Loading students…") }}
       </div>
     </div>
 
@@ -504,7 +505,7 @@ watch(selectedStudentId, () => {
       v-else-if="!selectedStudent"
       class="pa-8 text-center text-body-2 text-medium-emphasis"
     >
-      Select a student to view the academic report.
+      {{ $t("Select a student to view the academic report.") }}
     </div>
 
     <div
@@ -519,7 +520,7 @@ watch(selectedStudentId, () => {
         class="mb-3"
       />
       <div class="text-body-2 text-medium-emphasis">
-        Loading student report…
+        {{ $t("Loading student report…") }}
       </div>
     </div>
 
@@ -537,12 +538,12 @@ watch(selectedStudentId, () => {
       :style="sheetStyle"
     >
       <div class="individual-content" style="margin-top: 70px;">
-        <h1 class="individual-title">ACADEMIC REPORT</h1>
+        <h1 class="individual-title">{{ $t("ACADEMIC REPORT") }}</h1>
 
         <table class="info-grid">
           <tbody>
             <tr>
-              <td class="info-label">Name:</td>
+              <td class="info-label">{{ $t("Name:") }}</td>
               <td class="info-value info-name">
                 <div
                   v-for="label in [studentLabel(selectedStudent)]"
@@ -555,14 +556,14 @@ watch(selectedStudentId, () => {
                   </div>
                 </div>
               </td>
-              <td class="info-label">Term:</td>
+              <td class="info-label">{{ $t("Term:") }}</td>
               <td class="info-value">{{ meta.termName || "—" }}</td>
-              <td class="info-label info-program-label">Program:</td>
+              <td class="info-label info-program-label">{{ $t("Program:") }}</td>
             </tr>
             <tr>
-              <td class="info-label">Level:</td>
+              <td class="info-label">{{ $t("Level:") }}</td>
               <td class="info-value">{{ meta.className || "—" }}</td>
-              <td class="info-label">Year:</td>
+              <td class="info-label">{{ $t("Year:") }}</td>
               <td class="info-value">{{ meta.yearLabel || "—" }}</td>
               <td class="info-value info-program-value">
                 {{ meta.programName || "—" }}
@@ -575,7 +576,7 @@ watch(selectedStudentId, () => {
           <table class="score-table">
             <thead>
               <tr>
-                <th class="col-criteria">Criteria</th>
+                <th class="col-criteria">{{ $t("Criteria") }}</th>
                 <th
                   v-for="(subject, idx) in subjects"
                   :key="`h-${subject.id}`"
@@ -608,7 +609,7 @@ watch(selectedStudentId, () => {
               </tr>
 
               <tr class="row-total">
-                <td class="col-criteria-cell">TOTAL</td>
+                <td class="col-criteria-cell">{{ $t("TOTAL") }}</td>
                 <td
                   v-for="subject in subjects"
                   :key="`total-${subject.id}`"
@@ -619,7 +620,7 @@ watch(selectedStudentId, () => {
               </tr>
 
               <tr class="row-grade">
-                <td class="col-criteria-cell">SUBJECT EQUIVALENT GRADE</td>
+                <td class="col-criteria-cell">{{ $t("SUBJECT EQUIVALENT GRADE") }}</td>
                 <td
                   v-for="subject in subjects"
                   :key="`grade-${subject.id}`"
@@ -630,7 +631,7 @@ watch(selectedStudentId, () => {
               </tr>
 
               <tr class="row-average">
-                <td class="col-criteria-cell">Average</td>
+                <td class="col-criteria-cell">{{ $t("Average") }}</td>
                 <td
                   class="text-center average-cell"
                   :colspan="Math.max(subjects.length, 1)"
@@ -644,7 +645,7 @@ watch(selectedStudentId, () => {
               </tr>
 
               <tr class="row-overall">
-                <td class="col-criteria-cell">Overall Equivalent Grade</td>
+                <td class="col-criteria-cell">{{ $t("Overall Equivalent Grade") }}</td>
                 <td
                   class="text-center overall-grade"
                   :colspan="Math.max(subjects.length, 1)"
@@ -666,13 +667,13 @@ watch(selectedStudentId, () => {
         </div>
 
         <div class="grade-legend">
-          <span>E = Excellent (90-100)</span>
-          <span>G = Good (80-89)</span>
-          <span>N = Needs Improvement (0-79)</span>
+          <span>{{ $t("E = Excellent (90-100)") }}</span>
+          <span>{{ $t("G = Good (80-89)") }}</span>
+          <span>{{ $t("N = Needs Improvement (0-79)") }}</span>
         </div>
 
         <div class="comment-box">
-          <div class="comment-label">Teacher's Comment:</div>
+          <div class="comment-label">{{ $t("Teacher's Comment:") }}</div>
           <p class="comment-text">
             {{ comment || "—" }}
           </p>

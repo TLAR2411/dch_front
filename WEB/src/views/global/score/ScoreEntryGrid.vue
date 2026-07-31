@@ -15,6 +15,9 @@
  *   attendanceMax — scheduled subject school days for Attendance category max
  */
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+import { usePartStore } from "@/stores/partStore";
+import { getEntityLabel } from "@/utils/reportLabels.js";
 import {
   calcAverageGrade,
   calcCategoryPercent,
@@ -48,6 +51,14 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:score"]);
+
+const { t } = useI18n();
+const partStore = usePartStore();
+const reportPart = computed(() => partStore.system_part || "english");
+
+function entityLabel(entity, fallback = "—") {
+  return getEntityLabel(entity, reportPart.value, fallback);
+}
 
 function studentScoreBag(studentId) {
   return props.scores[studentId] || {};
@@ -115,8 +126,8 @@ function showTotalColumn(cat) {
 }
 
 function itemHeaderLabel(cat, item) {
-  if (cat.is_attendance) return "DAYS";
-  if (cat.category_key === "participation") return "Participation";
+  if (cat.is_attendance) return t("DAYS");
+  if (cat.category_key === "participation") return t("Participation");
   return item.item_name;
 }
 
@@ -133,8 +144,8 @@ function categoryColspan(cat) {
       v-if="categories.length && !weightOk"
       class="text-caption text-warning mb-2 px-1"
     >
-      Category weights sum to {{ roundScore(totalWeight) }}% (expected 100%).
-      Check Subject Setting.
+      {{ $t("Category weights sum to {n}% (expected 100%).", { n: roundScore(totalWeight) }) }}
+      {{ $t("Check Subject Setting.") }}
     </div>
 
     <div class="score-grid-scroll">
@@ -142,18 +153,18 @@ function categoryColspan(cat) {
         <thead>
           <!-- Row 1: category groups -->
           <tr class="row-group">
-            <th class="sticky-col col-no" rowspan="3">No.</th>
-            <th class="sticky-col col-name" rowspan="3">Student's Name</th>
+            <th class="sticky-col col-no" rowspan="3">{{ $t("No.") }}</th>
+            <th class="sticky-col col-name" rowspan="3">{{ $t("Student's Name") }}</th>
             <th
               v-for="cat in categories"
               :key="`g-${cat.rule_id}`"
               class="col-group"
               :colspan="categoryColspan(cat)"
             >
-              {{ cat.name_en }}
+              {{ entityLabel(cat, cat.name_en) }}
               <span class="weight-tag">{{ roundScore(cat.percentage) }}%</span>
             </th>
-            <th class="col-avg" rowspan="2">Average Grade</th>
+            <th class="col-avg" rowspan="2">{{ $t("Average Grade") }}</th>
           </tr>
 
           <!-- Row 2: item headers + Total/% -->
@@ -167,7 +178,7 @@ function categoryColspan(cat) {
                 {{ itemHeaderLabel(cat, item) }}
               </th>
               <th v-if="!cat.items?.length" class="col-item">—</th>
-              <th v-if="showTotalColumn(cat)" class="col-total">Total</th>
+              <th v-if="showTotalColumn(cat)" class="col-total">{{ $t("Total") }}</th>
               <th class="col-pct">%</th>
             </template>
           </tr>
@@ -204,7 +215,7 @@ function categoryColspan(cat) {
               :colspan="3 + categories.reduce((n, c) => n + categoryColspan(c), 0)"
               class="text-center pa-6 text-medium-emphasis"
             >
-              No students in this class.
+              {{ $t("No students in this class.") }}
             </td>
           </tr>
 
@@ -217,7 +228,7 @@ function categoryColspan(cat) {
               {{ student.index ?? idx + 1 }}
             </td>
             <td class="sticky-col col-name">
-              <div class="name-en">{{ student.name_en }}</div>
+              <div class="name-en">{{ entityLabel(student) }}</div>
               
             </td>
 

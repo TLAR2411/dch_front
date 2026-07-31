@@ -105,7 +105,7 @@ const onCloseDialog = () => {
 <template>
   <AppAddEditDialog
     v-if="!xs"
-    :title="itemData.id == null ? t('Create Behavior') : t('Update Behavior')"
+    :title="itemData.id == null ? t('Create Rating') : t('Update Rating')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null"
     :loading="loading"
@@ -147,7 +147,7 @@ const onCloseDialog = () => {
 
   <AppAddEditDrawer
     v-else
-    :title="itemData.id == null ? t('Create Behavior') : t('Update Behavior')"
+    :title="itemData.id == null ? t('Create Rating') : t('Update Rating')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null"
     :loading="loading"

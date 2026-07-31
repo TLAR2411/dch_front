@@ -10,8 +10,10 @@ import { useDisplay } from "vuetify";
 import AppAddEditDrawer from "@/components/AppAddEditDrawer.vue";
 
 import { useYearStore } from "@/stores/yearStore";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 
 const yearStore = useYearStore();
+const { selectItemTitle } = useEntityLabel();
 
 const curId = ref(usePartStore().cur_id);
 
@@ -205,7 +207,7 @@ onMounted(async () => {
   <AppAddEditDialog
     v-if="!xs"
     max-width="700"
-    :title="itemData.isEdit ? 'Update Subjects' : 'Create Subjects'"
+    :title="itemData.isEdit ? t('Update Subjects') : t('Create Subjects')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
@@ -217,7 +219,7 @@ onMounted(async () => {
         <AppAutocomplete
           v-model="itemData.subject_id"
           :items="subjects"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Choose Subject')"
           autocomplete="off"
@@ -256,7 +258,7 @@ onMounted(async () => {
           :disabled="isAllGrade"
           v-model="itemData.grade_id"
           :items="grades"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Selected Grade')"
           autocomplete="off"
@@ -285,7 +287,7 @@ onMounted(async () => {
           :disabled="itemData.edit_mode === 'rule'"
           v-model="rule.category_id"
           :items="availableCategories(index)"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Choose Category')"
           autocomplete="off"
@@ -355,7 +357,7 @@ onMounted(async () => {
 
   <AppAddEditDrawer
     v-else
-    :title="itemData.id == null ? 'Create Subjects' : 'Update Subjects'"
+    :title="itemData.id == null ? t('Create Subjects') : t('Update Subjects')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
@@ -367,7 +369,7 @@ onMounted(async () => {
         <AppAutocomplete
           v-model="itemData.subject_id"
           :items="subjects"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Choose Subject')"
           autocomplete="off"
@@ -378,7 +380,7 @@ onMounted(async () => {
         <AppAutocomplete
           v-model="itemData.grade_id"
           :items="grades"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Selected Grade')"
           autocomplete="off"
@@ -407,7 +409,7 @@ onMounted(async () => {
           v-model="rule.category_id"
           :disabled="isAllGrade"
           :items="availableCategories(index)"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Choose Category')"
           autocomplete="off"

@@ -189,7 +189,7 @@ onMounted(async () => {
   <AppAddEditDialog
     v-if="!xs"
     max-width="700"
-    :title="itemData.id == null ? 'Create Term' : 'Update Term'"
+    :title="itemData.id == null ? t('Create Term') : t('Update Term')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
@@ -302,7 +302,7 @@ onMounted(async () => {
 
   <AppAddEditDrawer
     v-else
-    :title="itemData.id == null ? 'Create Term' : 'Update Term'"
+    :title="itemData.id == null ? t('Create Term') : t('Update Term')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"

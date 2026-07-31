@@ -1,5 +1,6 @@
 <script setup>
-import BehaviorRatingSettings from "@/views/global/behavior/BehaviorRatingSettings.vue";
+import { onBeforeMount } from "vue";
+import { useRouter } from "vue-router";
 
 definePage({
   meta: {
@@ -10,8 +11,14 @@ definePage({
     layoutWrapperClasses: "layout-content-height-fixed",
   },
 });
+
+const router = useRouter();
+
+onBeforeMount(() => {
+  router.replace({ name: "global-behavior", query: { tab: "rating" } });
+});
 </script>
 
 <template>
-  <BehaviorRatingSettings />
+  <div />
 </template>

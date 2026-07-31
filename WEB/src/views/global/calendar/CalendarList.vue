@@ -1,10 +1,15 @@
 <script setup>
 import { listHolidayCalendar, createHolidays, updateHoliday, deleteHoliday } from "@/services/api/holiday";
 import { ref, onMounted, computed, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { usePartStore } from "@/stores/partStore";
 import { useSettingStore } from "@/stores/settingStore";
 import { useYearStore } from "@/stores/yearStore";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 import AddEditImportHoliday from "@/views/admin/closed-days/AddEditImportHoliday.vue";
+
+const { t } = useI18n();
+const { entityLabel } = useEntityLabel();
 
 // ── stores ──────────────────────────────────────────────
 const yearStore = useYearStore();
@@ -38,21 +43,38 @@ const importSaving = ref(false);
 const publicHolidayList = ref([]);
 
 // ── constants ────────────────────────────────────────────
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = computed(() => [
+  t("January"),
+  t("February"),
+  t("March"),
+  t("April"),
+  t("May"),
+  t("June"),
+  t("July"),
+  t("August"),
+  t("September"),
+  t("October"),
+  t("November"),
+  t("December"),
+]);
+const DAYS_FULL = computed(() => [
+  t("Sun"),
+  t("Mon"),
+  t("Tue"),
+  t("Wed"),
+  t("Thu"),
+  t("Fri"),
+  t("Sat"),
+]);
+
+function holidayLabel(h) {
+  return entityLabel(h, "");
+}
+
+function holidaySubtext(h) {
+  if (h.description) return h.description;
+  return h.is_public ? t("Public holiday") : t("School event");
+}
 
 // ── helpers ──────────────────────────────────────────────
 function pad(n) {
@@ -61,8 +83,22 @@ function pad(n) {
 function isoDate(y, m, d) {
   return `${y}-${pad(m + 1)}-${pad(d)}`;
 }
+/** Normalize API dates (Date / ISO datetime / YYYY-MM-DD) to YYYY-MM-DD. */
+function toIsoDate(value) {
+  if (value == null || value === "") return null;
+  if (typeof value === "string") {
+    const m = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (m) return m[1];
+  }
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return isoDate(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function isPublicHoliday(h) {
+  return h?.is_public === true || h?.is_public === "t" || h?.is_public === 1 || h?.is_public === "1";
+}
 function fmtDisplay(iso) {
-  const d = new Date(iso + "T00:00:00");
+  const d = new Date(`${toIsoDate(iso) || iso}T00:00:00`);
   return d.toLocaleDateString("en-GB", {
     weekday: "short",
     day: "numeric",
@@ -70,12 +106,21 @@ function fmtDisplay(iso) {
     year: "numeric",
   });
 }
+function holidayDayNum(iso) {
+  const d = new Date(`${toIsoDate(iso) || iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? "" : d.getDate();
+}
+function holidayDayName(iso) {
+  const d = new Date(`${toIsoDate(iso) || iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? "" : DAYS_FULL.value[d.getDay()];
+}
 
 // ── computed ─────────────────────────────────────────────
 const holidayMap = computed(() => {
   const m = {};
   holiday.value.forEach((h) => {
-    m[h.date] = h;
+    const key = toIsoDate(h.date);
+    if (key) m[key] = h;
   });
   return m;
 });
@@ -88,8 +133,6 @@ const calendarDays = computed(() => {
   const prevTotal = new Date(y, m, 0).getDate();
   const cells = [];
 
-  console.log("totalDay", totalDays);
-
   for (let i = 0; i < firstDow; i++) {
     cells.push({ day: prevTotal - firstDow + 1 + i, type: "other", iso: null });
   }
@@ -97,6 +140,7 @@ const calendarDays = computed(() => {
     const iso = isoDate(y, m, d);
     const dw = new Date(y, m, d).getDay();
     const h = holidayMap.value[iso] || null;
+    const isPublic = isPublicHoliday(h);
     cells.push({
       day: d,
       iso,
@@ -107,8 +151,8 @@ const calendarDays = computed(() => {
         m === today.getMonth() &&
         d === today.getDate(),
       holiday: h,
-      isPublic: h?.is_public ?? false,
-      isEvent: h && !h.is_public,
+      isPublic,
+      isEvent: !!(h && !isPublic),
     });
   }
   const rem = cells.length % 7 === 0 ? 0 : 7 - (cells.length % 7);
@@ -122,14 +166,18 @@ const monthStats = computed(() => {
   const y = currentYear.value;
   const m = currentMonth.value;
   const prefix = `${y}-${pad(m + 1)}-`;
-  const monthHols = holiday.value.filter((h) => h.date.startsWith(prefix));
-  const publicCount = monthHols.filter((h) => h.is_public).length;
-  const eventCount = monthHols.filter((h) => !h.is_public).length;
+  const monthHols = holiday.value.filter((h) =>
+    (toIsoDate(h.date) || "").startsWith(prefix),
+  );
+  const publicCount = monthHols.filter((h) => isPublicHoliday(h)).length;
+  const eventCount = monthHols.filter((h) => !isPublicHoliday(h)).length;
   const totalDays = new Date(y, m + 1, 0).getDate();
   const schoolDays =
     totalDays -
     monthHols.filter((h) => {
-      const dw = new Date(h.date + "T00:00:00").getDay();
+      const iso = toIsoDate(h.date);
+      if (!iso) return false;
+      const dw = new Date(`${iso}T00:00:00`).getDay();
       return dw !== 0 && dw !== 6;
     }).length;
   return { totalDays, publicCount, eventCount, schoolDays };
@@ -140,8 +188,10 @@ const monthHolidayList = computed(() => {
   const m = currentMonth.value;
   const prefix = `${y}-${pad(m + 1)}-`;
   return holiday.value
-    .filter((h) => h.date.startsWith(prefix))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .filter((h) => (toIsoDate(h.date) || "").startsWith(prefix))
+    .sort((a, b) =>
+      (toIsoDate(a.date) || "").localeCompare(toIsoDate(b.date) || ""),
+    );
 });
 
 // ── navigation ────────────────────────────────────────────
@@ -169,11 +219,16 @@ const getHoliday = async () => {
     // One call returns BOTH kinds: public holidays (national, no branch) and
     // this branch's own events. The endpoint applies the branch filter only to
     // the non-public rows, which is what the two separate queries did.
-    holiday.value = await listHolidayCalendar({
+    const rows = await listHolidayCalendar({
       year: currentYear.value,
       cur_id,
       year_id,
     });
+    holiday.value = (Array.isArray(rows) ? rows : []).map((h) => ({
+      ...h,
+      date: toIsoDate(h.date) || h.date,
+      is_public: isPublicHoliday(h),
+    }));
   } catch (err) {
     console.error(err);
   } finally {
@@ -339,9 +394,9 @@ onMounted(() => {
               @click="onImportHoliday"
             >
               <VIcon icon="tabler-download" size="15" class="me-1" />
-              Import
+              {{ $t("Import") }}
             </button>
-            <button class="btn-today" @click="goToday">Today</button>
+            <button class="btn-today" @click="goToday">{{ $t("Today") }}</button>
             <button class="btn-nav" @click="prevMonth">&#8249;</button>
             <button class="btn-nav" @click="nextMonth">&#8250;</button>
           </div>
@@ -351,19 +406,19 @@ onMounted(() => {
         <div class="stats-row" v-if="!loading">
           <div class="stat-box">
             <div class="stat-num text-primary">{{ monthStats.totalDays }}</div>
-            <div class="stat-lbl">Total days</div>
+            <div class="stat-lbl">{{ $t("Total days") }}</div>
           </div>
           <div class="stat-box">
             <div class="stat-num text-red">{{ monthStats.publicCount }}</div>
-            <div class="stat-lbl">Public holidays</div>
+            <div class="stat-lbl">{{ $t("Public holidays") }}</div>
           </div>
           <div class="stat-box">
             <div class="stat-num text-green">{{ monthStats.eventCount }}</div>
-            <div class="stat-lbl">School events</div>
+            <div class="stat-lbl">{{ $t("School events") }}</div>
           </div>
           <div class="stat-box">
             <div class="stat-num text-blue">{{ monthStats.schoolDays }}</div>
-            <div class="stat-lbl">School days</div>
+            <div class="stat-lbl">{{ $t("School days") }}</div>
           </div>
         </div>
         <div v-else class="stats-row">
@@ -411,7 +466,7 @@ onMounted(() => {
                 v-if="cell.holiday"
                 class="event-chip"
                 :class="cell.isPublic ? 'chip-public' : 'chip-event'"
-                >{{ cell.holiday.name_en }}</span
+                >{{ holidayLabel(cell.holiday) }}</span
               >
 
               <!-- dot (mobile) -->
@@ -431,21 +486,21 @@ onMounted(() => {
               class="legend-dot"
               style="background: #fff0f0; border: 1px solid #f09595"
             ></span>
-            Public holiday
+            {{ $t("Public holiday") }}
           </div>
           <div class="legend-item">
             <span
               class="legend-dot"
               style="background: #f0fff8; border: 1px solid #9fe1cb"
             ></span>
-            School event
+            {{ $t("School event") }}
           </div>
           <div class="legend-item">
             <span
               class="legend-dot"
               style="background: #ebf4ff; border: 1px solid #b5d4f4"
             ></span>
-            Today
+            {{ $t("Today") }}
           </div>
         </div>
 
@@ -453,7 +508,7 @@ onMounted(() => {
         <div class="hlist hlist-mobile">
           <template v-if="monthHolidayList.length">
             <div class="hlist-head">
-              {{ MONTHS[currentMonth].toUpperCase() }} — HOLIDAYS &amp; EVENTS
+              {{ $t("{month} — HOLIDAYS & EVENTS", { month: MONTHS[currentMonth].toUpperCase() }) }}
             </div>
             <div
               v-for="h in monthHolidayList"
@@ -474,32 +529,30 @@ onMounted(() => {
                 :class="h.is_public ? 'badge-public' : 'badge-event'"
               >
                 <div class="hlist-badge-d">
-                  {{ new Date(h.date + "T00:00:00").getDate() }}
+                  {{ holidayDayNum(h.date) }}
                 </div>
                 <div class="hlist-badge-dw">
-                  {{ DAYS_FULL[new Date(h.date + "T00:00:00").getDay()] }}
+                  {{ holidayDayName(h.date) }}
                 </div>
               </div>
               <div class="hlist-info">
-                <div class="hlist-name">{{ h.name_en }}</div>
-                <div class="hlist-name hlist-name-kh">{{ h.name_kh }}</div>
+                <div class="hlist-name">{{ holidayLabel(h) }}</div>
+                <div v-if="h.name_kh && h.name_kh !== holidayLabel(h)" class="hlist-name hlist-name-kh">{{ h.name_kh }}</div>
+                <div v-else-if="h.name_en && h.name_en !== holidayLabel(h)" class="hlist-name hlist-name-kh">{{ h.name_en }}</div>
                 <div class="hlist-sub">
-                  {{
-                    h.description ||
-                    (h.is_public ? "Public holiday" : "School event")
-                  }}
+                  {{ holidaySubtext(h) }}
                 </div>
               </div>
               <span
                 class="hlist-tag"
                 :class="h.is_public ? 'tag-public' : 'tag-event'"
               >
-                {{ h.is_public ? "Holiday" : "Event" }}
+                {{ h.is_public ? $t("Holiday") : $t("Event") }}
               </span>
             </div>
           </template>
           <div v-else-if="!loading" class="hlist-empty">
-            No holidays or events this month. Tap a date to add one.
+            {{ $t("No holidays or events this month. Tap a date to add one.") }}
           </div>
         </div>
       </div>
@@ -508,7 +561,7 @@ onMounted(() => {
       <!-- ── RIGHT: side panel — DESKTOP only ── -->
       <div class="side-panel">
         <div class="side-head">
-          {{ MONTHS[currentMonth].toUpperCase() }} — HOLIDAYS &amp; EVENTS
+          {{ $t("{month} — HOLIDAYS & EVENTS", { month: MONTHS[currentMonth].toUpperCase() }) }}
         </div>
 
         <div class="side-scroll">
@@ -532,34 +585,32 @@ onMounted(() => {
                 :class="h.is_public ? 'sb-public' : 'sb-event'"
               >
                 <div class="side-badge-d">
-                  {{ new Date(h.date + "T00:00:00").getDate() }}
+                  {{ holidayDayNum(h.date) }}
                 </div>
                 <div class="side-badge-dw">
-                  {{ DAYS_FULL[new Date(h.date + "T00:00:00").getDay()] }}
+                  {{ holidayDayName(h.date) }}
                 </div>
               </div>
               <div class="side-info">
-                <div class="side-name">{{ h.name_en }}</div>
-                <div class="side-name side-name-kh">{{ h.name_kh }}</div>
+                <div class="side-name">{{ holidayLabel(h) }}</div>
+                <div v-if="h.name_kh && h.name_kh !== holidayLabel(h)" class="side-name side-name-kh">{{ h.name_kh }}</div>
+                <div v-else-if="h.name_en && h.name_en !== holidayLabel(h)" class="side-name side-name-kh">{{ h.name_en }}</div>
                 <div class="side-sub">
-                  {{
-                    h.description ||
-                    (h.is_public ? "Public holiday" : "School event")
-                  }}
+                  {{ holidaySubtext(h) }}
                 </div>
               </div>
               <span
                 class="side-tag"
                 :class="h.is_public ? 'tag-public' : 'tag-event'"
               >
-                {{ h.is_public ? "Holiday" : "Event" }}
+                {{ h.is_public ? $t("Holiday") : $t("Event") }}
               </span>
             </div>
           </template>
           <div v-else-if="!loading" class="side-empty">
-            No holidays or events this month.
+            {{ $t("No holidays or events this month.") }}
           </div>
-          <div v-if="loading" class="side-empty">Loading...</div>
+          <div v-if="loading" class="side-empty">{{ $t("Loading...") }}</div>
         </div>
       </div>
     </div>
@@ -571,54 +622,53 @@ onMounted(() => {
         <div v-if="showDialog" class="dlg-overlay" @click.self="closeDialog">
           <div class="dlg">
             <div class="dlg-head">
-              <h3>{{ selectedHoliday ? "Edit" : "Add" }} Event</h3>
+              <h3>{{ selectedHoliday ? $t("Edit Event") : $t("Add Event") }}</h3>
               <button class="dlg-close" @click="closeDialog">×</button>
             </div>
             <div class="dlg-body">
               <div class="dlg-date-badge">{{ fmtDisplay(selectedDate) }}</div>
               <div v-if="selectedHoliday?.is_public" class="dlg-public-info">
-                This is a <strong>public holiday</strong> — applies to all
-                curriculums.
+                {{ $t("This is a public holiday — applies to all curriculums.") }}
               </div>
               <div class="frow">
-                <label>Event name <span class="req">*</span></label>
+                <label>{{ $t("Event name") }} <span class="req">*</span></label>
                 <input
                   v-model="form.name"
                   type="text"
-                  placeholder="e.g. Khmer New Year"
+                  :placeholder="$t('e.g. Khmer New Year')"
                 />
               </div>
               <div class="frow">
-                <label>Description</label>
+                <label>{{ $t("Description") }}</label>
                 <textarea
                   v-model="form.description"
-                  placeholder="Optional note..."
+                  :placeholder="$t('Optional note...')"
                   rows="3"
                 ></textarea>
               </div>
               <div class="frow">
-                <label>Type</label>
+                <label>{{ $t("Type") }}</label>
                 <div class="type-pills">
                   <button
                     class="type-pill"
                     :class="{ 'pill-active-event': !form.is_public }"
                     @click="form.is_public = false"
                   >
-                    🏫 School event
+                    🏫 {{ $t("School event") }}
                   </button>
                   <button
                     class="type-pill"
                     :class="{ 'pill-active-public': form.is_public }"
                     @click="form.is_public = true"
                   >
-                    🇰🇭 Public holiday
+                    🇰🇭 {{ $t("Public holiday") }}
                   </button>
                 </div>
                 <p v-if="form.is_public" class="type-hint">
-                  Applies to all curriculums — Khmer, English, Chinese.
+                  {{ $t("Applies to all curriculums — Khmer, English, Chinese.") }}
                 </p>
                 <p v-else class="type-hint">
-                  Applies to the current curriculum only.
+                  {{ $t("Applies to the current curriculum only.") }}
                 </p>
               </div>
             </div>
@@ -628,7 +678,7 @@ onMounted(() => {
                 @click="closeDialog"
                 :disabled="saving"
               >
-                Cancel
+                {{ $t("Cancel") }}
               </button>
               <button
                 v-if="selectedHoliday"
@@ -636,14 +686,14 @@ onMounted(() => {
                 @click="deleteEvent"
                 :disabled="saving"
               >
-                {{ saving ? "..." : "Delete" }}
+                {{ saving ? "..." : $t("Delete") }}
               </button>
               <button
                 class="btn-save"
                 @click="saveEvent"
                 :disabled="saving || !form.name.trim()"
               >
-                {{ saving ? "Saving..." : "Save" }}
+                {{ saving ? $t("Saving...") : $t("Save") }}
               </button>
             </div>
           </div>

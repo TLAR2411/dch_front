@@ -18,6 +18,7 @@ import { addAssessmentItems } from "@/services/api/assessmentItems";
 import { listSubjectParentMap, showSubject } from "@/services/api/subjects";
 import successAlert from "@/helper/successAlert.js";
 import DeleteAlert from "@/helper/deleteAlert.js";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 
 import { useYearStore } from "@/stores/yearStore.js";
 
@@ -29,7 +30,7 @@ const { mdAndUp } = useDisplay();
 
 definePage({
   meta: {
-    title: "Checkin Checkout",
+    title: "Subject Setting",
     layout: "default",
     subject: "Auth",
     requiresAuth: true,
@@ -39,6 +40,7 @@ definePage({
 });
 
 const { t } = useI18n();
+const { entityLabel, reportPart } = useEntityLabel();
 
 const formData = ref({});
 const isDialogVisible = ref(false);
@@ -208,14 +210,14 @@ const onDeleteRule = async (id) => {
 
       successAlert.fire({
         icon: "success",
-        title: "Rule deleted successfully",
+        title: t("Rule deleted successfully"),
       });
       fetchGrades1();
     } catch (error) {
       console.error("Failed to delete rule:", error);
       successAlert.fire({
         icon: "error",
-        title: error.message || "Failed to delete rule",
+        title: error.message || t("Failed to delete rule"),
       });
     }
   });
@@ -225,7 +227,7 @@ const onDelete = async (subjectId, gradeId) => {
   if (!gradeId) {
     successAlert.fire({
       icon: "error",
-      title: "Grade is required to delete subject grading rules",
+      title: t("Grade is required to delete subject grading rules"),
     });
     return;
   }
@@ -240,14 +242,16 @@ const onDelete = async (subjectId, gradeId) => {
 
       successAlert.fire({
         icon: "success",
-        title: result?.message || "Subject rules and assessments deleted successfully",
+        title:
+          result?.message ||
+          t("Subject rules and assessments deleted successfully"),
       });
       fetchGrades1();
     } catch (error) {
       console.error("Failed to delete subject grading data:", error);
       successAlert.fire({
         icon: "error",
-        title: error.message || "Failed to delete subject grading data",
+        title: error.message || t("Failed to delete subject grading data"),
       });
     }
   });
@@ -473,8 +477,9 @@ const onUpdate = async (data, callback) => {
       const uniqueSets = new Set(nonEmptySets);
 
       if (uniqueSets.size > 1) {
-        const message =
-          "Selected grades have different rule categories. Please update them individually.";
+        const message = t(
+          "Selected grades have different rule categories. Please update them individually.",
+        );
         console.error(message, Object.fromEntries(categorySetByGrade));
         callback(false, message); // <-- pass message as 2nd arg
         return;
@@ -555,7 +560,7 @@ const onUpdate = async (data, callback) => {
     callback(true);
   } catch (error) {
     console.error("Failed to update grading rule:", error);
-    callback(false, error.message || "Something went wrong while updating.");
+    callback(false, error.message || t("Something went wrong while updating."));
   } finally {
     isLoading.value = false;
   }
@@ -864,7 +869,7 @@ const onCreateAssessment = async (data, callback) => {
     }));
 
     if (!payload.length) {
-      throw new Error("Please add at least one assessment.");
+      throw new Error(t("Please add at least one assessment."));
     }
 
     // The category-max ceiling and the rule-belongs-to-subject check now run
@@ -884,8 +889,10 @@ const onCreateAssessment = async (data, callback) => {
       icon: "success",
       title:
         payload.length === 1
-          ? "Assessment created successfully"
-          : `${payload.length} assessments created successfully`,
+          ? t("Assessment created successfully")
+          : t("{count} assessments created successfully", {
+              count: payload.length,
+            }),
     });
 
     await fetchGrades1();
@@ -895,7 +902,7 @@ const onCreateAssessment = async (data, callback) => {
     console.error("Failed to create assessment:", error);
     successAlert.fire({
       icon: "error",
-      title: error.message || "Failed to create assessment",
+      title: error.message || t("Failed to create assessment"),
     });
     callback(false);
   } finally {
@@ -985,10 +992,14 @@ onMounted(async () => {
             </VAvatar>
             <div>
               <div class="text-subtitle-1 font-weight-bold">
-                {{ grade.grade?.name_en }}
+                {{ entityLabel(grade.grade) }}
               </div>
               <div class="text-caption text-medium-emphasis">
-                {{ grade.grade?.name_kh }}
+                {{
+                  reportPart === "khmer" || reportPart === "chinese"
+                    ? grade.grade?.name_en
+                    : grade.grade?.name_kh
+                }}
               </div>
             </div>
           </div>
@@ -1034,10 +1045,14 @@ onMounted(async () => {
               </VAvatar>
               <div>
                 <div class="text-body-1 font-weight-bold">
-                  {{ grade.grade?.name_en }}
+                  {{ entityLabel(grade.grade) }}
                 </div>
                 <div class="text-caption text-medium-emphasis">
-                  {{ grade.grade?.name_kh }}
+                  {{
+                    reportPart === "khmer" || reportPart === "chinese"
+                      ? grade.grade?.name_en
+                      : grade.grade?.name_kh
+                  }}
                 </div>
               </div>
             </div>
@@ -1079,10 +1094,14 @@ onMounted(async () => {
                     </VAvatar>
                     <div>
                       <div class="text-body-1 font-weight-bold">
-                        {{ subject.subject?.name_en }}
+                        {{ entityLabel(subject.subject) }}
                       </div>
                       <div class="text-caption text-medium-emphasis">
-                        {{ subject.subject?.name_kh }}
+                        {{
+                          reportPart === "khmer" || reportPart === "chinese"
+                            ? subject.subject?.name_en
+                            : subject.subject?.name_kh
+                        }}
                       </div>
                     </div>
                   </div>
@@ -1298,12 +1317,17 @@ onMounted(async () => {
                                     </VAvatar>
                                     <div>
                                       <div class="text-body-1 font-weight-bold">
-                                        {{ childSubject.subject?.name_en }}
+                                        {{ entityLabel(childSubject.subject) }}
                                       </div>
                                       <div
                                         class="text-caption text-medium-emphasis"
                                       >
-                                        {{ childSubject.subject?.name_kh }}
+                                        {{
+                                          reportPart === "khmer" ||
+                                          reportPart === "chinese"
+                                            ? childSubject.subject?.name_en
+                                            : childSubject.subject?.name_kh
+                                        }}
                                       </div>
                                     </div>
                                   </div>

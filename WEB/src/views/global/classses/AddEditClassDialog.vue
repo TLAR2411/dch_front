@@ -12,10 +12,12 @@ import { useYearStore } from "@/stores/yearStore";
 import { getCurrentYearId } from "@/services/getCurrentYearId";
 
 import AppAddEditDrawer from "@/components/AppAddEditDrawer.vue";
+import { useEntityLabel } from "@/composable/useEntityLabel.js";
 
 import { useDisplay } from "vuetify";
 
 const { xs } = useDisplay();
+const { selectItemTitle } = useEntityLabel();
 
 const yearStore = useYearStore();
 
@@ -207,7 +209,7 @@ onMounted(async () => {
   <AppAddEditDialog
     max-width="700"
     v-if="!xs"
-    :title="itemData.id == null ? 'Create Classes' : 'Update Classes'"
+    :title="itemData.id == null ? t('Create Classes') : t('Update Classes')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
@@ -219,7 +221,7 @@ onMounted(async () => {
         <AppAutocomplete
           v-model="itemData.grade_id"
           :items="grades"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Grade')"
           autocomplete="off"
@@ -294,7 +296,7 @@ onMounted(async () => {
 
   <AppAddEditDrawer
     v-else
-    :title="itemData.id == null ? 'Create Classes' : 'Update Classes'"
+    :title="itemData.id == null ? t('Create Classes') : t('Update Classes')"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
@@ -306,7 +308,7 @@ onMounted(async () => {
         <AppAutocomplete
           v-model="itemData.grade_id"
           :items="grades"
-          item-title="name_en"
+          :item-title="selectItemTitle"
           item-value="id"
           :label="t('Grade')"
           autocomplete="off"
