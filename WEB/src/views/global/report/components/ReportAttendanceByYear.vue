@@ -2,6 +2,7 @@
 import { api } from "@/utils/api";
 import { listClassRoster } from "@/services/api/studentClasses";
 import { onMounted, ref, watch, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import MianLogo from "@images/logo/main-logo-1.svg?url";
 import { listGradeSubjectAssignments } from "@/services/api/gradeSubject";
 import { listSubjectParentMap } from "@/services/api/subjects";
@@ -29,9 +30,13 @@ const props = defineProps({
   },
 });
 
+const { t, locale } = useI18n();
 const yearStore = useYearStore();
 const partStore = usePartStore();
 const reportPart = computed(() => partStore.system_part || "english");
+const useKhmerMoul = computed(
+  () => reportPart.value === "khmer" && locale.value === "km",
+);
 
 function entityLabel(entity, fallback = "—") {
   return getEntityLabel(entity, reportPart.value, fallback);
@@ -141,11 +146,14 @@ const termsLabel = computed(() =>
 
 const reportTitle = computed(() => {
   const year = selectedYear.value;
-  if (!year) return "Attendance Report by Year";
-  const name = year.year_name || "Academic Year";
+  if (!year) return t("Attendance Report by Year");
+  const name = year.year_name || t("Academic Year");
   return yearRangeLabel.value
-    ? `Attendance Report for ${name} - All Terms (${yearRangeLabel.value})`
-    : `Attendance Report for ${name} - All Terms`;
+    ? t("Attendance Report for {name} - All Terms ({period})", {
+        name,
+        period: yearRangeLabel.value,
+      })
+    : t("Attendance Report for {name} - All Terms", { name });
 });
 
 const printObj = computed(() => ({
@@ -415,7 +423,11 @@ function getStudentSubjectTotal(student, subjectId, field) {
 
 function genderLabel(gender) {
   if (!gender) return "—";
-  return String(gender).toLowerCase().startsWith("f") ? "F" : "M";
+  const useKhmerAbbr =
+    reportPart.value === "khmer" || reportPart.value === "chinese";
+  const isFemale = String(gender).toLowerCase().startsWith("f");
+  if (useKhmerAbbr) return isFemale ? "ស" : "ប";
+  return isFemale ? "F" : "M";
 }
 
 const getData = async () => {
@@ -572,7 +584,12 @@ onMounted(async () => {
     <div class="w-100 mx-auto d-flex flex-column align-center justify-center">
         <v-img  :src="dchLogoHeader" alt="Dewey Childcare House" class="w-100 report-logo" />
 
-        <div class="report-title mt-5">{{ reportTitle }}</div>
+        <div
+          class="report-title mt-5"
+          :class="{ moul: useKhmerMoul }"
+        >
+          {{ reportTitle }}
+        </div>
       </div>
       <!-- <div class="report-header text-center mb-4">
         <img :src="MianLogo" alt="Dewey Childcare House" class="report-logo" />
@@ -585,8 +602,11 @@ onMounted(async () => {
       </div> -->
 
       <div class="report-meta d-flex justify-space-between mb-3">
-        <div>
-          <div><span class="meta-label">class:</span> {{ classLabel }}</div>
+        <div :class="{ moul: useKhmerMoul }">
+          <div>
+            <span class="meta-label">{{ $t("class:") }}</span>
+            <span class="meta-class-name">{{ classLabel }}</span>
+          </div>
           <!-- <div v-if="selectedYear">
             <span class="meta-label">year:</span>
             {{ selectedYear.year_name || "—" }}
@@ -600,8 +620,11 @@ onMounted(async () => {
             {{ yearRangeLabel }}
           </div> -->
         </div>
-        <div class="text-end">
-          <div><span class="meta-label">program:</span> {{ programName }}</div>
+        <div class="text-end" :class="{ moul: useKhmerMoul }">
+          <div>
+            <span class="meta-label">{{ $t("program:") }}</span>
+            <span class="meta-class-name">{{ programName }}</span>
+          </div>
         </div>
       </div>
 
@@ -609,11 +632,11 @@ onMounted(async () => {
 
       <div class="report-table-wrap">
         <table class="report-grid report-grid-summary">
-          <thead>
+          <thead :class="{ moul: useKhmerMoul }">
             <tr>
-              <th rowspan="2" style="width: 200px;">Student</th>
+              <th rowspan="2" style="width: 200px;">{{ $t("Student") }}</th>
               <th style="width: 34px;" rowspan="2" class="col-gender">
-                <span class="vertical-label">Gender</span>
+                <span class="vertical-label">{{ $t("Gender") }}</span>
               </th>
               <th
                 v-for="sub in reportSubjects"
@@ -719,13 +742,29 @@ onMounted(async () => {
 
 .report-title {
   font-size: 14px;
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
+  font-weight: 400;
+  text-align: center;
+  color: #00620d !important;
+}
+
+.report-title.moul,
+.report-meta .moul {
+  font-family: "moul", sans-serif !important;
+  font-weight: 400 !important;
+}
+
+.report-meta {
+  font-size: 12px;
 }
 
 .meta-label {
-  font-weight: 500;
+  font-weight: 400;
   margin-right: 4px;
+  color: #00620d !important;
+}
+
+.meta-class-name {
+  color: orange !important;
 }
 
 .report-table-wrap {
@@ -751,6 +790,11 @@ onMounted(async () => {
   background: rgba(var(--v-theme-on-surface), 0.04);
   font-weight: 600;
   text-align: center;
+}
+
+.report-grid thead.moul th {
+  font-family: "moul", sans-serif !important;
+  font-weight: 400 !important;
 }
 
 .vertical-label {
@@ -814,6 +858,25 @@ onMounted(async () => {
   .attendance-report-sheet {
     border: none !important;
     padding: 0 !important;
+  }
+
+  .report-title {
+    color: #00620d !important;
+    font-weight: 400 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .meta-label {
+    color: #00620d !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .meta-class-name {
+    color: orange !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .report-grid th,

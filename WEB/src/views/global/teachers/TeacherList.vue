@@ -105,6 +105,10 @@ const onEdit = async (item) => {
   router.push({ name: "global-teachers-edit-id", params: { id: item.id } });
 };
 
+const onView = async (item) => {
+  router.push({ name: "global-teachers-detail-id", params: { id: item.id } });
+};
+
 const filter = ref({ search: null });
 watch(
   cur_id,
@@ -134,9 +138,11 @@ onMounted(() => {});
     is-edit
     is-delete
     is-disable
+    is-view
     create-dialog
     create-page="global-teachers-create"
     save-state
+    @on-view="onView"
     @on-delete="onDelete"
     @on-edit="onEdit"
     @on-disable="onDisable"

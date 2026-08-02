@@ -2,6 +2,7 @@
 import { api } from "@/utils/api";
 import { listClassRoster } from "@/services/api/studentClasses";
 import { onMounted, ref, watch, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import monthSelectPlugin from "flatpickr/dist/plugins/monthSelect";
 import "flatpickr/dist/plugins/monthSelect/style.css";
 import MianLogo from "@images/logo/main-logo-1.svg?url";
@@ -29,10 +30,14 @@ const props = defineProps({
   },
 });
 
+const { t, locale } = useI18n();
 const yearStore = useYearStore();
 const partStore = usePartStore();
 const settingStore = useSettingStore();
 const reportPart = computed(() => partStore.system_part || "english");
+const useKhmerMoul = computed(
+  () => reportPart.value === "khmer" && locale.value === "km",
+);
 
 function entityLabel(entity, fallback = "—") {
   return getEntityLabel(entity, reportPart.value, fallback);
@@ -54,6 +59,24 @@ const subjectScheduledDows = ref(null);
 
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAY_LABEL_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const KHMER_MONTHS = [
+  "មករា",
+  "កុម្ភៈ",
+  "មីនា",
+  "មេសា",
+  "ឧសភា",
+  "មិថុនា",
+  "កក្កដា",
+  "សីហា",
+  "កញ្ញា",
+  "តុលា",
+  "វិច្ឆិកា",
+  "ធ្នូ",
+];
+
+function toKhmerDigits(value) {
+  return String(value).replace(/\d/g, (d) => "០១២៣៤៥៦៧៨៩"[Number(d)]);
+}
 
 const monthPickerConfig = {
   altInput: false,
@@ -109,6 +132,10 @@ const classLabel = computed(() => {
 const monthLabel = computed(() => {
   if (!form.value.start_date) return "";
   const [year, month] = form.value.start_date.split("-").map(Number);
+  if (reportPart.value === "khmer" || reportPart.value === "chinese") {
+    const monthName = KHMER_MONTHS[month - 1] || "";
+    return `${monthName} ឆ្នាំ${toKhmerDigits(year)}`;
+  }
   return new Date(year, month - 1, 1).toLocaleString("en", {
     month: "long",
     year: "numeric",
@@ -116,10 +143,15 @@ const monthLabel = computed(() => {
 });
 
 const reportTitle = computed(() => {
-  const base = reportType.value === "daily"
-    ? "Attendance Report Daily"
-    : "Attendance Report Monthly";
-  return monthLabel.value ? `${base} for ${monthLabel.value}` : base;
+  const isDaily = reportType.value === "daily";
+  if (!monthLabel.value) {
+    return isDaily
+      ? t("Attendance Report Daily")
+      : t("Attendance Report Monthly");
+  }
+  return isDaily
+    ? t("Attendance Report Daily for {month}", { month: monthLabel.value })
+    : t("Attendance Report Monthly for {month}", { month: monthLabel.value });
 });
 
 const printObj = computed(() => ({
@@ -131,7 +163,7 @@ const scheduleDaysLabel = computed(() => {
   const dows = subjectScheduledDows.value;
   if (!dows?.size) return "";
   return WEEKDAY_LABEL_ORDER.filter((d) => dows.has(d))
-    .map((d) => WEEKDAY_SHORT[d])
+    .map((d) => t(WEEKDAY_SHORT[d]))
     .join(", ");
 });
 
@@ -567,7 +599,11 @@ function isCellOffDay(student, calDay) {
 
 function genderLabel(gender) {
   if (!gender) return "—";
-  return String(gender).toLowerCase().startsWith("f") ? "F" : "M";
+  const useKhmerAbbr =
+    reportPart.value === "khmer" || reportPart.value === "chinese";
+  const isFemale = String(gender).toLowerCase().startsWith("f");
+  if (useKhmerAbbr) return isFemale ? "ស" : "ប";
+  return isFemale ? "F" : "M";
 }
 
 const getData = async () => {
@@ -778,7 +814,12 @@ onMounted(async () => {
       <div class="w-100 mx-auto d-flex flex-column align-center justify-center">
         <v-img  :src="dchLogoHeader" alt="Dewey Childcare House" class="w-100 report-logo" />
 
-        <div class="report-title mt-5">{{ reportTitle }}</div>
+        <div
+          class="report-title mt-5"
+          :class="{ moul: useKhmerMoul }"
+        >
+          {{ reportTitle }}
+        </div>
       </div>
       <!-- <div class="report-header text-center mb-4">
         <img :src="MianLogo" alt="Dewey Childcare House" class="report-logo" />
@@ -791,19 +832,25 @@ onMounted(async () => {
       </div> -->
 
       <div class="report-meta d-flex justify-space-between mb-3">
-        <div>
-          <div><span class="meta-label">class:</span> {{ classLabel }}</div>
+        <div :class="{ moul: useKhmerMoul }">
+          <div>
+            <span class="meta-label">{{ $t("class:") }}</span>
+            <span class="meta-class-name">{{ classLabel }}</span>
+          </div>
           <div v-if="reportType === 'daily'">
-            <span class="meta-label">subject:</span>
-            {{ entityLabel(selectedSubject) }}
+            <span class="meta-label">{{ $t("subject:") }}</span>
+            <span class="meta-class-name">{{ entityLabel(selectedSubject) }}</span>
           </div>
           <div v-if="reportType === 'daily' && scheduleDaysLabel">
-            <span class="meta-label">schedule:</span>
-            {{ scheduleDaysLabel }}
+            <span class="meta-label">{{ $t("schedule:") }}</span>
+            <span class="meta-class-name">{{ scheduleDaysLabel }}</span>
           </div>
         </div>
-        <div class="text-end">
-          <div><span class="meta-label">program:</span> {{ programName }}</div>
+        <div class="text-end" :class="{ moul: useKhmerMoul }">
+          <div>
+            <span class="meta-label">{{ $t("program:") }}</span>
+            <span class="meta-class-name">{{ programName }}</span>
+          </div>
         </div>
       </div>
 
@@ -812,14 +859,14 @@ onMounted(async () => {
       <!-- daily: calendar grid -->
       <div v-if="reportType === 'daily'" class="report-table-wrap">
         <table class="report-grid">
-          <thead>
+          <thead :class="{ moul: useKhmerMoul }">
             <tr>
-              <th style="width: 240px;" rowspan="3" class="col-student">student</th>
-              <th style="width: 34px;" rowspan="3" class="col-gender"><span class="vertical-label">Gender</span></th>
+              <th style="width: 240px;" rowspan="3" class="col-student">{{ $t("Student") }}</th>
+              <th style="width: 34px;" rowspan="3" class="col-gender"><span class="vertical-label">{{ $t("Gender") }}</span></th>
               <th :colspan="calendarDays.length" class="col-calendar">
-                calendar
+                {{ $t("calendar") }}
               </th>
-              <th colspan="4" class="col-summary">Attendance</th>
+              <th colspan="4" class="col-summary">{{ $t("Attendance") }}</th>
             </tr>
             <tr>
               <th
@@ -831,16 +878,16 @@ onMounted(async () => {
                 {{ day.day }}
               </th>
               <th class="col-total vertical-header" rowspan="2">
-                <span class="vertical-label">Absent</span>
+                <span class="vertical-label">{{ $t("Absent") }}</span>
               </th>
               <th class="col-total vertical-header" rowspan="2">
-                <span class="vertical-label">Permission</span>
+                <span class="vertical-label">{{ $t("Permission") }}</span>
               </th>
               <th class="col-total vertical-header" rowspan="2">
-                <span class="vertical-label">Late</span>
+                <span class="vertical-label">{{ $t("Late") }}</span>
               </th>
               <th class="col-total vertical-header" rowspan="2">
-                <span class="vertical-label">Present</span>
+                <span class="vertical-label">{{ $t("Present") }}</span>
               </th>
             </tr>
             <tr class="weekday-row">
@@ -899,10 +946,10 @@ onMounted(async () => {
       <!-- whole month: per-subject summary -->
       <div v-else class="report-table-wrap">
         <table class="report-grid report-grid-summary">
-          <thead>
+          <thead :class="{ moul: useKhmerMoul }">
             <tr>
-              <th rowspan="2" style="width: 200px;">Student</th>
-              <th style="width: 34px;" rowspan="2" class="col-gender"><span class="vertical-label">Gender</span></th>
+              <th rowspan="2" style="width: 200px;">{{ $t("Student") }}</th>
+              <th style="width: 34px;" rowspan="2" class="col-gender"><span class="vertical-label">{{ $t("Gender") }}</span></th>
               <th
                 v-for="sub in reportSubjects"
                 :key="`sub-${sub.id}`"
@@ -1010,13 +1057,29 @@ onMounted(async () => {
 
 .report-title {
   font-size: 14px;
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
+  font-weight: 400;
+  text-align: center;
+  color: #00620d !important;
+}
+
+.report-title.moul,
+.report-meta .moul {
+  font-family: "moul", sans-serif !important;
+  font-weight: 400 !important;
+}
+
+.report-meta {
+  font-size: 12px;
 }
 
 .meta-label {
-  font-weight: 500;
+  font-weight: 400;
   margin-right: 4px;
+  color: #00620d !important;
+}
+
+.meta-class-name {
+  color: orange !important;
 }
 
 .report-table-wrap {
@@ -1042,6 +1105,11 @@ onMounted(async () => {
   background: rgba(var(--v-theme-on-surface), 0.04);
   font-weight: 600;
   text-align: center;
+}
+
+.report-grid thead.moul th {
+  font-family: "moul", sans-serif !important;
+  font-weight: 400 !important;
 }
 
 .weekday-row th {
@@ -1146,6 +1214,25 @@ onMounted(async () => {
   .attendance-report-sheet {
     border: none !important;
     padding: 0 !important;
+  }
+
+  .report-title {
+    color: #00620d !important;
+    font-weight: 400 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .meta-label {
+    color: #00620d !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .meta-class-name {
+    color: orange !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .report-grid th,

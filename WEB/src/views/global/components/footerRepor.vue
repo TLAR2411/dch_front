@@ -716,7 +716,7 @@ onBeforeUnmount(() => {
           {{ formatKhmerLunarDate(form.right_date) }}
         </div>
         <div class="footer-line">
-          ត្រូវនឹង{{ formatDisplayDate(form.right_date) }}
+          <span v-if="locale === 'khmer'">ត្រូវនឹង</span>{{ formatDisplayDate(form.right_date) }}
         </div>
         <div v-if="isAsianLayout && form.right_heading" class="footer-line">
           {{ form.right_heading }}

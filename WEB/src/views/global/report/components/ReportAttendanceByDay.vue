@@ -14,6 +14,15 @@ function entityLabel(entity, fallback = "—") {
   return getEntityLabel(entity, reportPart.value, fallback);
 }
 
+function genderLabel(gender) {
+  if (!gender) return "—";
+  const useKhmerAbbr =
+    reportPart.value === "khmer" || reportPart.value === "chinese";
+  const isFemale = String(gender).toLowerCase().startsWith("f");
+  if (useKhmerAbbr) return isFemale ? "ស" : "ប";
+  return isFemale ? "F" : "M";
+}
+
 const props = defineProps({
   class_id: {
     type: Number,
@@ -330,7 +339,7 @@ onMounted(() => {
                
               </td>
               <td class="text-center">
-                {{ student.gender === "female" ? "F" : "M" }}
+                {{ genderLabel(student.gender) }}
               </td>
               <td
                 v-for="sub in subjects"
@@ -434,7 +443,7 @@ onMounted(() => {
                 </div>
               </div>
               <span class="gender-tag">
-                {{ student.gender === "female" ? "F" : "M" }}
+                {{ genderLabel(student.gender) }}
               </span>
             </div>
 

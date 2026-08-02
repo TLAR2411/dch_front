@@ -8,7 +8,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { selectItemTitle, entityLabel } = useEntityLabel();
 
 function dayLabel(d) {
@@ -856,7 +856,7 @@ onUnmounted(() => {
             alt="Dewey Childcare House"
             class="w-100 schedule-report-logo"
           />
-          <div class="schedule-report-title">{{ reportTitle }}</div>
+          <div :class="{moul:locale === 'km'}"  class="schedule-report-title">{{ reportTitle }}</div>
         </div>
 
         <div class="overflow-x-auto">
@@ -1209,9 +1209,10 @@ onUnmounted(() => {
 
 .schedule-report-title {
   margin-top: 12px;
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 700;
   text-align: center;
+
 }
 
 .schedule-table {

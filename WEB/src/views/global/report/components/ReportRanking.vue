@@ -33,7 +33,7 @@ const props = defineProps({
   },
 });
 
-const { t } = useI18n();
+const { t,locale } = useI18n();
 const partStore = usePartStore();
 const reportPart = computed(() => partStore.system_part || "english");
 
@@ -91,6 +91,20 @@ function subjectLabel(subject) {
 
 function studentLabel(row) {
   return getBilingualLabel(row, reportPart.value);
+}
+
+function genderLabel(gender) {
+  if (!gender) return "—";
+  const value = String(gender).toLowerCase();
+  const useKhmerAbbr =
+    reportPart.value === "khmer" || reportPart.value === "chinese";
+  if (value === "male" || value === "m") {
+    return useKhmerAbbr ? "ប" : t("male");
+  }
+  if (value === "female" || value === "f") {
+    return useKhmerAbbr ? "ស" : t("female");
+  }
+  return gender;
 }
 
 async function loadReportMeta() {
@@ -158,6 +172,7 @@ function buildRows(students, subjectList, scoreByStudent) {
       name_en: student.name_en || "",
       name_kh: student.name_kh || "",
       name_cn: student.name_cn || "",
+      gender: student.gender || null,
       subjectScores,
       total: roundScore(total, 2),
       average,
@@ -269,34 +284,35 @@ watch(
           alt="Dewey Childcare House"
           class="w-100 report-logo"
         />
-        <div class="report-title mt-4">{{ reportTitle }}</div>
+        <div :class="{moul:locale === 'km'}" class="report-title mt-4">{{ reportTitle }}</div>
       </div>
 
-      <div class="report-meta d-flex justify-space-between mb-3">
-        <div>
-          <div>
+      <div class="report-meta d-flex justify-space-between mb-3" style="margin-top: -30px;">
+        <div :class="{moul:locale === 'km'}">
+          <div :class="{moul:locale === 'km'}">
             <span class="meta-label">{{ $t("class:") }}</span>
-            {{ meta.className || "—" }}
+            <span class="meta-class-name">{{ meta.className || "—" }}</span>
           </div>
           <div>
             <span class="meta-label">{{ $t("period:") }}</span>
-            {{ meta.termName || "—" }}
+           <span class="meta-class-name">{{ meta.termName || "—" }}</span>
           </div>
         </div>
         <div class="text-end">
-          <div>
+          <div :class="{moul:locale === 'km'}">
             <span class="meta-label">{{ $t("grade:") }}</span>
-            {{ meta.gradeName || "—" }}
+            <span class="meta-class-name">{{ meta.gradeName || "—" }}</span>
           </div>
         </div>
       </div>
 
       <div class="ranking-table-wrap">
         <table class="ranking-table">
-          <thead>
+          <thead :class="{ moul: reportPart === 'khmer' }">
             <tr>
               <!-- <th class="col-no" rowspan="2">NO</th> -->
               <th class="col-name" rowspan="2">{{ $t("STUDENT'S NAME") }}</th>
+              <th class="col-gender" rowspan="2">{{ $t("Gender") }}</th>
               <th
                 v-for="subject in subjects"
                 :key="`h-${subject.id}`"
@@ -315,7 +331,8 @@ watch(
               </th>
               <th class="col-total">{{ $t("Total") }}</th>
               <th class="col-average">{{ $t("Average") }}</th>
-              <th class="col-rank" rowspan="2">{{ $t("Rank") }}</th>
+              <th v-if="reportPart === 'khmer'" class="col-rank" rowspan="2">ចំ.ថ្នាក់</th>
+              <th v-else class="col-rank" rowspan="2">{{ $t("Rank") }}</th>
             </tr>
             <tr>
               <th
@@ -344,6 +361,9 @@ watch(
                     {{ label.secondary }}
                   </div>
                 </div>
+              </td>
+              <td class="text-center col-gender">
+                {{ genderLabel(row.gender) }}
               </td>
               <td
                 v-for="subject in subjects"
@@ -396,10 +416,15 @@ watch(
 }
 
 .report-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
+  font-size: 13px;
+  font-weight: 200;
+  margin-top: 10px;
+  
   text-align: center;
+  color:#00620d !important;
+}
+.meta-class-name {
+  color: orange;
 }
 
 .report-meta {
@@ -409,6 +434,7 @@ watch(
 .meta-label {
   font-weight: 500;
   margin-right: 4px;
+  color:#00620d !important;
 }
 
 .ranking-table-wrap {
@@ -438,6 +464,12 @@ watch(
   background: #f0f0f0;
 }
 
+.ranking-table thead.moul th {
+  font-family: "moul", sans-serif !important;
+  font-size: 10px;
+  font-weight: 100;
+}
+
 .col-no {
   width: 36px;
   max-width: 36px;
@@ -449,8 +481,16 @@ watch(
   text-align: left !important;
 }
 
+.col-gender {
+  width: 52px;
+  max-width: 64px;
+  min-width: 48px;
+  padding-inline: 4px !important;
+  white-space: nowrap;
+}
+
 .col-name-cell {
-height: 0;
+  height: 0;
   text-align: left;
   white-space: nowrap;
 }
@@ -530,13 +570,11 @@ height: 0;
   }
 
   .ranking-report-sheet,
-  .ranking-report-sheet *:not(.rank-top) {
+  .ranking-report-sheet *:not(.rank-top):not(.meta-class-name):not(.meta-label):not(.report-title) {
     color: #000 !important;
   }
 
-  .report-title,
-  .report-meta,
-  .meta-label {
+  .report-meta {
     color: #000 !important;
   }
 
@@ -544,6 +582,24 @@ height: 0;
   .ranking-table td:not(.rank-top) {
     color: #000 !important;
     border-color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .report-title {
+    color: #00620d !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .meta-label {
+    color: #00620d !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .meta-class-name {
+    color: rgb(255, 128, 0) !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

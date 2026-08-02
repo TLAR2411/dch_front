@@ -66,6 +66,9 @@ export function buildCriteriaFromLayouts(layoutsBySubjectId) {
       if (!key || map.has(key)) continue;
       map.set(key, {
         key,
+        name_en: cat.name_en || key,
+        name_kh: cat.name_kh || "",
+        // Keep label for older callers; prefer name_* + getEntityLabel in UI.
         label: cat.name_en || key,
       });
     }
@@ -73,8 +76,8 @@ export function buildCriteriaFromLayouts(layoutsBySubjectId) {
 
   return [...map.values()].sort(
     (a, b) =>
-      categorySortIndex(a.label) - categorySortIndex(b.label) ||
-      String(a.label).localeCompare(String(b.label)),
+      categorySortIndex(a.key) - categorySortIndex(b.key) ||
+      String(a.name_en || a.label).localeCompare(String(b.name_en || b.label)),
   );
 }
 

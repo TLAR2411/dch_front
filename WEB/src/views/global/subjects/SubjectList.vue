@@ -2,11 +2,13 @@
 import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { useDisplay } from "vuetify";
-import formatTime from "@/utils/formater/formatTime";
+import { useRouter } from "vue-router";
 
 import AddEditSubjectDialog from "./AddEditSubjectDialog.vue";
 import { onMounted } from "vue";
 import { getSubjects } from "@/services/dataService.js";
+
+const router = useRouter();
 const { mdAndUp } = useDisplay();
 definePage({
   meta: {
@@ -139,11 +141,14 @@ const onDisable = async (item) => {
     } else {
       console.error("Error with the response:", res.data);
     }
-    callback(res.data.status);
   } catch (error) {
     console.error("Failed to fetch data:", error);
   } finally {
   }
+};
+
+const onView = (item) => {
+  router.push({ name: "global-subjects-detail-id", params: { id: item.id } });
 };
 
 onMounted(async () => {

@@ -4,6 +4,7 @@
  * Download: Print (PDF) via v-print, or PNG via html2canvas.
  */
 import { computed, nextTick, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { listStudentRecommendations } from "@/services/api/studentRecommendations";
 import html2canvas from "html2canvas";
 import FileSaver from "file-saver";
@@ -33,8 +34,12 @@ const props = defineProps({
   },
 });
 
+const { locale } = useI18n();
 const partStore = usePartStore();
 const reportPart = computed(() => partStore.system_part || "english");
+const useKhmerMoul = computed(
+  () => reportPart.value === "khmer" && locale.value === "km",
+);
 
 function selectItemTitle(item) {
   return getEntityLabel(item, reportPart.value, "");
@@ -128,6 +133,10 @@ function subjectLabel(subject) {
 
 function studentLabel(student) {
   return getBilingualLabel(student, reportPart.value);
+}
+
+function criteriaLabel(row) {
+  return getEntityLabel(row, reportPart.value, row.label || row.key || "—");
 }
 
 function subjectHeaderColor(index) {
@@ -538,13 +547,26 @@ watch(selectedStudentId, () => {
       :style="sheetStyle"
     >
       <div class="individual-content" style="margin-top: 70px;">
-        <h1 class="individual-title">{{ $t("ACADEMIC REPORT") }}</h1>
+        <h1
+          class="individual-title"
+          :class="{ moul: reportPart === 'khmer' }"
+        >
+          {{ $t("ACADEMIC REPORT") }}
+        </h1>
 
         <table class="info-grid">
           <tbody>
             <tr>
-              <td class="info-label">{{ $t("Name:") }}</td>
-              <td class="info-value info-name">
+              <td
+                class="info-label"
+                :class="{ moul: reportPart === 'khmer' }"
+              >
+                {{ $t("Name:") }}
+              </td>
+              <td
+                class="info-value info-name"
+                :class="{ moul: reportPart === 'khmer' }"
+              >
                 <div
                   v-for="label in [studentLabel(selectedStudent)]"
                   :key="selectedStudent.student_id"
@@ -556,16 +578,54 @@ watch(selectedStudentId, () => {
                   </div>
                 </div>
               </td>
-              <td class="info-label">{{ $t("Term:") }}</td>
-              <td class="info-value">{{ meta.termName || "—" }}</td>
-              <td class="info-label info-program-label">{{ $t("Program:") }}</td>
+              <td
+                class="info-label"
+                :class="{ moul: reportPart === 'khmer' }"
+              >
+                {{ $t("Term:") }}
+              </td>
+              <td
+                class="info-value"
+                :class="{ moul: reportPart === 'khmer' }"
+              >
+                {{ meta.termName || "—" }}
+              </td>
+              <td
+                class="info-label info-program-label"
+                :class="{ moul: reportPart === 'khmer' }"
+              >
+                {{ $t("Program:") }}
+              </td>
             </tr>
             <tr>
-              <td class="info-label">{{ $t("Level:") }}</td>
-              <td class="info-value">{{ meta.className || "—" }}</td>
-              <td class="info-label">{{ $t("Year:") }}</td>
-              <td class="info-value">{{ meta.yearLabel || "—" }}</td>
-              <td class="info-value info-program-value">
+              <td
+                class="info-label"
+                :class="{ moul: reportPart === 'khmer' }"
+              >
+                {{ $t("Level:") }}
+              </td>
+              <td
+                class="info-value"
+                :class="{ moul: reportPart === 'khmer' }"
+              >
+                {{ meta.className || "—" }}
+              </td>
+              <td
+                class="info-label"
+                :class="{ moul: reportPart === 'khmer' }"
+              >
+                {{ $t("Year:") }}
+              </td>
+              <td
+                class="info-value"
+                :class="{ moul: reportPart === 'khmer' }"
+              >
+                {{ meta.yearLabel || "—" }}
+              </td>
+              <td
+                class="info-value info-program-value"
+                :class="{ moul: reportPart === 'khmer' }"
+              >
                 {{ meta.programName || "—" }}
               </td>
             </tr>
@@ -574,7 +634,7 @@ watch(selectedStudentId, () => {
 
         <div class="score-table-wrap">
           <table class="score-table">
-            <thead>
+            <thead :class="{ moul: useKhmerMoul }">
               <tr>
                 <th class="col-criteria">{{ $t("Criteria") }}</th>
                 <th
@@ -598,7 +658,12 @@ watch(selectedStudentId, () => {
             </thead>
             <tbody>
               <tr v-for="row in criteria" :key="row.key">
-                <td class="col-criteria-cell">{{ row.label }}</td>
+                <td
+                  class="col-criteria-cell"
+                  :class="{ moul: useKhmerMoul }"
+                >
+                  {{ criteriaLabel(row) }}
+                </td>
                 <td
                   v-for="subject in subjects"
                   :key="`${row.key}-${subject.id}`"
@@ -609,7 +674,12 @@ watch(selectedStudentId, () => {
               </tr>
 
               <tr class="row-total">
-                <td class="col-criteria-cell">{{ $t("TOTAL") }}</td>
+                <td
+                  class="col-criteria-cell"
+                  :class="{ moul: useKhmerMoul }"
+                >
+                  {{ $t("TOTAL") }}
+                </td>
                 <td
                   v-for="subject in subjects"
                   :key="`total-${subject.id}`"
@@ -620,7 +690,12 @@ watch(selectedStudentId, () => {
               </tr>
 
               <tr class="row-grade">
-                <td class="col-criteria-cell">{{ $t("SUBJECT EQUIVALENT GRADE") }}</td>
+                <td
+                  class="col-criteria-cell"
+                  :class="{ moul: useKhmerMoul }"
+                >
+                  {{ $t("SUBJECT EQUIVALENT GRADE") }}
+                </td>
                 <td
                   v-for="subject in subjects"
                   :key="`grade-${subject.id}`"
@@ -631,7 +706,12 @@ watch(selectedStudentId, () => {
               </tr>
 
               <tr class="row-average">
-                <td class="col-criteria-cell">{{ $t("Average") }}</td>
+                <td
+                  class="col-criteria-cell"
+                  :class="{ moul: useKhmerMoul }"
+                >
+                  {{ $t("Average") }}
+                </td>
                 <td
                   class="text-center average-cell"
                   :colspan="Math.max(subjects.length, 1)"
@@ -645,7 +725,12 @@ watch(selectedStudentId, () => {
               </tr>
 
               <tr class="row-overall">
-                <td class="col-criteria-cell">{{ $t("Overall Equivalent Grade") }}</td>
+                <td
+                  class="col-criteria-cell"
+                  :class="{ moul: useKhmerMoul }"
+                >
+                  {{ $t("Overall Equivalent Grade") }}
+                </td>
                 <td
                   class="text-center overall-grade"
                   :colspan="Math.max(subjects.length, 1)"
@@ -719,10 +804,10 @@ watch(selectedStudentId, () => {
   flex: 0 0 auto;
   margin: 0 0 10px;
   font-size: 1.2rem;
-  font-weight: 800;
+  font-weight: 100;
   letter-spacing: 0.04em;
   text-align: center;
-  color: #111;
+  color: #00620d !important;
 }
 
 .info-grid {
@@ -743,17 +828,19 @@ watch(selectedStudentId, () => {
 .info-label {
   width: 11%;
   background: #d8ecd0;
-  font-weight: 600;
+  font-weight: 100;
   white-space: nowrap;
+  color: #00620d !important;
 }
 
 .info-value {
   width: 22%;
   background: #fff;
+  color: orange !important;
 }
 
 .info-name {
-  font-weight: 600;
+  font-weight: 100;
 }
 
 .report-name {
@@ -768,7 +855,7 @@ watch(selectedStudentId, () => {
 
 .name-secondary {
   font-size: 0.7rem;
-  font-weight: 400;
+  font-weight: 100;
   opacity: 0.85;
   margin-top: 1px;
 }
@@ -781,7 +868,7 @@ watch(selectedStudentId, () => {
 .info-program-value {
   width: 23%;
   text-align: center;
-  font-weight: 600;
+  font-weight: 100;
   background: #fff;
 }
 
@@ -806,9 +893,15 @@ watch(selectedStudentId, () => {
 }
 
 .score-table thead th {
-  font-weight: 700;
+  font-weight: 100;
   text-align: center;
   line-height: 1.15;
+  font-size: 0.5rem;
+}
+
+.score-table thead.moul th {
+  font-family: "moul", sans-serif !important;
+  font-weight: 400 !important;
 }
 
 .col-criteria {
@@ -821,6 +914,12 @@ watch(selectedStudentId, () => {
   background: #f5f5f5;
   font-weight: 600;
   text-align: left;
+}
+
+.col-criteria-cell.moul {
+  font-family: "moul", sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 0.5rem;
 }
 
 .col-subject {
@@ -931,6 +1030,24 @@ watch(selectedStudentId, () => {
 
   .overall-grade {
     color: #c62828 !important;
+  }
+
+  .individual-title {
+    color: #00620d !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .info-label {
+    color: #00620d !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .info-value {
+    color: orange !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .score-table th,

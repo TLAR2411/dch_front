@@ -104,32 +104,36 @@ export default [
         icon: { icon: "tabler-books" },
         // permission: "view-curriculumns",
     },
+    // {
+    //     title: "Generals",
+    //     icon: { icon: "tabler-settings" },
+    //     permission: '',
+    //     children: [
+
+    //         {
+    //             title: "Closed Days",
+    //             to: {
+    //                 name: "admin-closed-days",
+    //             },
+    //             permission: "",
+    //         },
+    //         // {
+    //         //     title: "Term Periods",
+    //         //     to: {
+    //         //         name: "global-term",
+    //         //     },
+    //         //     permission: "",
+    //         // },
+    //     ],
+    // },
+
     {
-        title: "Generals",
-        icon: { icon: "tabler-settings" },
-        permission: '',
-        children: [
-
-            {
-                title: "Closed Days",
-                to: {
-                    name: "admin-closed-days",
-                },
-                permission: "",
-            },
-            {
-                title: "Term Periods",
-                to: {
-                    name: "global-term",
-                },
-                permission: "",
-            },
-
-
-
-
-
-        ],
+        icon: { icon: "tabler-calendar-week" },
+        title: "Term Periods",
+        to: {
+            name: "global-term",
+        },
+        permission: "",
     },
 
     {
