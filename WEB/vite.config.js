@@ -117,7 +117,7 @@ export default defineConfig({
       vueTemplate: true,
 
       // ℹ️ Disabled to avoid confusion & accidental usage
-      ignore: ['useCookies', 'useStorage'],
+      ignore: ['useCookies', 'useStorage', 'supabase'],
       eslintrc: {
         enabled: true,
         filepath: './.eslintrc-auto-import.json',

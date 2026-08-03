@@ -13,6 +13,10 @@ const { mdAndUp } = useDisplay();
 const dataTableRef = ref(null);
 
 const isLoading = ref(true);
+const isDialogVisible = ref(false);
+const filter = ref({
+  search: null,
+});
 
 definePage({
   meta: {

@@ -105,6 +105,7 @@ export default [
           name: "global-rooms"
         }
       },
+      
     ],
   },
 

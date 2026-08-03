@@ -66,12 +66,71 @@ const initialFormData = () => ({
   m_name: "",
   f_contact: "",
   m_contact: "",
+  family_id: null,
+  family_mode: "existing",
+  family_name_en: "",
+  family_name_kh: "",
   dob: null,
   cur_id: [],
 });
 
 const formData = ref(initialFormData());
 const isLoading = ref(false);
+const familyOptions = ref([]);
+const familySearchLoading = ref(false);
+
+const familyModeOptions = computed(() => [
+  { name: t("Select Existing Family"), value: "existing" },
+  { name: t("Create New Family"), value: "new" },
+]);
+
+const selectedFamilyLabel = (item) =>
+  item?.name_en || item?.name_kh || item?.family_name || "";
+
+const searchFamilies = async (search = "") => {
+  try {
+    familySearchLoading.value = true;
+    const res = await api.post("families-all", { search: search || null });
+    if (res.data.status) {
+      familyOptions.value = res.data.data.data || [];
+    }
+  } catch (error) {
+    console.error("Failed to search families:", error);
+  } finally {
+    familySearchLoading.value = false;
+  }
+};
+
+const applyFamilyGuardians = (family) => {
+  const guardians = family?.guardians || [];
+  const father = guardians.find((g) => g.type === "father");
+  const mother = guardians.find((g) => g.type === "mother");
+  formData.value.f_name = father?.name_en || "";
+  formData.value.f_contact = father?.phone || "";
+  formData.value.m_name = mother?.name_en || "";
+  formData.value.m_contact = mother?.phone || "";
+};
+
+watch(
+  () => formData.value.family_id,
+  (familyId) => {
+    if (!familyId) return;
+    const family = familyOptions.value.find((f) => f.id === familyId);
+    if (family) applyFamilyGuardians(family);
+  },
+);
+
+watch(
+  () => formData.value.family_mode,
+  (mode) => {
+    if (mode === "new") {
+      formData.value.family_id = null;
+    } else {
+      formData.value.family_name_en = "";
+      formData.value.family_name_kh = "";
+    }
+  },
+);
 
 const provinces = ref([]);
 const districts = ref([]);
@@ -293,9 +352,49 @@ const onSubmit = async (validate) => {
   try {
     isLoading.value = true;
 
-    console.log("formData to submit", formData.value);
+    // Create a new family first when requested, then link via family_id.
+    let familyId = formData.value.family_id;
+    if (formData.value.family_mode === "new") {
+      const familyName =
+        formData.value.family_name_en ||
+        formData.value.family_name_kh ||
+        `${formData.value.name_en || formData.value.name_kh} Family`;
 
-    const res = await api.post("students-store", formData.value, {
+      const guardians = [];
+      if (formData.value.f_name) {
+        guardians.push({
+          type: "father",
+          name_en: formData.value.f_name,
+          phone: formData.value.f_contact || null,
+        });
+      }
+      if (formData.value.m_name) {
+        guardians.push({
+          type: "mother",
+          name_en: formData.value.m_name,
+          phone: formData.value.m_contact || null,
+        });
+      }
+
+      const familyRes = await api.post("families-store", {
+        name_en: formData.value.family_name_en || familyName,
+        name_kh: formData.value.family_name_kh || null,
+        guardians,
+      });
+
+      if (!familyRes.data.status) {
+        console.error("Failed to create family:", familyRes.data);
+        return;
+      }
+      familyId = familyRes.data.data.data.id;
+    }
+
+    const payload = {
+      ...formData.value,
+      family_id: familyId || null,
+    };
+
+    const res = await api.post("students-store", payload, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -315,6 +414,7 @@ const onSubmit = async (validate) => {
 onMounted(async () => {
   loadAddressData();
   curriculums.value = await getCurriculums();
+  await searchFamilies();
 });
 </script>
 
@@ -531,9 +631,57 @@ onMounted(async () => {
       <AppLabel :title="t('Family Information')" />
 
       <VCol cols="12" lg="3" md="4" sm="6">
+        <AppSelect
+          v-model="formData.family_mode"
+          :label="t('Family Mode')"
+          :items="familyModeOptions"
+          item-title="name"
+          item-value="value"
+        />
+      </VCol>
+
+      <VCol
+        v-if="formData.family_mode === 'existing'"
+        cols="12"
+        lg="6"
+        md="8"
+        sm="12"
+      >
+        <AppAutocomplete
+          v-model="formData.family_id"
+          :label="t('Select Existing Family')"
+          :items="familyOptions"
+          item-value="id"
+          :item-title="selectedFamilyLabel"
+          :loading="familySearchLoading"
+          clearable
+          autocomplete="off"
+          @update:search="searchFamilies"
+        />
+      </VCol>
+
+      <template v-if="formData.family_mode === 'new'">
+        <VCol cols="12" lg="3" md="4" sm="6">
+          <AppTextField
+            v-model="formData.family_name_en"
+            :label="t('Name English')"
+            autocomplete="off"
+          />
+        </VCol>
+        <VCol cols="12" lg="3" md="4" sm="6">
+          <AppTextField
+            v-model="formData.family_name_kh"
+            :label="t('Name Khmer')"
+            autocomplete="off"
+          />
+        </VCol>
+      </template>
+
+      <VCol cols="12" lg="3" md="4" sm="6">
         <AppTextField
           v-model="formData.f_name"
           :label="t('Father Name')"
+          :readonly="formData.family_mode === 'existing' && !!formData.family_id"
           autocomplete="off"
         />
       </VCol>
@@ -542,6 +690,7 @@ onMounted(async () => {
         <AppTextField
           v-model="formData.f_contact"
           :label="t('Father Contact')"
+          :readonly="formData.family_mode === 'existing' && !!formData.family_id"
           autocomplete="off"
         />
       </VCol>
@@ -549,6 +698,7 @@ onMounted(async () => {
         <AppTextField
           v-model="formData.m_name"
           :label="t('Mother Name')"
+          :readonly="formData.family_mode === 'existing' && !!formData.family_id"
           autocomplete="off"
         />
       </VCol>
@@ -557,6 +707,7 @@ onMounted(async () => {
         <AppTextField
           v-model="formData.m_contact"
           :label="t('Mother Contact')"
+          :readonly="formData.family_mode === 'existing' && !!formData.family_id"
           autocomplete="off"
         />
       </VCol>

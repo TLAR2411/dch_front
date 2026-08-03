@@ -104,6 +104,12 @@ export default [
         icon: { icon: "tabler-books" },
         // permission: "view-curriculumns",
     },
+    {
+        title: "Families",
+        to: { name: "global-families" },
+        icon: { icon: "tabler-home-heart" },
+        permission: "view-families",
+    },
     // {
     //     title: "Generals",
     //     icon: { icon: "tabler-settings" },

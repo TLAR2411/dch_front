@@ -6,6 +6,7 @@ import AppTextField from "@/@core/components/app-form-elements/AppTextField.vue"
 import { requiredValidator } from "@/@core/utils/validators";
 import AppCard from "@/components/AppCard.vue";
 import AppLabel from "@/components/AppLabel.vue";
+import AddEditFamiliesDialog from "@/views/global/families/AddEditFamiliesDialog.vue";
 import { api } from "@/utils/api";
 import { app } from "@/utils/app";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
@@ -64,12 +65,86 @@ const initialFormData = () => ({
   m_name: "",
   f_contact: "",
   m_contact: "",
+  family_id: null,
   dob: null,
   cur_id: [],
 });
 
 const formData = ref(initialFormData());
 const isLoading = ref(false);
+const familyDialogVisible = ref(false);
+const familyDialogLoading = ref(false);
+const familyDialogData = ref({});
+const familyOptions = ref([]);
+const familySearchLoading = ref(false);
+
+const selectedFamilyLabel = (item) =>
+  item?.name_en || item?.name_kh || item?.family_name || "";
+
+const searchFamilies = async (search = "") => {
+  try {
+    familySearchLoading.value = true;
+    const res = await api.post("families-all", { search: search || null });
+    if (res.data.status) {
+      familyOptions.value = res.data.data.data || [];
+    }
+  } catch (error) {
+    console.error("Failed to search families:", error);
+  } finally {
+    familySearchLoading.value = false;
+  }
+};
+
+const selectedFamily = computed(() =>
+  familyOptions.value.find((f) => f.id === formData.value.family_id) || null,
+);
+
+const selectedFamilyGuardians = computed(
+  () => selectedFamily.value?.guardians || [],
+);
+
+const guardianTypeLabel = (type) => {
+  const map = {
+    father: "Father",
+    mother: "Mother",
+    grandparent: "Grandparent",
+    sibling: "Sibling",
+    legal_guardian: "Legal Guardian",
+    other: "Other",
+  };
+  return map[type] || type || "Guardian";
+};
+
+const openCreateFamilyDialog = () => {
+  familyDialogData.value = {};
+  familyDialogVisible.value = true;
+};
+
+const onFamilyDialogCreate = async (data, callback) => {
+  try {
+    familyDialogLoading.value = true;
+    const res = await api.post("families-store", data);
+    if (!res.data.status) {
+      console.error("Failed to create family:", res.data);
+      callback(false);
+      return;
+    }
+
+    const created = res.data.data.data;
+    await searchFamilies(created.name_en || created.family_name || "");
+    if (!familyOptions.value.some((f) => f.id === created.id)) {
+      familyOptions.value = [created, ...familyOptions.value];
+    }
+    formData.value.family_id = created.id;
+    familyDialogVisible.value = false;
+    callback(true);
+  } catch (error) {
+    console.error("Failed to create family:", error);
+    callback(false);
+  } finally {
+    familyDialogLoading.value = false;
+  }
+};
 
 const provinces = ref([]);
 const districts = ref([]);
@@ -174,13 +249,9 @@ const initData = async () => {
   try {
     const res = await api.post("students-show", { id: route.params.id });
     if (res.data.status) {
-      formData.value = res.data.data;
-
-      console.log(
-        "village_code",
-        typeof res.data.data.village_code,
-        res.data.data.village_code,
-      );
+      formData.value = {
+        ...res.data.data,
+      };
 
       const data = res.data.data;
 
@@ -195,7 +266,28 @@ const initData = async () => {
 
       formData.value.province_code =
         data.province_code != null ? Number(data.province_code) : null;
-      console.log("formData", formData.value);
+
+      const linkedFamilyId =
+        data.family_id != null ? Number(data.family_id) : null;
+      formData.value.family_id = linkedFamilyId;
+
+      // Ensure the linked family appears in the autocomplete options.
+      if (
+        linkedFamilyId &&
+        !familyOptions.value.some((f) => f.id === linkedFamilyId)
+      ) {
+        try {
+          const famRes = await api.post("families-show", { id: linkedFamilyId });
+          if (famRes.data.status) {
+            familyOptions.value = [
+              famRes.data.data.data,
+              ...familyOptions.value,
+            ];
+          }
+        } catch (e) {
+          console.error("Failed to load linked family:", e);
+        }
+      }
     } else {
       console.error("Error with the response:", res.data);
     }
@@ -214,7 +306,21 @@ const onSubmit = async (validate) => {
   try {
     isLoading.value = true;
 
-    const res = await api.post("students-update", formData.value, {
+    if (!formData.value.family_id) {
+      console.error("Please select a family or create a new one");
+      return;
+    }
+
+    const payload = {
+      ...formData.value,
+      family_id: formData.value.family_id,
+      f_name: null,
+      f_contact: null,
+      m_name: null,
+      m_contact: null,
+    };
+
+    const res = await api.post("students-update", payload, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -225,7 +331,7 @@ const onSubmit = async (validate) => {
       router.push({ name: "admin-students" });
     }
   } catch (error) {
-    console.error("Failed to create student:", error);
+    console.error("Failed to update student:", error);
   } finally {
     isLoading.value = false;
   }
@@ -234,20 +340,29 @@ const onSubmit = async (validate) => {
 const curriculums = ref([]);
 
 onMounted(async () => {
-  initData();
+  await searchFamilies();
+  await initData();
   loadAddressData();
   curriculums.value = await getCurriculums();
 });
 </script>
 
 <template>
-  <AppCard
-    title="Create Student"
-    title-icon="tabler-user-plus"
-    is-submit
-    :loading="isLoading"
-    @on-submit="onSubmit"
-  >
+  <div>
+    <AddEditFamiliesDialog
+      v-model:isDialogVisible="familyDialogVisible"
+      :item-data="familyDialogData"
+      :loading="familyDialogLoading"
+      @on-create="onFamilyDialogCreate"
+    />
+
+    <AppCard
+      title="Edit Student"
+      title-icon="tabler-user-plus"
+      is-submit
+      :loading="isLoading"
+      @on-submit="onSubmit"
+    >
     <VRow>
       <VCol cols="12">
         <div class="d-flex mt-3">
@@ -466,36 +581,54 @@ onMounted(async () => {
 
       <AppLabel title="Family Information" />
 
-      <VCol cols="12" lg="3" md="4" sm="6">
-        <AppTextField
-          v-model="formData.f_name"
-          label="Father Name"
+      <VCol cols="12" md="8" lg="6">
+        <AppAutocomplete
+          v-model="formData.family_id"
+          label="Family"
+          :items="familyOptions"
+          item-value="id"
+          :item-title="selectedFamilyLabel"
+          :loading="familySearchLoading"
+          :rules="[requiredValidator]"
+          clearable
           autocomplete="off"
+          @update:search="searchFamilies"
         />
+      </VCol>
+      <VCol cols="12" md="4" lg="3" class="d-flex align-center">
+        <VBtn
+          variant="tonal"
+          prepend-icon="tabler-plus"
+          @click="openCreateFamilyDialog"
+        >
+          New Family
+        </VBtn>
       </VCol>
 
-      <VCol cols="12" lg="3" md="4" sm="6">
-        <AppTextField
-          v-model="formData.f_contact"
-          label="Father Contact"
-          autocomplete="off"
-        />
-      </VCol>
-      <VCol cols="12" lg="3" md="4" sm="6">
-        <AppTextField
-          v-model="formData.m_name"
-          label="Mother Name"
-          autocomplete="off"
-        />
-      </VCol>
-
-      <VCol cols="12" lg="3" md="4" sm="6">
-        <AppTextField
-          v-model="formData.m_contact"
-          label="Mother Contact"
-          autocomplete="off"
-        />
+      <VCol v-if="formData.family_id" cols="12">
+        <div class="text-body-2 text-medium-emphasis mb-2">
+          Guardians (read only)
+        </div>
+        <div
+          v-if="selectedFamilyGuardians.length"
+          class="d-flex flex-wrap ga-2"
+        >
+          <VChip
+            v-for="g in selectedFamilyGuardians"
+            :key="g.id || `${g.type}-${g.name_en}`"
+            size="small"
+            variant="tonal"
+          >
+            {{ guardianTypeLabel(g.type) }}:
+            {{ g.name_en || g.name_kh || g.name || "-" }}
+            <template v-if="g.phone"> · {{ g.phone }}</template>
+          </VChip>
+        </div>
+        <div v-else class="text-caption text-medium-emphasis">
+          No guardians on this family yet. Use New Family or Admin → Families.
+        </div>
       </VCol>
     </VRow>
-  </AppCard>
+    </AppCard>
+  </div>
 </template>

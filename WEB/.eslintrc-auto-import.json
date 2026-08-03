@@ -417,6 +417,18 @@
     "getEntityLabel": true,
     "getSelectTitleField": true,
     "resolveReportPart": true,
-    "isRequestCanceled": true
+    "isRequestCanceled": true,
+    "buildStudentReportRows": true,
+    "countStatusCode": true,
+    "dayFromDate": true,
+    "emptyTotals": true,
+    "genderLabel": true,
+    "getDayStatus": true,
+    "getStudentSubjectTotal": true,
+    "isPresentMark": true,
+    "mergeDayRecords": true,
+    "recordToStatus": true,
+    "resolveReportSubjectId": true,
+    "statusToCode": true
   }
 }

@@ -17,12 +17,18 @@ import { usePartStore } from "@/stores/partStore.js";
 import { app } from "@/utils/app";
 import ReportAttendanceLegend from "./ReportAttendanceLegend.vue";
 
-import dchLogoHeader from "../../../../../public/logo/dchlogoheader.png";
 import FooterRepor from "@/views/global/components/footerRepor.vue";
 import {
   compareEntityNames,
   getEntityLabel,
 } from "@/utils/reportLabels.js";
+import {
+  buildStudentReportRows,
+  getStudentSubjectTotal,
+  genderLabel as formatGenderLabel,
+} from "../lib/attendanceReport.js";
+
+const dchLogoHeader = "/logo/dchlogoheader.png";
 
 const props = defineProps({
   class_id: {
@@ -298,136 +304,8 @@ async function fetchYearAttendance({ classId, startDate, endDate }) {
   });
 }
 
-function isTruthyFlag(value) {
-  return value === true || value === 1 || value === "1";
-}
-
-function recordToStatus(record) {
-  if (!record) return null;
-  if (isTruthyFlag(record.ask_permission)) return { ask_permission: true };
-  if (!isTruthyFlag(record.present)) return { absent: true };
-  if (isTruthyFlag(record.late)) return { late: true };
-  if (isTruthyFlag(record.present)) return { present: true };
-  return null;
-}
-
-function emptyTotals() {
-  return { absent: 0, permission: 0, late: 0, present: 0 };
-}
-
-function resolveReportSubjectId(subjectId, subjectParentMap) {
-  return subjectParentMap?.get(subjectId) ?? subjectId;
-}
-
-function countStatusCode(code, totals) {
-  if (code === "A") totals.absent += 1;
-  else if (code === "P") totals.permission += 1;
-  else if (code === "L") totals.late += 1;
-  else if (code === "✓") totals.present += 1;
-}
-
-function statusToCode(entry) {
-  if (!entry) return "";
-
-  if (typeof entry === "string") {
-    const map = {
-      a: "A",
-      absent: "A",
-      p: "P",
-      permission: "P",
-      pre: "P",
-      ask_permission: "P",
-      l: "L",
-      late: "L",
-      present: "✓",
-      check: "✓",
-      "✓": "✓",
-    };
-    return map[entry.toLowerCase()] ?? entry;
-  }
-
-  if (isTruthyFlag(entry.ask_permission) || isTruthyFlag(entry.permission)) {
-    return "P";
-  }
-  if (isTruthyFlag(entry.absent)) return "A";
-  if (isTruthyFlag(entry.late)) return "L";
-  if (isTruthyFlag(entry.present)) return "✓";
-
-  if (entry.status) return statusToCode(entry.status);
-  if (entry.code) return statusToCode(entry.code);
-  if (entry.value) return statusToCode(entry.value);
-
-  return "";
-}
-
-function buildStudentReportRows(
-  students,
-  attendanceRows,
-  { subjectParentMap = null, reportSubjectIds = [] } = {},
-) {
-  const recordsByStudent = new Map();
-
-  for (const row of attendanceRows) {
-    if (!recordsByStudent.has(row.student_id)) {
-      recordsByStudent.set(row.student_id, []);
-    }
-    recordsByStudent.get(row.student_id).push(row);
-  }
-
-  return students.map((entry, index) => {
-    const records = recordsByStudent.get(entry.student_id) ?? [];
-    const totals = emptyTotals();
-    const bySubjectMap = {};
-
-    for (const subjectId of reportSubjectIds) {
-      bySubjectMap[subjectId] = emptyTotals();
-    }
-
-    for (const record of records) {
-      const subjectId = resolveReportSubjectId(
-        record.subject_id,
-        subjectParentMap,
-      );
-      if (!bySubjectMap[subjectId]) continue;
-      countStatusCode(
-        statusToCode(recordToStatus(record)),
-        bySubjectMap[subjectId],
-      );
-    }
-
-    for (const subjectTotals of Object.values(bySubjectMap)) {
-      totals.absent += subjectTotals.absent;
-      totals.permission += subjectTotals.permission;
-      totals.late += subjectTotals.late;
-      totals.present += subjectTotals.present;
-    }
-
-    return {
-      id: entry.student_id,
-      index: entry.index ?? index + 1,
-      name_en: entry.student?.name_en ?? "",
-      name_kh: entry.student?.name_kh ?? "",
-      gender: entry.student?.gender ?? "",
-      _bySubject: bySubjectMap,
-      absent_total: totals.absent,
-      ask_permission_total: totals.permission,
-      late_total: totals.late,
-      present_total: totals.present,
-    };
-  });
-}
-
-function getStudentSubjectTotal(student, subjectId, field) {
-  return student._bySubject?.[subjectId]?.[field] ?? 0;
-}
-
 function genderLabel(gender) {
-  if (!gender) return "—";
-  const useKhmerAbbr =
-    reportPart.value === "khmer" || reportPart.value === "chinese";
-  const isFemale = String(gender).toLowerCase().startsWith("f");
-  if (useKhmerAbbr) return isFemale ? "ស" : "ប";
-  return isFemale ? "F" : "M";
+  return formatGenderLabel(gender, reportPart.value);
 }
 
 const getData = async () => {
@@ -474,6 +352,7 @@ async function fetchReportData() {
   ]);
 
   attData.value = buildStudentReportRows(students, attendanceRows, {
+    bySubject: true,
     subjectParentMap,
     reportSubjectIds: subjectOptions.value.map((s) => s.id),
   });
@@ -632,7 +511,7 @@ onMounted(async () => {
 
       <div class="report-table-wrap">
         <table class="report-grid report-grid-summary">
-          <thead :class="{ moul: useKhmerMoul }">
+          <thead :class="{ moul: useKhmerMoul }" class="report-thead-compact">
             <tr>
               <th rowspan="2" style="width: 200px;">{{ $t("Student") }}</th>
               <th style="width: 34px;" rowspan="2" class="col-gender">
@@ -678,7 +557,9 @@ onMounted(async () => {
               </template>
             </tr>
             <tr v-if="attData.length && reportSubjects.length" class="total-row">
-              <td colspan="2" class="text-end font-weight-medium">Total</td>
+              <td colspan="2" class="text-end font-weight-medium">
+                {{ $t("Total") }}
+              </td>
               <template v-for="sub in reportSubjects" :key="`total-${sub.id}`">
                 <td class="text-center">
                   {{ summarySubjectTotals[sub.id]?.absent ?? 0 }}
@@ -696,12 +577,12 @@ onMounted(async () => {
             </tr>
             <tr v-if="!attData.length">
               <td :colspan="summaryTableColspan" class="text-center py-8 empty-cell">
-                No attendance recorded for this year yet.
+                {{ $t("No attendance recorded for this year yet.") }}
               </td>
             </tr>
             <tr v-else-if="!reportSubjects.length">
               <td :colspan="summaryTableColspan" class="text-center py-8 empty-cell">
-                No subjects found for this class.
+                {{ $t("No subjects found for this class.") }}
               </td>
             </tr>
           </tbody>
@@ -795,6 +676,11 @@ onMounted(async () => {
 .report-grid thead.moul th {
   font-family: "moul", sans-serif !important;
   font-weight: 400 !important;
+}
+
+.report-thead-compact th {
+  font-size: 10px;
+  font-weight: 100;
 }
 
 .vertical-label {

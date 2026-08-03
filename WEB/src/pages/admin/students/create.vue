@@ -8,7 +8,6 @@ definePage({
     subject: "CreateStudent",
     requiresAuth: true,
     // permissions: "view-students",
-    layoutWrapperClasses: "layout-content-height-fixed",
   },
 });
 </script>

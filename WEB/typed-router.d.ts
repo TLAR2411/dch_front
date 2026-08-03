@@ -58,6 +58,7 @@ declare module 'vue-router/auto-routes' {
     'global-classes': RouteRecordInfo<'global-classes', '/global/classes', Record<never, never>, Record<never, never>>,
     'global-classes-detail-id': RouteRecordInfo<'global-classes-detail-id', '/global/classes/detail/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
     'global-dashboard': RouteRecordInfo<'global-dashboard', '/global/dashboard', Record<never, never>, Record<never, never>>,
+    'global-families': RouteRecordInfo<'global-families', '/global/families', Record<never, never>, Record<never, never>>,
     'global-grades': RouteRecordInfo<'global-grades', '/global/grades', Record<never, never>, Record<never, never>>,
     'global-gradesubject': RouteRecordInfo<'global-gradesubject', '/global/gradesubject', Record<never, never>, Record<never, never>>,
     'global-rating': RouteRecordInfo<'global-rating', '/global/rating', Record<never, never>, Record<never, never>>,

@@ -11,18 +11,27 @@ import { listSubjectParentMap } from "@/services/api/subjects";
 import { listAttendanceRange } from "@/services/api/attendance";
 import { listHolidayCalendar } from "@/services/api/holiday";
 import { listSchedules } from "@/services/api/schedules";
-import { getClasses, getGrades, getCurriculums } from "@/services/dataService.js";
+import {
+  getClasses,
+  getGrades,
+  getCurriculums,
+} from "@/services/dataService.js";
 import { useYearStore } from "@/stores/yearStore.js";
 import { usePartStore } from "@/stores/partStore.js";
 import { useSettingStore } from "@/stores/settingStore.js";
 import { app } from "@/utils/app";
 import ReportAttendanceLegend from "./ReportAttendanceLegend.vue";
-import dchLogoHeader from "../../../../../public/logo/dchlogoheader.png";
 import FooterRepor from "@/views/global/components/footerRepor.vue";
+import { compareEntityNames, getEntityLabel } from "@/utils/reportLabels.js";
 import {
-  compareEntityNames,
-  getEntityLabel,
-} from "@/utils/reportLabels.js";
+  buildStudentReportRows,
+  getDayStatus,
+  getStudentSubjectTotal,
+  genderLabel as formatGenderLabel,
+  isPresentMark,
+} from "../lib/attendanceReport.js";
+
+const dchLogoHeader = "/logo/dchlogoheader.png";
 
 const props = defineProps({
   class_id: {
@@ -100,10 +109,10 @@ const form = ref({
 
 const yearId = computed(() => yearStore.year_id);
 
-const selectedClass = computed(() =>
-  classes.value.find(
-    (item) => Number(item.id) === Number(props.class_id),
-  ) ?? null,
+const selectedClass = computed(
+  () =>
+    classes.value.find((item) => Number(item.id) === Number(props.class_id)) ??
+    null,
 );
 
 const selectedGrade = computed(() => {
@@ -112,8 +121,9 @@ const selectedGrade = computed(() => {
   return grades.value.find((g) => Number(g.id) === Number(gradeId)) ?? null;
 });
 
-const selectedSubject = computed(() =>
-  subjectOptions.value.find((s) => s.id === form.value.subject_id) ?? null,
+const selectedSubject = computed(
+  () =>
+    subjectOptions.value.find((s) => s.id === form.value.subject_id) ?? null,
 );
 
 const programName = computed(() => {
@@ -220,9 +230,7 @@ const summarySubjectTotals = computed(() => {
   return totals;
 });
 
-const summaryTableColspan = computed(
-  () => 2 + reportSubjects.value.length * 4,
-);
+const summaryTableColspan = computed(() => 2 + reportSubjects.value.length * 4);
 
 const canSearch = computed(() => {
   if (!props.class_id || !form.value.start_date) return false;
@@ -300,36 +308,6 @@ async function fetchGradeSubjects() {
   }
 }
 
-function isTruthyFlag(value) {
-  return value === true || value === 1 || value === "1";
-}
-
-function recordToStatus(record) {
-  if (!record) return null;
-  if (isTruthyFlag(record.ask_permission)) return { ask_permission: true };
-  if (!isTruthyFlag(record.present)) return { absent: true };
-  if (isTruthyFlag(record.late)) return { late: true };
-  if (isTruthyFlag(record.present)) return { present: true };
-  return null;
-}
-
-function mergeDayRecords(records = []) {
-  if (!records.length) return null;
-  if (records.some((r) => isTruthyFlag(r.ask_permission))) {
-    return { ask_permission: true };
-  }
-  if (records.some((r) => !isTruthyFlag(r.present))) return { absent: true };
-  if (records.some((r) => isTruthyFlag(r.late))) return { late: true };
-  if (records.some((r) => isTruthyFlag(r.present))) return { present: true };
-  return null;
-}
-
-function dayFromDate(date) {
-  if (!date) return null;
-  const match = String(date).match(/^\d{4}-\d{2}-(\d{2})/);
-  return match ? Number(match[1]) : null;
-}
-
 function getMonthDateRange(monthValue) {
   const [year, month] = monthValue.split("-").map(Number);
   const totalDays = new Date(year, month, 0).getDate();
@@ -360,8 +338,14 @@ async function fetchMonthHolidays(monthValue) {
 
   const eventData = (rows ?? [])
     .filter((row) => row.is_public !== true)
-    .filter((row) => partStore.cur_id == null || sameId(row.cur_id, partStore.cur_id))
-    .filter((row) => settingStore.branch_id == null || sameId(row.branch_id, settingStore.branch_id))
+    .filter(
+      (row) => partStore.cur_id == null || sameId(row.cur_id, partStore.cur_id),
+    )
+    .filter(
+      (row) =>
+        settingStore.branch_id == null ||
+        sameId(row.branch_id, settingStore.branch_id),
+    )
     .filter((row) => yearId.value == null || sameId(row.year_id, yearId.value));
 
   for (const row of [...(publicData ?? []), ...(eventData ?? [])]) {
@@ -432,10 +416,6 @@ async function fetchMonthAttendance({
   });
 }
 
-function emptyTotals() {
-  return { absent: 0, permission: 0, late: 0, present: 0 };
-}
-
 async function buildSubjectParentMap() {
   const data = await listSubjectParentMap();
 
@@ -446,164 +426,13 @@ async function buildSubjectParentMap() {
   return map;
 }
 
-function resolveReportSubjectId(subjectId, subjectParentMap) {
-  return subjectParentMap?.get(subjectId) ?? subjectId;
-}
-
-function countStatusCode(code, totals) {
-  if (code === "A") totals.absent += 1;
-  else if (code === "P") totals.permission += 1;
-  else if (code === "L") totals.late += 1;
-  else if (code === "✓") totals.present += 1;
-}
-
-function buildStudentReportRows(
-  students,
-  attendanceRows,
-  {
-    dailyMode = false,
-    bySubject = false,
-    subjectParentMap = null,
-    reportSubjectIds = [],
-  } = {},
-) {
-  const recordsByStudent = new Map();
-
-  for (const row of attendanceRows) {
-    if (!recordsByStudent.has(row.student_id)) {
-      recordsByStudent.set(row.student_id, []);
-    }
-    recordsByStudent.get(row.student_id).push(row);
-  }
-
-  return students.map((entry, index) => {
-    const records = recordsByStudent.get(entry.student_id) ?? [];
-    const totals = emptyTotals();
-    const dailyMap = {};
-    const bySubjectMap = {};
-
-    if (bySubject) {
-      for (const subjectId of reportSubjectIds) {
-        bySubjectMap[subjectId] = emptyTotals();
-      }
-
-      for (const record of records) {
-        const subjectId = resolveReportSubjectId(
-          record.subject_id,
-          subjectParentMap,
-        );
-        if (!bySubjectMap[subjectId]) continue;
-        countStatusCode(
-          statusToCode(recordToStatus(record)),
-          bySubjectMap[subjectId],
-        );
-      }
-
-      for (const subjectTotals of Object.values(bySubjectMap)) {
-        totals.absent += subjectTotals.absent;
-        totals.permission += subjectTotals.permission;
-        totals.late += subjectTotals.late;
-        totals.present += subjectTotals.present;
-      }
-    } else if (dailyMode) {
-      const recordsByDay = new Map();
-
-      for (const record of records) {
-        const day = dayFromDate(record.date);
-        if (!day) continue;
-        if (!recordsByDay.has(day)) recordsByDay.set(day, []);
-        recordsByDay.get(day).push(record);
-      }
-
-      for (const [day, dayRecords] of recordsByDay) {
-        const status = mergeDayRecords(dayRecords);
-        dailyMap[day] = status;
-        countStatusCode(statusToCode(status), totals);
-      }
-    } else {
-      for (const record of records) {
-        countStatusCode(statusToCode(recordToStatus(record)), totals);
-      }
-    }
-
-    return {
-      id: entry.student_id,
-      index: entry.index ?? index + 1,
-      name_en: entry.student?.name_en ?? "",
-      name_kh: entry.student?.name_kh ?? "",
-      gender: entry.student?.gender ?? "",
-      _dailyMap: dailyMap,
-      _bySubject: bySubjectMap,
-      absent_total: totals.absent,
-      ask_permission_total: totals.permission,
-      late_total: totals.late,
-      present_total: totals.present,
-    };
-  });
-}
-
-function getStudentSubjectTotal(student, subjectId, field) {
-  return student._bySubject?.[subjectId]?.[field] ?? 0;
-}
-
-function statusToCode(entry) {
-  if (!entry) return "";
-
-  if (typeof entry === "string") {
-    const map = {
-      a: "A",
-      absent: "A",
-      p: "P",
-      permission: "P",
-      pre: "P",
-      ask_permission: "P",
-      l: "L",
-      late: "L",
-      present: "✓",
-      check: "✓",
-      "✓": "✓",
-    };
-    return map[entry.toLowerCase()] ?? entry;
-  }
-
-  if (isTruthyFlag(entry.ask_permission) || isTruthyFlag(entry.permission)) {
-    return "P";
-  }
-  if (isTruthyFlag(entry.absent)) return "A";
-  if (isTruthyFlag(entry.late)) return "L";
-  if (isTruthyFlag(entry.present)) return "✓";
-
-  if (entry.status) return statusToCode(entry.status);
-  if (entry.code) return statusToCode(entry.code);
-  if (entry.value) return statusToCode(entry.value);
-
-  return "";
-}
-
-function getDayStatus(student, day) {
-  const entry = student._dailyMap?.[day] ?? student._dailyMap?.[String(day)];
-  if (!entry) {
-    return "";
-  }
-  return statusToCode(entry);
-}
-
-function isPresentMark(value) {
-  return value === "✓";
-}
-
 function isCellOffDay(student, calDay) {
   if (getDayStatus(student, calDay.day)) return false;
   return calDay.isNonSchoolDay;
 }
 
 function genderLabel(gender) {
-  if (!gender) return "—";
-  const useKhmerAbbr =
-    reportPart.value === "khmer" || reportPart.value === "chinese";
-  const isFemale = String(gender).toLowerCase().startsWith("f");
-  if (useKhmerAbbr) return isFemale ? "ស" : "ប";
-  return isFemale ? "F" : "M";
+  return formatGenderLabel(gender, reportPart.value);
 }
 
 const getData = async () => {
@@ -726,7 +555,6 @@ onMounted(async () => {
     if (canSearch.value) await getData();
   }
 });
-
 </script>
 
 <template>
@@ -742,16 +570,14 @@ onMounted(async () => {
     <VCol cols="12" md="3">
       <VBtnToggle
         v-model="reportType"
-       
         density="compact"
-       color="primary"
+        color="primary"
         divided
         class="w-100"
       >
-        <VBtn value="daily" class="flex-grow-1">Daily</VBtn>
-        <VBtn value="summary" class="flex-grow-1">Whole Month</VBtn>
+        <VBtn value="daily" class="flex-grow-1">{{ $t("Daily") }}</VBtn>
+        <VBtn value="summary" class="flex-grow-1">{{ $t("Whole Month") }}</VBtn>
       </VBtnToggle>
-      
     </VCol>
 
     <VCol v-if="reportType === 'daily'" cols="12" md="3">
@@ -764,7 +590,6 @@ onMounted(async () => {
         autocomplete="off"
         :loading="subjectLoading"
         :disabled="subjectLoading || !props.class_id"
-       
         persistent-hint
       />
     </VCol>
@@ -773,7 +598,6 @@ onMounted(async () => {
       <VBtn
         color="primary"
         variant="tonal"
-       
         :loading="loading"
         :disabled="loading || !canSearch"
         prepend-icon="tabler-Search"
@@ -783,7 +607,6 @@ onMounted(async () => {
       </VBtn>
       <VBtn
         variant="tonal"
-       
         :disabled="!hasData || loading || !attData.length"
         prepend-icon="tabler-printer"
         v-print="printObj"
@@ -796,12 +619,7 @@ onMounted(async () => {
   <div v-if="loading || hasData" class="mt-4">
     <div v-if="loading" class="border rounded-lg pa-3">
       <VSkeletonLoader type="table-heading" />
-      <VSkeletonLoader
-        v-for="n in 6"
-        :key="n"
-        type="table-row"
-        class="mt-1"
-      />
+      <VSkeletonLoader v-for="n in 6" :key="n" type="table-row" class="mt-1" />
     </div>
 
     <div
@@ -812,12 +630,13 @@ onMounted(async () => {
       <!-- shared header -->
 
       <div class="w-100 mx-auto d-flex flex-column align-center justify-center">
-        <v-img  :src="dchLogoHeader" alt="Dewey Childcare House" class="w-100 report-logo" />
+        <v-img
+          :src="dchLogoHeader"
+          alt="Dewey Childcare House"
+          class="w-100 report-logo"
+        />
 
-        <div
-          class="report-title mt-5"
-          :class="{ moul: useKhmerMoul }"
-        >
+        <div class="report-title mt-5" :class="{ moul: useKhmerMoul }">
           {{ reportTitle }}
         </div>
       </div>
@@ -839,7 +658,9 @@ onMounted(async () => {
           </div>
           <div v-if="reportType === 'daily'">
             <span class="meta-label">{{ $t("subject:") }}</span>
-            <span class="meta-class-name">{{ entityLabel(selectedSubject) }}</span>
+            <span class="meta-class-name">{{
+              entityLabel(selectedSubject)
+            }}</span>
           </div>
           <div v-if="reportType === 'daily' && scheduleDaysLabel">
             <span class="meta-label">{{ $t("schedule:") }}</span>
@@ -854,15 +675,17 @@ onMounted(async () => {
         </div>
       </div>
 
-      
-
       <!-- daily: calendar grid -->
       <div v-if="reportType === 'daily'" class="report-table-wrap">
         <table class="report-grid">
           <thead :class="{ moul: useKhmerMoul }">
             <tr>
-              <th style="width: 240px;" rowspan="3" class="col-student">{{ $t("Student") }}</th>
-              <th style="width: 34px;" rowspan="3" class="col-gender"><span class="vertical-label">{{ $t("Gender") }}</span></th>
+              <th style="width: 240px" rowspan="3" class="col-student">
+                {{ $t("Student") }}
+              </th>
+              <th style="width: 34px" rowspan="3" class="col-gender">
+                <span class="vertical-label">{{ $t("Gender") }}</span>
+              </th>
               <th :colspan="calendarDays.length" class="col-calendar">
                 {{ $t("calendar") }}
               </th>
@@ -881,7 +704,7 @@ onMounted(async () => {
                 <span class="vertical-label">{{ $t("Absent") }}</span>
               </th>
               <th class="col-total vertical-header" rowspan="2">
-                <span class="vertical-label">{{ $t("Permission") }}</span>
+                <span class="vertical-label">{{ $t("Ask Permission") }}</span>
               </th>
               <th class="col-total vertical-header" rowspan="2">
                 <span class="vertical-label">{{ $t("Late") }}</span>
@@ -926,7 +749,9 @@ onMounted(async () => {
               </td>
               <td class="text-center">{{ student.absent_total ?? 0 }}</td>
               <td class="text-center">
-                {{ student.ask_permission_total ?? student.permission_total ?? 0 }}
+                {{
+                  student.ask_permission_total ?? student.permission_total ?? 0
+                }}
               </td>
               <td class="text-center">{{ student.late_total ?? 0 }}</td>
               <td class="text-center">{{ student.present_total ?? 0 }}</td>
@@ -936,7 +761,7 @@ onMounted(async () => {
                 :colspan="calendarDays.length + 6"
                 class="text-center py-8 empty-cell"
               >
-                No attendance recorded for this month yet.
+                {{ $t("No attendance recorded for this month yet.") }}
               </td>
             </tr>
           </tbody>
@@ -946,10 +771,12 @@ onMounted(async () => {
       <!-- whole month: per-subject summary -->
       <div v-else class="report-table-wrap">
         <table class="report-grid report-grid-summary">
-          <thead :class="{ moul: useKhmerMoul }">
+          <thead :class="{ moul: useKhmerMoul }" class="report-thead-compact">
             <tr>
-              <th rowspan="2" style="width: 200px;">{{ $t("Student") }}</th>
-              <th style="width: 34px;" rowspan="2" class="col-gender"><span class="vertical-label">{{ $t("Gender") }}</span></th>
+              <th rowspan="2" style="width: 200px">{{ $t("Student") }}</th>
+              <th style="width: 34px" rowspan="2" class="col-gender">
+                <span class="vertical-label">{{ $t("Gender") }}</span>
+              </th>
               <th
                 v-for="sub in reportSubjects"
                 :key="`sub-${sub.id}`"
@@ -960,7 +787,10 @@ onMounted(async () => {
               </th>
             </tr>
             <tr>
-              <template v-for="sub in reportSubjects" :key="`sub-cols-${sub.id}`">
+              <template
+                v-for="sub in reportSubjects"
+                :key="`sub-cols-${sub.id}`"
+              >
                 <th class="col-total">A</th>
                 <th class="col-total">P</th>
                 <th class="col-total">L</th>
@@ -974,7 +804,10 @@ onMounted(async () => {
                 <div class="name-main">{{ entityLabel(student) }}</div>
               </td>
               <td class="text-center">{{ genderLabel(student.gender) }}</td>
-              <template v-for="sub in reportSubjects" :key="`${student.id}-${sub.id}`">
+              <template
+                v-for="sub in reportSubjects"
+                :key="`${student.id}-${sub.id}`"
+              >
                 <td class="text-center">
                   {{ getStudentSubjectTotal(student, sub.id, "absent") }}
                 </td>
@@ -989,8 +822,13 @@ onMounted(async () => {
                 </td>
               </template>
             </tr>
-            <tr v-if="attData.length && reportSubjects.length" class="total-row">
-              <td colspan="2" class="text-end font-weight-medium">Total</td>
+            <tr
+              v-if="attData.length && reportSubjects.length"
+              class="total-row"
+            >
+              <td colspan="2" class="text-end font-weight-medium">
+                {{ $t("Total") }}
+              </td>
               <template v-for="sub in reportSubjects" :key="`total-${sub.id}`">
                 <td class="text-center">
                   {{ summarySubjectTotals[sub.id]?.absent ?? 0 }}
@@ -1007,24 +845,26 @@ onMounted(async () => {
               </template>
             </tr>
             <tr v-if="!attData.length">
-              <td :colspan="summaryTableColspan" class="text-center py-8 empty-cell">
-                No attendance recorded for this month yet.
+              <td
+                :colspan="summaryTableColspan"
+                class="text-center py-8 empty-cell"
+              >
+                {{ $t("No attendance recorded for this month yet.") }}
               </td>
             </tr>
             <tr v-else-if="!reportSubjects.length">
-              <td :colspan="summaryTableColspan" class="text-center py-8 empty-cell">
-                No subjects found for this class.
+              <td
+                :colspan="summaryTableColspan"
+                class="text-center py-8 empty-cell"
+              >
+                {{ $t("No subjects found for this class.") }}
               </td>
             </tr>
           </tbody>
         </table>
-
-       
       </div>
       <div class="mt-2">
-        <ReportAttendanceLegend
-        :show-schedule-note="reportType === 'daily'"
-      />
+        <ReportAttendanceLegend :show-schedule-note="reportType === 'daily'" />
       </div>
       <FooterRepor editable />
     </div>
@@ -1110,6 +950,11 @@ onMounted(async () => {
 .report-grid thead.moul th {
   font-family: "moul", sans-serif !important;
   font-weight: 400 !important;
+}
+
+.report-thead-compact th {
+  font-size: 10px;
+  font-weight: 100;
 }
 
 .weekday-row th {
