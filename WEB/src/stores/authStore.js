@@ -4,9 +4,37 @@ import { router } from "@/router/index";
 import { useAppStore } from "@/stores/appStore";
 import { useSettingStore } from "./settingStore";
 import { usePartStore } from "./partStore";
+import { useYearStore } from "./yearStore";
 import { decrypt } from "@/utils/encrypteData";
 import { getAccessToken, removeAccessToken, setAccessToken } from "@/utils/accessToken";
 import { supabase } from "@/utils/supabase";
+import { getPartDashboardRoute } from "@/utils/partHomeRoutes";
+
+const PART_PERMISSIONS = {
+  khmer: "allow-part-khmer",
+  english: "allow-part-english",
+  chinese: "allow-part-chinese",
+  admin: "allow-part-admin",
+};
+
+const resolveAccessiblePart = (preferredPart, permissions = [], currentPart = null) => {
+  const allowedParts = Object.entries(PART_PERMISSIONS)
+    .filter(([, permission]) => permissions.includes(permission))
+    .map(([part]) => part);
+
+  if (preferredPart && allowedParts.includes(preferredPart)) return preferredPart;
+  if (currentPart && allowedParts.includes(currentPart)) return currentPart;
+
+  return allowedParts[0] ?? null;
+};
+
+const getDefaultAuthenticatedRoute = (part) => {
+  if (part && ["admin", "khmer", "english", "chinese"].includes(part)) {
+    return { name: getPartDashboardRoute(part) };
+  }
+
+  return { path: "/" };
+};
 
 export const useAuthStore = defineStore("auth", {
   state: () => {
@@ -53,30 +81,18 @@ export const useAuthStore = defineStore("auth", {
             isTokenRefreshing: false,
           });
 
-          useAppStore().getAllAppStore();
-
           await this.bootstrap(token);
-          const defaultPart = response?.data?.data?.default_part;
+          const defaultPart = resolveAccessiblePart(
+            response?.data?.data?.default_part,
+            this.permissions,
+            usePartStore().system_part,
+          );
           const defaultBranch = response?.data?.data?.default_branch;
-          usePartStore().setSystemPart(defaultPart);
-          useSettingStore().setBranchId(defaultBranch);
-
-          let redirectTo = null;
-          if (defaultPart === 'loan') {
-            redirectTo = "/loan";
-          } else if (defaultPart === 'human-resource') {
-            redirectTo = "/hr";
-          } else if (defaultPart === 'admin') {
-            redirectTo = "/admin";
-          } else if (defaultPart === 'pos') {
-            redirectTo = "/pos";
-          } else if (defaultPart === 'stock') {
-            redirectTo = "/stock";
-          } else {
-            redirectTo = "/";
+          if (defaultPart) {
+            usePartStore().setSystemPart(defaultPart);
           }
-
-          router.push(redirectTo);
+          useSettingStore().setBranchId(defaultBranch);
+          router.push(getDefaultAuthenticatedRoute(defaultPart));
         } else {
           console.error("Login failed with status:", response.data.status);
         }
@@ -113,8 +129,16 @@ export const useAuthStore = defineStore("auth", {
           isTokenRefreshing: false,
         });
 
-        useAppStore().getAllAppStore();
         await this.bootstrap(token);
+        const defaultPart = resolveAccessiblePart(
+          usePartStore().system_part,
+          this.permissions,
+          usePartStore().system_part,
+        );
+        if (defaultPart) {
+          usePartStore().setSystemPart(defaultPart);
+        }
+        router.replace(getDefaultAuthenticatedRoute(defaultPart));
       }
     },
 
@@ -139,14 +163,17 @@ export const useAuthStore = defineStore("auth", {
           const branches = response.data.data.branches;
           const permissions = response.data.data.permissions;
           const userData = response.data.data.user;
+          const partStore = usePartStore();
 
-          const defaultPart = response?.data?.data?.default_part;
+          const defaultPart = resolveAccessiblePart(
+            response?.data?.data?.default_part,
+            permissions,
+            partStore.system_part,
+          );
           const defaultBranch = response?.data?.data?.default_branch;
           console.log("defaultPart:", defaultPart);
-          // usePartStore().setSystemPart(defaultPart);
-          const partStore = usePartStore();
           const settingStore = useSettingStore()
-          if (!partStore.system_part) {
+          if (defaultPart) {
             partStore.setSystemPart(defaultPart);
           }
 
@@ -154,7 +181,7 @@ export const useAuthStore = defineStore("auth", {
             useSettingStore().setBranchId(defaultBranch);
           }
 
-          useAppStore().getAllAppStore();
+          await useAppStore().getAllAppStore();
 
 
           this.$patch({
@@ -165,23 +192,6 @@ export const useAuthStore = defineStore("auth", {
             isAuthenticated: true,
             accessToken: token,
           });
-
-          if (!token) {
-            let redirectTo = null;
-            if (defaultPart === 'admin') {
-              redirectTo = "/admin";
-            } else if (defaultPart === 'khmer') {
-              redirectTo = "/khmer";
-            } else if (defaultPart === 'english') {
-              redirectTo = "/english";
-            } else if (defaultPart === 'chinese') {
-              redirectTo = "/chinese";
-            } else {
-              redirectTo = "/";
-            }
-
-            router.push(redirectTo);
-          }
         }
       } catch (error) {
         console.error("Verify user error:", error);
@@ -235,22 +245,41 @@ export const useAuthStore = defineStore("auth", {
       }
     },
     async logout() {
+      // Always clear the client session, even if the API/revoke call fails.
       try {
-        const response = await api.post("logout");
-
-        if (response.data.status) {
-
-          useSettingStore().branch_id = null;
-          useAppStore().clearAllAppStore();
-
-          this.unAuthenticated();
-        }
+        await api.post("/api/auth/logout");
       } catch (error) {
-        console.error("Server error:", error);
+        console.error("Logout API error:", error);
       }
+
+      try {
+        await supabase.auth.signOut();
+      } catch (error) {
+        console.error("Supabase signOut error:", error);
+      }
+
+      await this.clearSessionAndRedirect();
     },
 
-    async unAuthenticated() {
+    async clearSessionAndRedirect() {
+      try {
+        useSettingStore().$patch({
+          branch_id: null,
+          branch_symbol: null,
+          branch_province_code: null,
+        });
+        usePartStore().$patch({
+          system_part: null,
+          cur_id: null,
+        });
+        useYearStore().$patch({
+          year_id: null,
+        });
+        useAppStore().clearAllAppStore();
+      } catch (error) {
+        console.error("Store reset error:", error);
+      }
+
       this.$patch({
         id: null,
         isAuthenticated: false,
@@ -261,10 +290,19 @@ export const useAuthStore = defineStore("auth", {
         permissions: [],
         branches: [],
         isBootstrapped: false,
+        googleId: null,
       });
 
       removeAccessToken();
-      router.replace({ name: 'login' });
+      localStorage.removeItem("accessToken");
+      localStorage.clear();
+      sessionStorage.clear();
+
+      router.replace({ name: "login" });
+    },
+
+    async unAuthenticated() {
+      await this.clearSessionAndRedirect();
     },
   }
 });

@@ -1,8 +1,8 @@
 export const PART_DASHBOARD_ROUTES = {
   admin: "admin-dashboards",
-  khmer: "global-dashboard",
-  english: "global-dashboard",
-  chinese: "global-dashboard",
+  khmer: "khmer-dashboard",
+  english: "english-dashboard",
+  chinese: "chinese-dashboard",
 };
 
 export const getPartDashboardRoute = (part) =>

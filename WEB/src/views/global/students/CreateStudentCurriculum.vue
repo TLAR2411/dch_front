@@ -84,15 +84,22 @@ const familyModeOptions = computed(() => [
   { name: t("Create New Family"), value: "new" },
 ]);
 
-const selectedFamilyLabel = (item) =>
-  item?.name_en || item?.name_kh || item?.family_name || "";
+const familyLabel = (f) =>
+  f?.name_en || f?.name_kh || f?.family_name || (f?.id != null ? `Family #${f.id}` : "");
+
+const mapFamilyOption = (f) => ({
+  ...f,
+  id: Number(f.id),
+  label: familyLabel(f),
+});
 
 const searchFamilies = async (search = "") => {
   try {
     familySearchLoading.value = true;
     const res = await api.post("families-all", { search: search || null });
     if (res.data.status) {
-      familyOptions.value = res.data.data.data || [];
+      const rows = res.data.data?.data || [];
+      familyOptions.value = (Array.isArray(rows) ? rows : []).map(mapFamilyOption);
     }
   } catch (error) {
     console.error("Failed to search families:", error);
@@ -115,7 +122,8 @@ watch(
   () => formData.value.family_id,
   (familyId) => {
     if (!familyId) return;
-    const family = familyOptions.value.find((f) => f.id === familyId);
+    const id = familyId != null ? Number(familyId) : null;
+    const family = familyOptions.value.find((f) => f.id === id);
     if (family) applyFamilyGuardians(family);
   },
 );
@@ -652,11 +660,12 @@ onMounted(async () => {
           :label="t('Select Existing Family')"
           :items="familyOptions"
           item-value="id"
-          :item-title="selectedFamilyLabel"
+          item-title="label"
+          server-side
           :loading="familySearchLoading"
           clearable
           autocomplete="off"
-          @update:search="searchFamilies"
+          @search="searchFamilies"
         />
       </VCol>
 

@@ -3,7 +3,9 @@ import AddEditFamiliesDialog from "./AddEditFamiliesDialog.vue";
 import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { useDisplay } from "vuetify";
+import { useRouter } from "vue-router";
 
+const router = useRouter();
 const { mdAndUp } = useDisplay();
 const { t } = useI18n();
 
@@ -98,6 +100,10 @@ const onEdit = async (item) => {
   }
 };
 
+const onView = (item) => {
+  router.push({ name: "global-families-detail-id", params: { id: item.id } });
+};
+
 const onUpdate = async (data, callback) => {
   try {
     isLoading.value = true;
@@ -185,11 +191,13 @@ const onUpdate = async (data, callback) => {
     is-filter
     is-edit
     is-delete
+    is-view
     create-dialog
     save-state
     :is-back="false"
     @on-delete="onDelete"
     @on-edit="onEdit"
+    @on-view="onView"
   >
     <template #filter>
       <VRow class="justify-end">

@@ -1,9 +1,9 @@
 <script setup>
-import DashboardCurriculums from "@/views/global/dashboard/DashboardCurriculums.vue";
+import FamilyDetail from "@/views/global/families/FamilyDetail.vue";
 
 definePage({
   meta: {
-    title: "Dashboard",
+    title: "Family Detail",
     layout: "default",
     subject: "Auth",
     requiresAuth: true,
@@ -13,5 +13,5 @@ definePage({
 </script>
 
 <template>
-  <DashboardCurriculums />
+  <FamilyDetail />
 </template>

@@ -3,7 +3,7 @@ export default [
     title: "Dashboard",
     icon: { icon: "tabler-layout-dashboard" },
     to: {
-      name: "global-dashboard",
+      name: "khmer-dashboard",
     },
     
     permission: "",

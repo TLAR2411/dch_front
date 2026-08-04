@@ -77,15 +77,22 @@ const familyDialogData = ref({});
 const familyOptions = ref([]);
 const familySearchLoading = ref(false);
 
-const selectedFamilyLabel = (item) =>
-  item?.name_en || item?.name_kh || item?.family_name || "";
+const familyLabel = (f) =>
+  f?.name_en || f?.name_kh || f?.family_name || (f?.id != null ? `Family #${f.id}` : "");
+
+const mapFamilyOption = (f) => ({
+  ...f,
+  id: Number(f.id),
+  label: familyLabel(f),
+});
 
 const searchFamilies = async (search = "") => {
   try {
     familySearchLoading.value = true;
     const res = await api.post("families-all", { search: search || null });
     if (res.data.status) {
-      familyOptions.value = res.data.data.data || [];
+      const rows = res.data.data?.data || [];
+      familyOptions.value = (Array.isArray(rows) ? rows : []).map(mapFamilyOption);
     }
   } catch (error) {
     console.error("Failed to search families:", error);
@@ -94,9 +101,10 @@ const searchFamilies = async (search = "") => {
   }
 };
 
-const selectedFamily = computed(() =>
-  familyOptions.value.find((f) => f.id === formData.value.family_id) || null,
-);
+const selectedFamily = computed(() => {
+  const id = formData.value.family_id != null ? Number(formData.value.family_id) : null;
+  return familyOptions.value.find((f) => f.id === id) || null;
+});
 
 const selectedFamilyGuardians = computed(
   () => selectedFamily.value?.guardians || [],
@@ -129,7 +137,7 @@ const onFamilyDialogCreate = async (data, callback) => {
       return;
     }
 
-    const created = res.data.data.data;
+    const created = mapFamilyOption(res.data.data.data);
     await searchFamilies(created.name_en || created.family_name || "");
     if (!familyOptions.value.some((f) => f.id === created.id)) {
       familyOptions.value = [created, ...familyOptions.value];
@@ -630,12 +638,13 @@ onMounted(async () => {
           label="Family"
           :items="familyOptions"
           item-value="id"
-          :item-title="selectedFamilyLabel"
+          item-title="label"
+          server-side
           :loading="familySearchLoading"
           :rules="[requiredValidator]"
           clearable
           autocomplete="off"
-          @update:search="searchFamilies"
+          @search="searchFamilies"
         />
       </VCol>
       <VCol cols="12" md="4" lg="3" class="d-flex align-center">

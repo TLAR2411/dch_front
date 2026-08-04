@@ -1,82 +1,95 @@
 <script setup>
 import AppAutocomplete from "@/@core/components/app-form-elements/AppAutocomplete.vue";
-import { auth } from "@/utils/auth";
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingStore } from "@/stores/settingStore";
-import { computed, ref, watch, onMounted } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
-const branches = ref(auth()?.branches || []);
-const filter = ref({
-  branch_id: useSettingStore().branch_id,
-});
-const { t, locale } = useI18n();
+const authStore = useAuthStore();
+const settingStore = useSettingStore();
+const filter = ref({ branch_id: settingStore.branch_id });
+const { locale } = useI18n();
+const canAccessAllBranches = computed(() => Number(authStore.user?.manage_branch) === 3);
 
-// Helper function to format branches
-const formatBranches = (branchList) => {
-  if (branchList?.length > 1) {
-    const all = [
+const normalizeBranches = (branchList = []) => {
+  const mapped = branchList.map((branch) => ({
+    ...branch,
+    title: locale.value === "km" ? branch.name_kh : branch.name_en,
+    symbol: branch.symbol ?? null,
+    province_code: branch.province_code ?? null,
+  }));
+
+  if (mapped.length > 1 && canAccessAllBranches.value) {
+    return [
       {
+        id: "*",
         name_kh: "គ្រប់សាខា",
         name_en: "All Branch",
+        title: locale.value === "km" ? "គ្រប់សាខា" : "All Branch",
         symbol: "AB",
-        id: "*",
         province_code: null,
       },
+      ...mapped,
     ];
-    return [...all, ...branchList];
   }
-  return branchList;
+
+  return mapped;
 };
 
-const showBranches = computed(() => formatBranches(branches.value));
+const showBranches = computed(() => normalizeBranches(authStore.branches || []));
 
-// Watch for changes in auth().branches
-watch(
-  () => auth()?.branches,
-  (newBranches) => {
-    if (newBranches) {
-      branches.value = newBranches;
-      setBranch();
-    }
-  },
-  { deep: true },
-);
+const resolveDefaultBranchId = () => {
+  const items = showBranches.value;
+  if (!items.length) return null;
 
-onMounted(() => {
-  setBranch();
-});
+  const hasItem = (id) => items.some((item) => String(item.id) === String(id));
+
+  if (canAccessAllBranches.value && hasItem("*")) {
+    return "*";
+  }
+
+  if (settingStore.branch_id != null && hasItem(settingStore.branch_id)) {
+    return settingStore.branch_id;
+  }
+
+  if (authStore.user?.branch_id != null && hasItem(authStore.user.branch_id)) {
+    return authStore.user.branch_id;
+  }
+
+  return items[0]?.id ?? null;
+};
 
 const setBranch = () => {
-  filter.value.branch_id =
-    useSettingStore().branch_id || showBranches?.value[0]?.id || null;
+  filter.value.branch_id = resolveDefaultBranchId();
+  settingStore.setBranchId(filter.value.branch_id);
 
-  useSettingStore().setBranchId(filter.value.branch_id);
+  const selectedBranch = showBranches.value.find(
+    (item) => String(item.id) === String(filter.value.branch_id),
+  );
 
-  const branchSymbol = showBranches.value.find(
-    (i) => i.id == filter.value.branch_id,
-  )?.symbol;
-  const provinceCode = showBranches.value.find(
-    (i) => i.id == filter.value.branch_id,
-  )?.province_code;
-
-  useSettingStore().setBranchSymbol(branchSymbol);
-
-  useSettingStore().setBranchProvinceCode(provinceCode);
+  settingStore.setBranchSymbol(selectedBranch?.symbol ?? null);
+  settingStore.setBranchProvinceCode(selectedBranch?.province_code ?? null);
 };
 
 const changeBranch = (id) => {
-  useSettingStore().setBranchId(id);
+  filter.value.branch_id = id;
+  settingStore.setBranchId(id);
 
-  const branchSymbol = showBranches.value.find(
-    (i) => i.id == filter.value.branch_id,
-  )?.symbol;
-  const provinceCode = showBranches.value.find(
-    (i) => i.id == id,
-  )?.province_code;
-  useSettingStore().setBranchSymbol(branchSymbol);
-  useSettingStore().setBranchProvinceCode(provinceCode);
+  const selectedBranch = showBranches.value.find(
+    (item) => String(item.id) === String(id),
+  );
+
+  settingStore.setBranchSymbol(selectedBranch?.symbol ?? null);
+  settingStore.setBranchProvinceCode(selectedBranch?.province_code ?? null);
 };
+
+watch(
+  () => [authStore.branches, authStore.user?.branch_id, locale.value],
+  () => {
+    setBranch();
+  },
+  { deep: true, immediate: true },
+);
 </script>
 
 <template>
@@ -85,15 +98,13 @@ const changeBranch = (id) => {
       <div class="d-flex justify-end">
         <AppAutocomplete
           class="branch-autocomplete"
-          :class="{ 'single-branch': branches.length === 1 }"
+          :class="{ 'single-branch': showBranches.length === 1 }"
           v-model="filter.branch_id"
           :items="showBranches"
-          :item-title="
-            (item) => `${item[locale === 'km' ? 'name_kh' : 'name_en']}`
-          "
+          item-title="title"
           item-value="id"
-          :readonly="branches.length > 1 ? false : true"
-          :disabled="branches.length === 1 ? true : false"
+          :readonly="showBranches.length > 1 ? false : true"
+          :disabled="showBranches.length === 1 ? true : false"
           @update:model-value="(value) => changeBranch(value)"
           autocomplete="off"
           style="width: 100%; max-width: 230px; min-width: 100px"

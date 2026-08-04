@@ -2,9 +2,9 @@ export default [
     {
       title: "Dashboard",
       icon: { icon: "tabler-layout-dashboard" },
-      to: {
-        name: "global-dashboard",
-      },
+    to: {
+      name: "english-dashboard",
+    },
       
       permission: "",
     },
@@ -105,6 +105,7 @@ export default [
             name: "global-rooms"
           }
         },
+       
       ],
     },
   

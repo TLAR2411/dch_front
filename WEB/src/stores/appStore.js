@@ -12,6 +12,7 @@ export const useAppStore = defineStore("app", {
     // chartAccounts: [],
     // activeChartAccounts: [],
     isHaveData: false,
+    _appStorePromise: null,
   }),
   actions: {
     async getProvinces() {
@@ -69,12 +70,20 @@ export const useAppStore = defineStore("app", {
     },
 
 
-    // Get All App Store
+    // Get All App Store — one in-flight fetch; overlapping callers share it
     async getAllAppStore(forceUpdate = false) {
-      if (this.isHaveData === false || forceUpdate) {
-        await this.getAppStore();
-        this.isHaveData = true;
-      }
+      if (this.isHaveData && !forceUpdate) return;
+      if (this._appStorePromise && !forceUpdate) return this._appStorePromise;
+
+      this._appStorePromise = this.getAppStore()
+        .then(() => {
+          this.isHaveData = true;
+        })
+        .finally(() => {
+          this._appStorePromise = null;
+        });
+
+      return this._appStorePromise;
     },
     async getAppStore() {
       await Promise.all([
@@ -88,6 +97,7 @@ export const useAppStore = defineStore("app", {
       // this.getChartAccounts();
     },
     async clearAllAppStore() {
+      this._appStorePromise = null;
       this.$patch({
         villages: [],
         communes: [],

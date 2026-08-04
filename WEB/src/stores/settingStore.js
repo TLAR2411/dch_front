@@ -42,7 +42,7 @@ export const useSettingStore = defineStore("setting", {
     enabled: true,
     strategies: [
       {
-        key: "app",
+        key: "setting",
         storage: localStorage,
       },
     ],

@@ -26,6 +26,7 @@ const form = ref({
 
 const isLoading = ref(false);
 const isGoogleLoading = ref(false);
+const isSessionLoading = ref(false);
 
 const isPasswordVisible = ref(false);
 
@@ -37,8 +38,13 @@ const onSubmit = debounce(async () => {
   isLoading.value = false;
 }, 500);
 
-onMounted(() => {
-  void authStore.getSession();
+onMounted(async () => {
+  isSessionLoading.value = true;
+  try {
+    await authStore.getSession();
+  } finally {
+    isSessionLoading.value = false;
+  }
 });
 
 const onGoogleSignIn = async () => {
@@ -117,7 +123,19 @@ const { smAndDown } = useDisplay();
           </p>
         </VCardText> -->
 
-        <VCardText>
+        <VCardText v-if="isSessionLoading">
+          <div class="d-flex flex-column align-center justify-center py-12">
+            <VProgressCircular indeterminate color="primary" size="44" />
+            <div class="text-body-1 mt-4">
+              {{ $t("Signing you in...") }}
+            </div>
+            <div class="text-body-2 text-medium-emphasis mt-2 text-center">
+              {{ $t("Please wait while we prepare your dashboard") }}
+            </div>
+          </div>
+        </VCardText>
+
+        <VCardText v-else>
           <VForm @submit.prevent="onSubmit">
             <VRow>
               <!-- email -->
@@ -171,7 +189,7 @@ const { smAndDown } = useDisplay();
                   variant="outlined"
                   color="on-surface"
                   :loading="isGoogleLoading"
-                  :disabled="isLoading || isGoogleLoading"
+                  :disabled="isLoading || isGoogleLoading || isSessionLoading"
                   class="google-sign-in-btn text-none font-weight-medium"
                   @click="onGoogleSignIn"
                 >
