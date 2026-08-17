@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { listSchedules } from "@/services/api/schedules";
 import { getClasses } from "@/services/dataService.js";
@@ -8,10 +9,16 @@ import { api } from "@/utils/api.js";
 import AppCombobox from "@/@core/components/app-form-elements/AppCombobox.vue";
 import Loading from "../components/Loading.vue";
 import { usePartStore } from "@/stores/partStore";
+import { useYearStore } from "@/stores/yearStore";
+import { useSettingStore } from "@/stores/settingStore";
 import { getEntityLabel } from "@/utils/reportLabels.js";
 
 const { t } = useI18n();
 const partStore = usePartStore();
+const yearStore = useYearStore();
+const settingStore = useSettingStore();
+const { year_id: yearId } = storeToRefs(yearStore);
+const { branch_id: branchId } = storeToRefs(settingStore);
 const reportPart = computed(() => partStore.system_part || "english");
 
 function selectItemTitle(item) {
@@ -73,6 +80,12 @@ watch(
 watch(
   () => form.value.class_id,
   () => {
+    if (!form.value.class_id) {
+      dataAttendance.value = [];
+      subjectSchedules.value = [];
+      isSearch.value = false;
+      return;
+    }
     if (form.value.date) getData();
     // Explicit null check, not truthiness: Sunday's day_id is 0, so `if
     // (form.value.day_id)` silently skipped the schedule fetch every Sunday.
@@ -222,15 +235,70 @@ watch(date, async (newDate) => {
 
 const getSubjectSchedule = async (dayId) => {
   try {
-    subjectSchedules.value = await listSchedules({
+    // only_teaching: non-admin teachers only get the subjects they teach
+    // in this class; admins still see the full schedule.
+    const rows = await listSchedules({
       class_id: form.value.class_id,
       day_id: dayId,
+      only_teaching: true,
     });
+    const seenSubjectIds = new Set();
+    subjectSchedules.value = (rows || []).filter((row) => {
+      const subjectId = row?.subject_id ?? row?.subjects?.id;
+      if (!subjectId || seenSubjectIds.has(subjectId)) return false;
+      seenSubjectIds.add(subjectId);
+      return true;
+    });
+
+    if (
+      form.value.subject_id &&
+      !subjectSchedules.value.some(
+        (row) => String(row.subject_id ?? row?.subjects?.id) === String(form.value.subject_id),
+      )
+    ) {
+      form.value.subject_id = null;
+    }
   } catch (error) {}
 };
 
+let classesLoadSeq = 0;
+
+function filterClassesForBranch(list = []) {
+  const branch = branchId.value;
+  if (branch == null || branch === "*") return list;
+  return list.filter((c) => String(c.branch_id) === String(branch));
+}
+
+async function loadClasses() {
+  const seq = ++classesLoadSeq;
+  const list = await getClasses();
+  if (seq !== classesLoadSeq) return;
+  if (list == null) return;
+  classes.value = filterClassesForBranch(list);
+}
+
+async function resetForContextChange() {
+  form.value.class_id = null;
+  form.value.subject_id = null;
+  dataAttendance.value = [];
+  subjectSchedules.value = [];
+  isSearch.value = false;
+  errorMessage.value = "";
+  classes.value = [];
+  await loadClasses();
+}
+
+watch(
+  () => [yearId.value, branchId.value],
+  async (next, prev) => {
+    if (!prev) return;
+    if (next[0] === prev[0] && String(next[1]) === String(prev[1])) return;
+    await resetForContextChange();
+  },
+);
+
 onMounted(async () => {
-  classes.value = await getClasses();
+  await loadClasses();
   date.value = new Date().toISOString().split("T")[0];
 });
 </script>
@@ -258,7 +326,7 @@ onMounted(async () => {
           v-model="form.subject_id"
           :items="subjectSchedules"
           :item-title="subjectSelectTitle"
-          item-value="subjects.id"
+          item-value="subject_id"
           autocomplete="off"
           :placeholder="$t('Choose Subject')"
           color="primary"

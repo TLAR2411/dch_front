@@ -7,17 +7,6 @@ import { computed } from "vue";
 import AddEditImportHoliday from "./AddEditImportHoliday.vue";
 import formatDate from "@/utils/formater/formatDate.js";
 
-definePage({
-  meta: {
-    title: "Closed Days",
-    layout: "default",
-    subject: "Auth",
-    requiresAuth: true,
-    permissions: "",
-    layoutWrapperClasses: "layout-content-height-fixed",
-  },
-});
-
 const currentYear = computed(() => new Date().getFullYear());
 
 const { t } = useI18n();

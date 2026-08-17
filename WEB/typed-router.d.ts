@@ -29,6 +29,7 @@ declare module 'vue-router/auto-routes' {
     'admin-curriculums': RouteRecordInfo<'admin-curriculums', '/admin/curriculums', Record<never, never>, Record<never, never>>,
     'admin-dashboards': RouteRecordInfo<'admin-dashboards', '/admin/dashboards', Record<never, never>, Record<never, never>>,
     'admin-extract-image-text': RouteRecordInfo<'admin-extract-image-text', '/admin/extract-image-text', Record<never, never>, Record<never, never>>,
+    'admin-permissions': RouteRecordInfo<'admin-permissions', '/admin/permissions', Record<never, never>, Record<never, never>>,
     'admin-roles': RouteRecordInfo<'admin-roles', '/admin/roles', Record<never, never>, Record<never, never>>,
     'admin-students': RouteRecordInfo<'admin-students', '/admin/students', Record<never, never>, Record<never, never>>,
     'admin-students-create': RouteRecordInfo<'admin-students-create', '/admin/students/create', Record<never, never>, Record<never, never>>,

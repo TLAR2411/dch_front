@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
+import { useDisplay } from "vuetify";
 import { useYearStore } from "@/stores/yearStore";
 import { usePartStore } from "@/stores/partStore";
 import { getPartDashboardRoute } from "@/utils/partHomeRoutes";
@@ -11,6 +12,7 @@ const router = useRouter();
 const yearStore = useYearStore();
 const partStore = usePartStore();
 const { year_id } = storeToRefs(yearStore);
+const { smAndDown } = useDisplay();
 
 // `app()` reads localStorage["app"], which NOTHING in this codebase ever
 // writes — no commit in the repo's history contains a setItem for that key. So
@@ -53,8 +55,42 @@ onMounted(async () => {
 </script>
 
 <template>
-  <VBtn size="small" variant="tonal" color="primary">
-    <span class="font-weight-bold">
+  <!-- Mobile: calendar icon only -->
+  <IconBtn
+    v-if="smAndDown"
+    class="navbar-year-icon-btn flex-shrink-0"
+    :aria-label="currentYear?.year_name || $t('Academic Year')"
+  >
+    <VIcon size="24" icon="tabler-calendar" />
+    <VMenu activator="parent" location="bottom start" offset="6" class="pa-0">
+      <VList size="small" class="py-1 navbar-year-menu">
+        <VListItem
+          v-for="item in years"
+          :key="item.id"
+          size="small"
+          :active="item.id === year_id"
+          @click="switchYear(item.id)"
+        >
+          <VListItemTitle>{{ item.year_name }}</VListItemTitle>
+        </VListItem>
+      </VList>
+    </VMenu>
+  </IconBtn>
+
+  <!-- hello world -->
+
+
+  
+
+  <!-- Desktop: year label chip -->
+  <VBtn
+    v-else
+    size="small"
+    variant="tonal"
+    color="primary"
+    class="navbar-year-btn"
+  >
+    <span class="font-weight-bold text-truncate">
       {{ currentYear?.year_name }}
     </span>
     <VMenu activator="parent" location="bottom end" offset="6" class="pa-0">
@@ -73,3 +109,11 @@ onMounted(async () => {
     </VMenu>
   </VBtn>
 </template>
+
+<style scoped>
+.navbar-year-btn {
+  flex-shrink: 1;
+  max-inline-size: 130px;
+  min-inline-size: 0;
+}
+</style>

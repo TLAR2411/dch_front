@@ -63,17 +63,20 @@ export async function resolveClassGradeId(classId) {
 /** Share one in-flight request per year+grade (api.js aborts duplicate POSTs). */
 const subjectsForGradeInFlight = new Map();
 
-/** Parent subjects assigned to grade for the year. */
-export async function fetchSubjectsForGrade(yearId, gradeId) {
+/** Parent subjects assigned to grade for the year.
+ *  classId lets the API narrow the list to the subjects the logged-in
+ *  teacher teaches in that class (admins are unaffected). */
+export async function fetchSubjectsForGrade(yearId, gradeId, classId = null) {
   if (!yearId || !gradeId) return [];
 
-  const key = `${yearId}:${gradeId}`;
+  const key = `${yearId}:${gradeId}:${classId ?? ""}`;
   const existing = subjectsForGradeInFlight.get(key);
   if (existing) return existing;
 
   const promise = listGradeSubjectAssignments({
     year_id: yearId,
     grade_id: gradeId,
+    class_id: classId,
   })
     .then(({ assignments: data }) =>
       (data ?? [])

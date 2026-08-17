@@ -23,16 +23,16 @@ const configStore = useLayoutConfigStore()
     :class="configStore._layoutClasses"
   >
     <div
-      class="layout-navbar-and-nav-container"
+      class="layout-navbar-and-nav-container custom-horizontal-header"
       :class="configStore.isNavbarBlurEnabled && 'header-blur'"
     >
-      <!-- 👉 Navbar -->
+      <!-- 👉 Top row: utilities -->
       <div class="layout-navbar">
         <div class="navbar-content-container">
           <slot name="navbar" />
         </div>
       </div>
-      <!-- 👉 Navigation -->
+      <!-- 👉 Bottom row: navigation -->
       <div class="layout-horizontal-nav">
         <div class="horizontal-nav-content-container">
           <HorizontalNav :nav-items="navItems" />
@@ -40,7 +40,7 @@ const configStore = useLayoutConfigStore()
       </div>
     </div>
 
-    <main class="layout-page-content">
+    <main class="layout-page-content custom-horizontal-content">
       <slot />
     </main>
 

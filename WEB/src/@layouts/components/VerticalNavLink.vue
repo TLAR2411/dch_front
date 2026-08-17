@@ -64,13 +64,16 @@ const hideTitleAndBadge = configStore.isVerticalNavMini();
             {{ item.title }}
           </Component>
 
-          <!-- 👉 Badge -->
-          <VBadge
-            v-if="item.badge?.content"
-            :content="item.badge?.content"
-            :color="item.badge?.color"
-            class="mr-2"
-          />
+          <!-- 👉 Badge (inline pill — VBadge without a slot is invisible) -->
+          <span
+            v-if="item.badge?.content || item.badgeContent"
+            v-show="!hideTitleAndBadge"
+            key="badge"
+            class="nav-item-badge"
+            :class="item.badgeClass || (item.badge?.color ? `bg-${item.badge.color}` : 'bg-error')"
+          >
+            {{ item.badge?.content || item.badgeContent }}
+          </span>
         </TransitionGroup>
       </Component>
 

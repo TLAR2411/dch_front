@@ -1,26 +1,19 @@
 <script setup>
-import { ref, watch, nextTick, onMounted, computed } from "vue";
+import { ref, watch, onMounted, computed } from "vue";
 import { debounce } from "lodash";
-import { requiredValidator } from "@/@core/utils/validators";
-import AppTextarea from "@/@core/components/app-form-elements/AppTextarea.vue";
 import { useI18n } from "vue-i18n";
 
 import { api } from "@/utils/api";
-import { get } from "lodash";
 import formatGender from "@/utils/formater/formatGender";
 import { useSettingStore } from "@/stores/settingStore";
-// import AppDateTimePicker from "@/@core/components/app-form-elements/AppDateTimePicker.vue";
 
 import { useDisplay } from "vuetify/lib/composables/display.mjs";
-import App from "@/App.vue";
 import AppAddEditDrawer from "@/components/AppAddEditDrawer.vue";
 import AppName from "@/components/AppName.vue";
 
 const { xs } = useDisplay();
 
 const { t } = useI18n();
-
-const curriculums = ref([]);
 
 const loadingtable = ref(false);
 
@@ -56,7 +49,6 @@ const getAllStudents = async () => {
     loadingtable.value = true;
     await api.post("students-curriculums-filter").then((res) => {
       students.value = res.data.data.data;
-      console.log("student", students.value);
     });
   } catch (error) {
     console.error("Failed to fetch data:", error);
@@ -93,38 +85,32 @@ watch(
 
 const resetData = () => {
   itemData.value = {
-    studetn_id: [],
+    student_id: [],
   };
 };
 
-const onFormSubmit = debounce(async (refForm) => {
-  const { valid } = await refForm;
-  if (valid) {
-    const itemId = itemData.value.id || null;
-    if (itemId) {
-      emit("onUpdate", itemData.value, (res) => {
-        if (res) {
-          resetData();
-        }
-      });
-    } else {
-      emit("onCreate", itemData.value, (res) => {
-        if (res) {
-          resetData();
-        }
-      });
-    }
+const onFormSubmit = debounce(async () => {
+  if (!itemData.value.student_id?.length) return;
+
+  const itemId = itemData.value.id || null;
+  if (itemId) {
+    emit("onUpdate", itemData.value, (res) => {
+      if (res) {
+        resetData();
+      }
+    });
+  } else {
+    emit("onCreate", itemData.value, (res) => {
+      if (res) {
+        resetData();
+      }
+    });
   }
 }, 500);
 
 const onCloseDialog = () => {
   resetData();
   emit("update:isDialogVisible", false);
-};
-
-const dialogModelValueUpdate = (newVal) => {
-  emit("update:isDialogVisible", newVal);
-  isDialogVisible.value = newVal;
 };
 
 const headers = computed(() => [
@@ -207,6 +193,7 @@ onMounted(async () => {
             </div>
           </template>
         </VDataTable>
-      </VCol> </VRow
-  ></AppAddEditDrawer>
+      </VCol>
+    </VRow>
+  </AppAddEditDrawer>
 </template>

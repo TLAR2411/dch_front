@@ -255,7 +255,7 @@ const onSubmit = async (validate) => {
 
     if (res.data.status) {
       resetForm();
-      router.push({ name: "admin-teachers" });
+      router.push({ name: "global-teachers" });
     }
   } catch (error) {
     console.error("Failed to create student:", error);

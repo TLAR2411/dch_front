@@ -3,17 +3,16 @@ import { VIcon } from 'vuetify/components/VIcon'
 import { defineThemeConfig } from '@core'
 import { Skins } from '@core/enums'
 
-// ❗ Logo SVG must be imported with ?raw suffix
-import logo from '@images/logo/logo.svg?raw'
+import logo from '@images/logo/main-logo-1.svg?url'
 import { AppContentLayoutNav, ContentWidth, FooterType, NavbarType } from '@layouts/enums'
 
 export const { themeConfig, layoutConfig } = defineThemeConfig({
   app: {
     title: "POS System",
-    mainTitle: "ប្រព័ន្ធគ្រប់គ្រងពិន្ទុសិស្ស DCH",
+    mainTitle: "Score Management System",
     logo: h("img", {
       src: logo,
-      style: "line-height:0; color: rgb(var(--v-global-theme-primary))",
+      style: "block-size: 38px; inline-size: auto; object-fit: contain;",
     }),
     contentWidth: ContentWidth.Fluid,
     contentLayoutNav: AppContentLayoutNav.Vertical,

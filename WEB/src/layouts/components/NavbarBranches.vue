@@ -3,13 +3,16 @@ import AppAutocomplete from "@/@core/components/app-form-elements/AppAutocomplet
 import { useAuthStore } from "@/stores/authStore";
 import { useSettingStore } from "@/stores/settingStore";
 import { computed, ref, watch } from "vue";
+import { useDisplay } from "vuetify";
 import { useI18n } from "vue-i18n";
 
 const authStore = useAuthStore();
 const settingStore = useSettingStore();
 const filter = ref({ branch_id: settingStore.branch_id });
 const { locale } = useI18n();
+const { smAndDown } = useDisplay();
 const canAccessAllBranches = computed(() => Number(authStore.user?.manage_branch) === 3);
+const canSwitchBranch = computed(() => showBranches.value.length > 1);
 
 const normalizeBranches = (branchList = []) => {
   const mapped = branchList.map((branch) => ({
@@ -38,16 +41,19 @@ const normalizeBranches = (branchList = []) => {
 
 const showBranches = computed(() => normalizeBranches(authStore.branches || []));
 
+const selectedBranch = computed(() =>
+  showBranches.value.find(
+    (item) => String(item.id) === String(filter.value.branch_id),
+  ),
+);
+
 const resolveDefaultBranchId = () => {
   const items = showBranches.value;
   if (!items.length) return null;
 
   const hasItem = (id) => items.some((item) => String(item.id) === String(id));
 
-  if (canAccessAllBranches.value && hasItem("*")) {
-    return "*";
-  }
-
+  // Prefer the branch already selected (persisted) so refresh keeps Battambang etc.
   if (settingStore.branch_id != null && hasItem(settingStore.branch_id)) {
     return settingStore.branch_id;
   }
@@ -56,31 +62,56 @@ const resolveDefaultBranchId = () => {
     return authStore.user.branch_id;
   }
 
+  if (canAccessAllBranches.value && hasItem("*")) {
+    return "*";
+  }
+
   return items[0]?.id ?? null;
 };
 
 const setBranch = () => {
-  filter.value.branch_id = resolveDefaultBranchId();
-  settingStore.setBranchId(filter.value.branch_id);
+  // Branches load async after persist hydrates. If we resolve against an empty
+  // list we get null and wipe the saved branch (e.g. Battambang → All Branch
+  // on every refresh).
+  if (!showBranches.value.length) return;
 
-  const selectedBranch = showBranches.value.find(
-    (item) => String(item.id) === String(filter.value.branch_id),
+  const nextId = resolveDefaultBranchId();
+  if (nextId == null) return;
+
+  filter.value.branch_id = nextId;
+  if (String(settingStore.branch_id) !== String(nextId)) {
+    settingStore.setBranchId(nextId);
+  }
+
+  const selected = showBranches.value.find(
+    (item) => String(item.id) === String(nextId),
   );
 
-  settingStore.setBranchSymbol(selectedBranch?.symbol ?? null);
-  settingStore.setBranchProvinceCode(selectedBranch?.province_code ?? null);
+  settingStore.setBranchSymbol(selected?.symbol ?? null);
+  settingStore.setBranchProvinceCode(selected?.province_code ?? null);
 };
 
 const changeBranch = (id) => {
+  if (id == null || id === "") return;
+
+  // Compare against the store, not filter.branch_id. AppAutocomplete's v-model
+  // updates filter first, so comparing to filter always early-returns and the
+  // store stays on "*" (All Branch). Refresh then restores All Branch and
+  // scoped pages never reload.
+  if (String(id) === String(settingStore.branch_id)) {
+    filter.value.branch_id = id;
+    return;
+  }
+
   filter.value.branch_id = id;
   settingStore.setBranchId(id);
 
-  const selectedBranch = showBranches.value.find(
+  const selected = showBranches.value.find(
     (item) => String(item.id) === String(id),
   );
 
-  settingStore.setBranchSymbol(selectedBranch?.symbol ?? null);
-  settingStore.setBranchProvinceCode(selectedBranch?.province_code ?? null);
+  settingStore.setBranchSymbol(selected?.symbol ?? null);
+  settingStore.setBranchProvinceCode(selected?.province_code ?? null);
 };
 
 watch(
@@ -93,28 +124,61 @@ watch(
 </script>
 
 <template>
-  <VRow class="justify-end">
-    <VCol cols="3" sm="6" md="6" lg="5" class="d-flex justify-end">
-      <div class="d-flex justify-end">
-        <AppAutocomplete
-          class="branch-autocomplete"
-          :class="{ 'single-branch': showBranches.length === 1 }"
-          v-model="filter.branch_id"
-          :items="showBranches"
-          item-title="title"
-          item-value="id"
-          :readonly="showBranches.length > 1 ? false : true"
-          :disabled="showBranches.length === 1 ? true : false"
-          @update:model-value="(value) => changeBranch(value)"
-          autocomplete="off"
-          style="width: 100%; max-width: 230px; min-width: 100px"
-        />
-      </div>
-    </VCol>
-  </VRow>
+  <!-- Mobile: building icon only -->
+  <IconBtn
+    v-if="smAndDown"
+    class="navbar-branch-icon-btn flex-shrink-0"
+    :aria-label="selectedBranch?.title || $t('Branch')"
+    :disabled="!canSwitchBranch"
+  >
+    <VIcon size="24" icon="tabler-building" />
+    <VMenu
+      v-if="canSwitchBranch"
+      activator="parent"
+      location="bottom end"
+      offset="6"
+      class="pa-0"
+    >
+      <VList size="small" class="py-1 navbar-branch-menu">
+        <VListItem
+          v-for="item in showBranches"
+          :key="item.id"
+          size="small"
+          :active="String(item.id) === String(filter.branch_id)"
+          @click="changeBranch(item.id)"
+        >
+          <VListItemTitle>{{ item.title }}</VListItemTitle>
+        </VListItem>
+      </VList>
+    </VMenu>
+  </IconBtn>
+
+  <!-- Desktop: autocomplete -->
+  <AppAutocomplete
+    v-else
+    class="branch-autocomplete navbar-branch-select"
+    :class="{ 'single-branch': !canSwitchBranch }"
+    v-model="filter.branch_id"
+    :items="showBranches"
+    item-title="title"
+    item-value="id"
+    density="compact"
+    hide-details
+    :readonly="!canSwitchBranch"
+    :disabled="!canSwitchBranch"
+    @update:model-value="(value) => changeBranch(value)"
+    autocomplete="off"
+  />
 </template>
 
 <style scoped>
+.navbar-branch-select {
+  flex-shrink: 1;
+  min-inline-size: 72px;
+  max-inline-size: 160px;
+  inline-size: 140px;
+}
+
 .branch-autocomplete.single-branch :deep(.v-field.v-field--disabled) {
   background-color: transparent !important;
   color: inherit !important;

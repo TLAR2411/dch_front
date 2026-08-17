@@ -629,7 +629,7 @@ onMounted(async () => {
             variant="tonal"
           >
             {{ guardianTypeLabel(g.type) }}:
-            {{ g.name_en || g.name_kh || g.name || "-" }}
+            {{ g.name_en || g.name_kh || g.user_name || g.name || "-" }}
             <template v-if="g.phone"> · {{ g.phone }}</template>
           </VChip>
         </div>

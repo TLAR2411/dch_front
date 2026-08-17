@@ -9,7 +9,7 @@ export const clientTabs = [
         title: "List Clients",
         icon: "tabler-list-details",
         tab: "list",
-        permission: "view-clients",
+        permission: "clients:view-page",
       },
       {
         title: "Client",
@@ -21,7 +21,7 @@ export const clientTabs = [
         title: "Black List",
         icon: "tabler-address-book-off",
         tab: "black-list",
-        permission: "view-clients",
+        permission: "clients:view-page",
       },
     ],
   },

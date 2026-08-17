@@ -114,6 +114,7 @@ declare global {
   const getMenuItems: typeof import('./src/utils/getData.js')['getMenuItems']
   const getOccupations: typeof import('./src/utils/getData.js')['getOccupations']
   const getPartDashboardRoute: typeof import('./src/utils/partHomeRoutes.js')['getPartDashboardRoute']
+  const getPartHomeRoute: typeof import('./src/utils/partHomeRoutes.js')['getPartHomeRoute']
   const getPeople: typeof import('./src/utils/getData.js')['getPeople']
   const getPermissions: typeof import('./src/utils/getData.js')['getPermissions']
   const getPositions: typeof import('./src/utils/getData.js')['getPositions']
@@ -453,6 +454,8 @@ declare global {
   const useWindowScroll: typeof import('@vueuse/core')['useWindowScroll']
   const useWindowSize: typeof import('@vueuse/core')['useWindowSize']
   const validateScore: typeof import('./src/utils/gradeCalculation.js')['validateScore']
+  const viewData: typeof import('./src/utils/hasPermission.js')['viewData']
+  const viewPage: typeof import('./src/utils/hasPermission.js')['viewPage']
   const watch: typeof import('vue')['watch']
   const watchArray: typeof import('@vueuse/core')['watchArray']
   const watchAtMost: typeof import('@vueuse/core')['watchAtMost']
@@ -554,6 +557,7 @@ declare module 'vue' {
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getEntityLabel: UnwrapRef<typeof import('./src/utils/reportLabels.js')['getEntityLabel']>
     readonly getPartDashboardRoute: UnwrapRef<typeof import('./src/utils/partHomeRoutes.js')['getPartDashboardRoute']>
+    readonly getPartHomeRoute: UnwrapRef<typeof import('./src/utils/partHomeRoutes.js')['getPartHomeRoute']>
     readonly getSelectTitleField: UnwrapRef<typeof import('./src/utils/reportLabels.js')['getSelectTitleField']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hasPermission2: UnwrapRef<typeof import('./src/utils/hasPermission2.js')['default']>
@@ -852,6 +856,8 @@ declare module 'vue' {
     readonly useWindowScroll: UnwrapRef<typeof import('@vueuse/core')['useWindowScroll']>
     readonly useWindowSize: UnwrapRef<typeof import('@vueuse/core')['useWindowSize']>
     readonly validateScore: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['validateScore']>
+    readonly viewData: UnwrapRef<typeof import('./src/utils/hasPermission.js')['viewData']>
+    readonly viewPage: UnwrapRef<typeof import('./src/utils/hasPermission.js')['viewPage']>
     readonly watch: UnwrapRef<typeof import('vue')['watch']>
     readonly watchArray: UnwrapRef<typeof import('@vueuse/core')['watchArray']>
     readonly watchAtMost: UnwrapRef<typeof import('@vueuse/core')['watchAtMost']>

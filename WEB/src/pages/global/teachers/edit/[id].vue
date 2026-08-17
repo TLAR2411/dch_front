@@ -6,7 +6,7 @@ definePage({
     layout: "default",
     subject: "EditTeacher",
     requiresAuth: true,
-    // permissions: "view-students",
+    // permissions: "students:view-page",
     layoutWrapperClasses: "layout-content-height-fixed",
   },
 });

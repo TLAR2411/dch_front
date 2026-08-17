@@ -6,6 +6,7 @@ import {
   getDynamicI18nProps,
   isNavLinkActive,
 } from '@layouts/utils'
+import hasPermission from '@/utils/hasPermission.js'
 
 const props = defineProps({
   item: {
@@ -22,7 +23,10 @@ const props = defineProps({
 
 <template>
   <li
-    v-if="can(item.action, item.subject)"
+    v-if="
+      can(item.action, item.subject) &&
+      (!item.permission || hasPermission(item.permission))
+    "
     class="nav-link"
     :class="[{
       'sub-item': props.isSubItem,

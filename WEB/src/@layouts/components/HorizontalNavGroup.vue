@@ -10,6 +10,7 @@ import {
   getDynamicI18nProps,
   isNavGroupActive,
 } from '@layouts/utils'
+import hasPermission from '@/utils/hasPermission.js'
 
 const props = defineProps({
   item: {
@@ -50,7 +51,10 @@ watch(() => route.path, () => {
 
 <template>
   <HorizontalNavPopper
-    v-if="canViewNavMenuGroup(item)"
+    v-if="
+      canViewNavMenuGroup(item) &&
+      (!item.permission || hasPermission(item.permission))
+    "
     :is-rtl="configStore.isAppRTL"
     class="nav-group"
     tag="li"

@@ -8,7 +8,7 @@ import { useYearStore } from "./yearStore";
 import { decrypt } from "@/utils/encrypteData";
 import { getAccessToken, removeAccessToken, setAccessToken } from "@/utils/accessToken";
 import { supabase } from "@/utils/supabase";
-import { getPartDashboardRoute } from "@/utils/partHomeRoutes";
+import { getPartHomeRoute } from "@/utils/partHomeRoutes";
 
 const PART_PERMISSIONS = {
   khmer: "allow-part-khmer",
@@ -28,9 +28,11 @@ const resolveAccessiblePart = (preferredPart, permissions = [], currentPart = nu
   return allowedParts[0] ?? null;
 };
 
-const getDefaultAuthenticatedRoute = (part) => {
+const getDefaultAuthenticatedRoute = (part, permissions = []) => {
   if (part && ["admin", "khmer", "english", "chinese"].includes(part)) {
-    return { name: getPartDashboardRoute(part) };
+    // Lands on the part dashboard if permitted, otherwise the first
+    // sidebar page the user has permission to view.
+    return getPartHomeRoute(part, permissions);
   }
 
   return { path: "/" };
@@ -92,7 +94,7 @@ export const useAuthStore = defineStore("auth", {
             usePartStore().setSystemPart(defaultPart);
           }
           useSettingStore().setBranchId(defaultBranch);
-          router.push(getDefaultAuthenticatedRoute(defaultPart));
+          router.push(getDefaultAuthenticatedRoute(defaultPart, this.permissions));
         } else {
           console.error("Login failed with status:", response.data.status);
         }
@@ -138,7 +140,7 @@ export const useAuthStore = defineStore("auth", {
         if (defaultPart) {
           usePartStore().setSystemPart(defaultPart);
         }
-        router.replace(getDefaultAuthenticatedRoute(defaultPart));
+        router.replace(getDefaultAuthenticatedRoute(defaultPart, this.permissions));
       }
     },
 
@@ -165,15 +167,17 @@ export const useAuthStore = defineStore("auth", {
           const userData = response.data.data.user;
           const partStore = usePartStore();
 
+          // Prefer the part already selected (sessionStorage / URL), not the
+          // user's saved default_part — otherwise a refresh jumps back to Admin.
           const defaultPart = resolveAccessiblePart(
-            response?.data?.data?.default_part,
-            permissions,
             partStore.system_part,
+            permissions,
+            response?.data?.data?.default_part,
           );
           const defaultBranch = response?.data?.data?.default_branch;
           console.log("defaultPart:", defaultPart);
           const settingStore = useSettingStore()
-          if (defaultPart) {
+          if (defaultPart && partStore.system_part !== defaultPart) {
             partStore.setSystemPart(defaultPart);
           }
 
@@ -198,7 +202,9 @@ export const useAuthStore = defineStore("auth", {
         if (error.code === 'ERR_CANCELED' || error.message === 'canceled') {
           return;
         }
-        if (error.response?.status === 401) {
+        // Auth failures and unexpected server errors should not leave a
+        // half-bootstrapped session with empty permissions.
+        if (!error.response || error.response?.status === 401 || error.response?.status >= 500) {
           await this.unAuthenticated();
         }
       } finally {

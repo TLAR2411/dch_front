@@ -6,6 +6,7 @@ import AppTextField from "@/@core/components/app-form-elements/AppTextField.vue"
 import { requiredValidator } from "@/@core/utils/validators";
 import AppCard from "@/components/AppCard.vue";
 import AppLabel from "@/components/AppLabel.vue";
+import successAlert from "@/helper/successAlert.js";
 import { api } from "@/utils/api";
 import { app } from "@/utils/app";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
@@ -350,6 +351,13 @@ const resetForm = () => {
   villages.value = [];
 };
 
+const postStudent = (payload) =>
+  api.post("students-store", payload, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
 const onSubmit = async (validate) => {
   console.log(formData.value);
   const { valid } = await validate;
@@ -391,7 +399,10 @@ const onSubmit = async (validate) => {
       });
 
       if (!familyRes.data.status) {
-        console.error("Failed to create family:", familyRes.data);
+        successAlert.fire({
+          icon: "error",
+          title: familyRes.data.message || "Failed to create family",
+        });
         return;
       }
       familyId = familyRes.data.data.data.id;
@@ -402,18 +413,34 @@ const onSubmit = async (validate) => {
       family_id: familyId || null,
     };
 
-    const res = await api.post("students-store", payload, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    let res;
+    try {
+      res = await postStudent(payload);
+    } catch (error) {
+      const status = error.response?.status;
+      const candidates = error.response?.data?.data?.candidates;
 
-    if (res.data.status) {
+      // Same parents / family often soft-matches siblings — not the same student.
+      // Retry once with confirmed=true; no dialog.
+      if (status === 409 && Array.isArray(candidates) && candidates.length) {
+        res = await postStudent({ ...payload, confirmed: true });
+      } else {
+        throw error;
+      }
+    }
+
+    if (res?.data?.status) {
       resetForm();
       router.push({ name: "admin-students" });
+    } else if (res?.data?.message) {
+      successAlert.fire({ icon: "error", title: res.data.message });
     }
   } catch (error) {
     console.error("Failed to create student:", error);
+    successAlert.fire({
+      icon: "error",
+      title: error.response?.data?.message || "Failed to create student",
+    });
   } finally {
     isLoading.value = false;
   }

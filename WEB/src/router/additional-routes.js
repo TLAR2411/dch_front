@@ -1,4 +1,6 @@
 import hasPermission from '@/utils/hasPermission';
+import { auth } from '@/utils/auth';
+import { getPartHomeRoute } from '@/utils/partHomeRoutes';
 
 export const redirects = [
   // ℹ️ We are redirecting to different pages based on role.
@@ -20,9 +22,8 @@ export const redirects = [
     path: '/english',
     name: 'english',
     redirect: () => {
-      // return { name: 'english-dashboard' }
       return hasPermission('allow-part-english')
-        ? { name: 'english-dashboard' }
+        ? getPartHomeRoute('english', auth()?.permissions || [])
         : { name: 'dashboards' }
     },
   },
@@ -30,9 +31,8 @@ export const redirects = [
     path: '/khmer',
     name: 'khmer',
     redirect: () => {
-      // return { name: 'khmer-dashboard' }
       return hasPermission('allow-part-khmer')
-        ? { name: 'khmer-dashboard' }
+        ? getPartHomeRoute('khmer', auth()?.permissions || [])
         : { name: 'dashboards' }
     },
   },
@@ -40,9 +40,8 @@ export const redirects = [
     path: '/chinese',
     name: 'chinese',
     redirect: () => {
-      // return { name: 'chinese-dashboard' }
       return hasPermission('allow-part-chinese')
-        ? { name: 'chinese-dashboard' }
+        ? getPartHomeRoute('chinese', auth()?.permissions || [])
         : { name: 'dashboards' }
     },
   },
@@ -68,8 +67,8 @@ export const redirects = [
     path: '/admin',
     name: 'admin',
     redirect: () => {
-      return hasPermission('admin-allow-part')
-        ? { name: 'admin-dashboards' }
+      return hasPermission('allow-part-admin')
+        ? getPartHomeRoute('admin', auth()?.permissions || [])
         : { name: 'dashboards' }
     },
   },

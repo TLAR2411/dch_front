@@ -30,7 +30,7 @@ export const setupGuards = (router) => {
       }
     }
 
-    // 3. Sync module from URL only for known path segments (do not overwrite with a fallback)
+    // 3. URL wins for known part segments (e.g. refresh on /khmer/... stays Khmer)
     const firstSegment = to.path.split("/")[1];
     const segmentMap = {
       admin: 'admin',
@@ -38,12 +38,9 @@ export const setupGuards = (router) => {
       english: 'english',
       chinese: 'chinese',
     };
-    if (firstSegment && segmentMap[firstSegment] && !part.system_part) {
+    if (firstSegment && segmentMap[firstSegment]) {
       part.setSystemPart(segmentMap[firstSegment]);
     }
-    // if (firstSegment && segmentMap[firstSegment]) {
-    //   part.setSystemPart(segmentMap[firstSegment]);
-    // }
 
     // 4. Determine Login Status
     const isLoggedIn = Boolean(accessToken) || auth.isAuthenticated;

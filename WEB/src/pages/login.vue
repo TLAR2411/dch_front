@@ -93,7 +93,7 @@ const { smAndDown } = useDisplay();
               />
               <!-- <VNodeRenderer :nodes="themeConfig.app.logo" /> -->
               <h1
-                class="app-logo-title mt-4 text-uppercase w-100 mb-2 text-primary"
+                class="app-logo-title mt-4 w-100 mb-2 text-primary moul"
               >
                 <span
                   style="
@@ -103,6 +103,7 @@ const { smAndDown } = useDisplay();
                     overflow-wrap: break-word;
                     white-space: normal;
                     text-align: center;
+                    font-size: 1.1rem;
                   "
                 >
                   {{ themeConfig.app.mainTitle }}

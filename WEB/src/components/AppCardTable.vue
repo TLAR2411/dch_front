@@ -562,11 +562,9 @@ defineExpose({ reload, exportToExcel });
                   <VBtn
                     size="30"
                     v-if="
-                      isCheckBranch
-                        ? useSettingStore().branch_id != '*'
-                        : true &&
-                          (createDialog || createPage) &&
-                          (!canCreate || hasPermission(canCreate))
+                      (!isCheckBranch || useSettingStore().branch_id != '*') &&
+                      (createDialog || createPage) &&
+                      (!canCreate || hasPermission(canCreate))
                     "
                     @click.prevent="create"
                     variant="tonal"

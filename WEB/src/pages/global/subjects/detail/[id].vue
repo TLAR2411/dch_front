@@ -7,7 +7,7 @@ definePage({
     layout: "default",
     subject: "Auth",
     requiresAuth: true,
-    // permissions: "view-subjects",
+    // permissions: "subjects:view-page",
     layoutWrapperClasses: "layout-content-height-fixed",
   },
 });

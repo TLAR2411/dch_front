@@ -7,7 +7,7 @@ definePage({
     layout: "default",
     subject: "CreateStudent",
     requiresAuth: true,
-    // permissions: "view-students",
+    // permissions: "students:view-page",
   },
 });
 </script>

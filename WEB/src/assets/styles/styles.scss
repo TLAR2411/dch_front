@@ -160,6 +160,238 @@ ul,
   font-size: 4rem !important;
 }
 
+// 👉 Custom horizontal header (lightened primary color two-row header)
+$horizontal-header-bg: color-mix(in srgb, rgb(var(--v-theme-primary)) 75%, white);
+
+.layout-wrapper.layout-nav-type-horizontal .custom-horizontal-header.custom-horizontal-header {
+  background: rgb(var(--v-theme-primary)) !important;
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 70%, black) !important;
+  color: rgb(var(--v-theme-on-primary));
+  box-shadow: none !important;
+  border: none !important;
+
+  .layout-navbar {
+    background: transparent !important;
+    block-size: 54px;
+    border-block-end: none !important;
+
+    .navbar-content-container {
+      display: flex;
+      align-items: center;
+      block-size: 100%;
+    }
+
+    .v-btn--icon,
+    .icon-btn,
+    .v-icon {
+      color: rgb(var(--v-theme-on-primary)) !important;
+    }
+
+    .header-year-chip.v-btn,
+    .header-year-chip .v-btn,
+    .navbar-year-btn {
+      background: #fff !important;
+      color: rgb(var(--v-theme-primary)) !important;
+      border-radius: 0.5rem;
+      padding-inline: 0.75rem;
+      box-shadow: none !important;
+
+      .v-btn__content,
+      .v-btn__overlay,
+      span {
+        color: rgb(var(--v-theme-primary)) !important;
+      }
+
+      .v-btn__underlay {
+        opacity: 0 !important;
+      }
+    }
+
+    .header-branch-select {
+      max-inline-size: 150px;
+
+      .v-field {
+        background: #fff !important;
+        border-radius: 0.5rem;
+        color: rgb(var(--v-theme-primary)) !important;
+        block-size: 32px;
+        min-block-size: 32px;
+
+        .v-field__input {
+          color: rgb(var(--v-theme-primary)) !important;
+          padding-block: 0;
+          min-block-size: 32px;
+        }
+
+        .v-field__outline {
+          --v-field-border-opacity: 0 !important;
+        }
+
+        .v-label,
+        .v-icon {
+          color: rgb(var(--v-theme-primary)) !important;
+        }
+      }
+    }
+
+    // Part switcher: white chip so it doesn't blend into dark primary header
+    .navbar-part-switcher.v-btn {
+      background: #fff !important;
+      color: rgb(var(--v-theme-primary)) !important;
+      box-shadow: none !important;
+
+      .v-btn__content,
+      .v-btn__prepend,
+      .v-icon,
+      span {
+        color: rgb(var(--v-theme-primary)) !important;
+      }
+
+      .v-btn__underlay,
+      .v-btn__overlay {
+        opacity: 0 !important;
+      }
+    }
+
+    // Profile avatar: white circle + primary initials so it doesn't match header
+    .navbar-toolbar-actions .navbar-user-avatar,
+    .navbar-toolbar-actions .navbar-user-avatar .v-avatar {
+      background: #fff !important;
+      color: rgb(var(--v-theme-primary)) !important;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+
+      span,
+      .v-avatar__content,
+      .primary--text {
+        color: rgb(var(--v-theme-primary)) !important;
+      }
+    }
+  }
+
+  .layout-horizontal-nav {
+    background: transparent;
+    block-size: 54px;
+    color: rgb(var(--v-theme-on-primary));
+
+    .horizontal-nav-content-container {
+      display: flex;
+      align-items: center;
+      block-size: 100%;
+    }
+
+    .nav-link a,
+    .nav-group .nav-group-label {
+      color: rgb(var(--v-theme-on-primary));
+      font-weight: 500;
+    }
+
+    .nav-item-icon,
+    .nav-group-arrow {
+      color: rgb(var(--v-theme-on-primary)) !important;
+    }
+
+    .nav-link:not(.sub-item) a.router-link-active,
+    .nav-group:not(.sub-item).active > .popper-triggerer > .nav-group-label {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 0.75rem;
+      color: rgb(var(--v-theme-on-primary)) !important;
+    }
+
+    .nav-link:not(.sub-item) a:hover,
+    .nav-group:not(.sub-item) > .popper-triggerer > .nav-group-label:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 0.75rem;
+    }
+
+    .popper-content {
+      background: rgb(var(--v-theme-surface));
+      color: rgb(var(--v-theme-on-surface));
+
+      .nav-link a,
+      .nav-group .nav-group-label {
+        color: inherit;
+      }
+    }
+  }
+}
+
+.layout-wrapper.layout-nav-type-horizontal .custom-horizontal-content {
+  margin-block-start: 1rem;
+}
+
+// 👉 Compact top navbar on small screens
+.navbar-toolbar {
+  min-inline-size: 0;
+  gap: 0.25rem;
+  overflow: hidden;
+
+  .navbar-toolbar-actions {
+    gap: 0.25rem;
+    min-inline-size: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .layout-navbar {
+    padding-inline: 8px !important;
+  }
+
+  .navbar-toolbar {
+    gap: 0.125rem;
+  }
+
+  .navbar-toolbar-actions {
+    gap: 0.125rem !important;
+  }
+
+  .navbar-part-switcher {
+    min-inline-size: 36px !important;
+    padding-inline: 0 !important;
+  }
+
+  .navbar-chat-btn {
+    margin-inline: 0 !important;
+  }
+}
+
+// 👉 Customizer placed in navbar (no fixed position, no background)
+.customizer-in-navbar .app-customizer-toggler {
+  position: relative !important;
+  inset: auto !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+
+  .v-icon {
+    color: inherit !important;
+  }
+
+  &:hover,
+  &:focus,
+  &:active {
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
+// 👉 Make the customizer drawer full height so it doesn't show content behind it
+.app-customizer {
+  position: fixed !important;
+  inset-block: 0 !important;
+  inset-inline-end: 0 !important;
+  block-size: 100vh !important;
+  z-index: 1002 !important;
+
+  // Customizer icons must be dark on its light surface, not the navbar's white
+  // .v-btn--icon,
+  // .v-icon {
+  //   color: rgb(var(--v-theme-on-surface)) !important;
+  // }
+}
+
 @media print {
   .layout-navbar,
   .layout-vertical-nav,

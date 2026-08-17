@@ -1,194 +1,183 @@
 export default [
-    {
-      title: "Dashboard",
-      icon: { icon: "tabler-layout-dashboard" },
+  {
+    title: "Dashboard",
+    icon: { icon: "tabler-layout-dashboard" },
     to: {
       name: "english-dashboard",
     },
-      
-      permission: "",
+    permission: "dashboard:view-page",
+  },
+
+  {
+    title: "Students",
+    to: {
+      name: "global-student",
     },
-  
-    {
-      title: "Students",
-      to: {
-        name: "global-student",
+    icon: { icon: "tabler-users" },
+    permission: "students:view-page",
+  },
+
+  {
+    title: "Attendance",
+    to: {
+      name: "global-attendance",
+    },
+    icon: { icon: "tabler-clipboard-check" },
+    permission: "attendance:view-page",
+  },
+
+  {
+    title: "Score Entry",
+    to: {
+      name: "global-score",
+    },
+    icon: { icon: "tabler-edit" },
+    permission: "student-scores:view-page",
+  },
+
+  {
+    title: "Schedules",
+    to: {
+      name: "global-schedule",
+    },
+    icon: { icon: "tabler-calendar-week" },
+    permission: "schedules:view-page",
+  },
+
+  {
+    title: "Calendar",
+    to: {
+      name: "global-calendar",
+    },
+    icon: { icon: "tabler-calendar" },
+    permission: "holiday:view-page",
+  },
+
+  {
+    title: "Teachers",
+    to: {
+      name: "global-teachers",
+    },
+    createTo: {
+      name: "global-teachers-create",
+    },
+    icon: { icon: "tabler-school" },
+    permission: "teachers:view-page",
+  },
+
+  {
+    title: "Checkin Checkout",
+    to: {
+      name: "global-checkin-checkout",
+    },
+    icon: { icon: "tabler-clock-hour-1" },
+    permission: "teachers-classes:view-page",
+  },
+
+  {
+    title: "Manage Classes",
+    icon: { icon: "tabler-home-cog" },
+    permission: ["classes:view-page", "grades:view-page", "rooms:view-page"],
+    children: [
+      {
+        title: "Classes",
+        to: {
+          name: "global-classes",
+        },
+        permission: "classes:view-page",
       },
-      
-      icon: { icon: "tabler-users" },
-      // permission: "view-students",
-    },
-  
-  
-    {
-      title: "Score Entry",
-      to: {
-        name: "global-score",
+      {
+        title: "Grades",
+        to: {
+          name: "global-grades",
+        },
+        permission: "grades:view-page",
       },
-      icon: { icon: "tabler-file-check" },
-      // permission: "view-grades",
-    },
-  
-    {
-      title: "Attendance",
-      to: {
-        name: "global-attendance",
+      {
+        title: "Rooms",
+        to: {
+          name: "global-rooms",
+        },
+        permission: "rooms:view-page",
       },
-      icon: { icon: "tabler-file-check" },
-      // permission: "view-students",
-    },
-  
-    {
-      title: "Schedules",
-      to: {
-        name: "global-schedule",
+    ],
+  },
+
+  {
+    title: "Manage Subjects",
+    icon: { icon: "tabler-book" },
+    permission: [
+      "subjects:view-page",
+      "subjects-grades:view-page",
+      "categories:view-page",
+      "grading-rule:view-page",
+    ],
+    children: [
+      {
+        title: "Subjects",
+        to: {
+          name: "global-subjects",
+        },
+        permission: "subjects:view-page",
       },
-      icon: { icon: "tabler-calendar-week" },
-      // permission: "view-students",
-    },
-  
-    {
-      title: "Calendar",
-      to: {
-        name: "global-calendar",
+      {
+        title: "Grade Subjects",
+        to: {
+          name: "global-gradesubject",
+        },
+        permission: "subjects-grades:view-page",
       },
-      icon: { icon: "tabler-calendar" },
-      // permission: "view-students",
-    },
-  
-    {
-      title: "Teachers",
-      to: {
-        name: "global-teachers",
+      {
+        title: "Category",
+        to: {
+          name: "global-category",
+        },
+        permission: "categories:view-page",
       },
-      createTo: {
-        name: "global-teachers-create",
+      {
+        title: "Subject Setting",
+        to: {
+          name: "global-subjectsetting",
+        },
+        permission: "grading-rule:view-page",
       },
-      icon: { icon: "tabler-school" },
-      // permission: "view-students",
-    },
-  
-  
-    {
-      title: "Checkin Checkout",
-      to: {
-        name: "global-checkin-checkout",
+    ],
+  },
+
+  {
+    title: "Reports",
+    icon: { icon: "tabler-report" },
+    permission: "report-page",
+    children: [
+      {
+        title: "Attendance",
+        to: {
+          name: "global-report-attendance",
+        },
+        // permission: "view-attendance-report",
       },
-      icon: { icon: "tabler-clock-hour-1" },
-      // permission: "view-curriculumns",
-    },
-    {
-      title: "Manage Classes",
-      icon: { icon: "tabler-home-cog" },
-      permission: '',
-      children: [
-  
-        {
-          title: "Classes",
-          to: {
-            name: "global-classes",
-          },
-          // permission: "view-grades",
+      {
+        title: "Exam",
+        to: {
+          name: "global-report-exam",
         },
-        {
-          title: "Grades",
-          to: {
-            name: "global-grades",
-          },
-          // permission: "view-grades",
+        // permission: "student-scores:view-page",
+      },
+    ],
+  },
+
+  {
+    title: "Settings",
+    icon: { icon: "tabler-settings" },
+    permission: ["settings:view-page", "behaviors:view-page"],
+    children: [
+      {
+        title: "Behavior & Rating",
+        to: {
+          name: "global-behavior",
         },
-        {
-          title: "Rooms",
-  
-          permission: '',
-          to: {
-            name: "global-rooms"
-          }
-        },
-       
-      ],
-    },
-  
-    {
-      title: "Manage Subjects",
-      icon: { icon: "tabler-book" },
-      permission: '',
-      children: [
-  
-        {
-          title: "Subjects",
-          to: {
-            name: "global-subjects",
-          },
-          // permission: "view-grades",
-        },
-  
-        {
-          title: "Grade Subjects",
-          to: {
-            name: "global-gradesubject",
-          },
-          // permission: "view-grades",
-        },
-        {
-          title: "Category",
-          to: {
-            name: "global-category",
-          },
-          // permission: "view-grades",
-        },
-  
-        {
-          title: "Subject Setting",
-          to: {
-            name: "global-subjectsetting",
-          },
-          // permission: "view-grades",
-        },
-        
-  
-      ],
-    },
-  
-  
-  
-  
-    {
-      title: "Reports",
-      icon: { icon: "tabler-report" },
-      permission: '',
-      children: [
-  
-        {
-          title: "Attendance",
-          to: {
-            name: "global-report-attendance",
-          },
-          // permission: "view-grades",
-        },
-        {
-          title: "Exam",
-          to: {
-            name: "global-report-exam",
-          },
-          // permission: "view-grades",
-        },
-  
-      ],
-    },
-  
-    {
-      title: "Settings",
-      icon: { icon: "tabler-settings" },
-      permission: '',
-      children: [
-  
-        {
-          title: "Behavior & Rating",
-          to: {
-            name: "global-behavior",
-          },
-        },
-      ],
-    },
-  ];
+        permission: "behaviors:view-page",
+      },
+    ],
+  },
+];

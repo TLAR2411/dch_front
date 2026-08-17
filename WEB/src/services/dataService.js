@@ -431,10 +431,19 @@ export const getTerms = async (yearId) => {
 export const getClasses = async () => {
     try {
         const response = await api.post("classes-all");
-        console.log(response.data.data);
-        return response.data.data;
+        return response.data.data ?? [];
     } catch (error) {
+        // Let callers ignore aborted in-flight reloads instead of wiping a
+        // good list with `|| []`.
+        if (
+            error?.code === "ERR_CANCELED" ||
+            error?.name === "CanceledError" ||
+            error?.message === "canceled"
+        ) {
+            return null;
+        }
         console.error("Server classes error: ", error);
+        return [];
     }
 }
 export const getWeekdays = async () => {

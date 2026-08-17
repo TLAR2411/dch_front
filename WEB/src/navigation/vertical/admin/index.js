@@ -13,7 +13,7 @@ export default [
             name: "admin-students-create",
         },
         icon: { icon: "tabler-user" },
-        // permission: "view-students",
+        permission: "students:view-page",
     },
 
 
@@ -52,28 +52,28 @@ export default [
     //             to: {
     //                 name: "admin-address-villages",
     //             },
-    //             permission: "view-villages",
+    //             permission: "villages:view-page",
     //         },
     //         {
     //             title: "Communes",
     //             to: {
     //                 name: "admin-address-communes",
     //             },
-    //             permission: "view-communes",
+    //             permission: "communes:view-page",
     //         },
     //         {
     //             title: "Districts",
     //             to: {
     //                 name: "admin-address-districts",
     //             },
-    //             permission: "view-districts",
+    //             permission: "districts:view-page",
     //         },
     //         {
     //             title: "Provinces",
     //             to: {
     //                 name: "admin-address-provinces",
     //             },
-    //             permission: "view-provinces",
+    //             permission: "provinces:view-page",
     //         },
     //     ],
     // },
@@ -84,7 +84,7 @@ export default [
         to: {
             name: "admin-branches",
         },
-        permission: "view-branches",
+        permission: "branches:view-page",
         icon: { icon: "tabler-building-bank" },
     },
     {
@@ -93,7 +93,7 @@ export default [
             name: "admin-years",
         },
         icon: { icon: "tabler-calendar" },
-        // permission: "view-years",
+        permission: "years:view-page",
     },
 
     {
@@ -108,7 +108,7 @@ export default [
         title: "Families",
         to: { name: "global-families" },
         icon: { icon: "tabler-home-heart" },
-        permission: "view-families",
+        permission: "families:view-page",
     },
     // {
     //     title: "Generals",
@@ -139,38 +139,35 @@ export default [
         to: {
             name: "global-term",
         },
-        permission: "",
+        permission: "academics-periods:view-page",
     },
 
     {
         title: "List Users",
         to: { name: "admin-users" },
         icon: { icon: "tabler-users" },
-        permission: "view-users"
+        permission: "users:view-page"
     },
 
     {
         title: "Auth",
-
         icon: { icon: "tabler-shield-lock" },
-        permission: '',
+        permission: ["roles:view-page", "permissions:view-page"],
         children: [
             {
                 title: "Roles",
                 to: {
                     name: "admin-roles",
                 },
-                // permission: "view-roles",
+                permission: "roles:view-page",
+            },
+            {
+                title: "Permissions",
+                to: {
+                    name: "admin-permissions",
+                },
+                permission: "permissions:view-page",
             },
         ],
-    },
-
-    {
-        title: "Chat",
-        to: {
-            name: "global-chat",
-        },
-        icon: { icon: "tabler-books" },
-        // permission: "view-curriculumns",
     },
 ];

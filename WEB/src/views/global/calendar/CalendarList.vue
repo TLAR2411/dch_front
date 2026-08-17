@@ -213,22 +213,33 @@ function goToday() {
 }
 
 // ── fetch ─────────────────────────────────────────────────
+const sameId = (a, b) => a != null && b != null && String(a) === String(b);
+
 const getHoliday = async () => {
   loading.value = true;
   try {
     // One call returns BOTH kinds: public holidays (national, no branch) and
     // this branch's own events. The endpoint applies the branch filter only to
     // the non-public rows, which is what the two separate queries did.
+    //
+    // cur_id / year_id are NOT sent as endpoint filters: they would apply to
+    // public holidays too, and public rows carry neither, so every national
+    // holiday would drop out. They are applied below to branch events only.
     const rows = await listHolidayCalendar({
       year: currentYear.value,
-      cur_id,
-      year_id,
     });
-    holiday.value = (Array.isArray(rows) ? rows : []).map((h) => ({
-      ...h,
-      date: toIsoDate(h.date) || h.date,
-      is_public: isPublicHoliday(h),
-    }));
+    holiday.value = (Array.isArray(rows) ? rows : [])
+      .filter((row) =>
+        isPublicHoliday(row)
+          ? true
+          : (cur_id == null || sameId(row.cur_id, cur_id)) &&
+            (year_id == null || sameId(row.year_id, year_id)),
+      )
+      .map((h) => ({
+        ...h,
+        date: toIsoDate(h.date) || h.date,
+        is_public: isPublicHoliday(h),
+      }));
   } catch (err) {
     console.error(err);
   } finally {
@@ -484,7 +495,7 @@ onMounted(() => {
           <div class="legend-item">
             <span
               class="legend-dot"
-              style="background: #fff0f0; border: 1px solid #f09595"
+              style="background: #e53935; border: 1px solid #c62828"
             ></span>
             {{ $t("Public holiday") }}
           </div>
@@ -1178,14 +1189,14 @@ onMounted(() => {
   color: #fff;
 }
 .cell-public {
-  background: #fff0f0;
+  background: #e53935;
 }
 .cell-public .day-num {
-  color: #a32d2d;
+  color: #fff;
   font-weight: 600;
 }
 .cell-public:hover {
-  background: #fce4e4;
+  background: #d32f2f;
 }
 .cell-event {
   background: #f0fff8;
@@ -1198,10 +1209,10 @@ onMounted(() => {
   background: #e1f5ee;
 }
 .cell-today-public {
-  background: #fcebeb;
+  background: #c62828;
 }
 .cell-today-public .day-num {
-  background: #a32d2d;
+  background: rgba(255, 255, 255, 0.22);
   color: #fff;
 }
 
@@ -1219,8 +1230,17 @@ onMounted(() => {
   margin-top: 2px;
 }
 .chip-public {
-  background: #fcebeb;
-  color: #791f1f;
+  background: transparent;
+  color: #fff;
+  align-self: flex-end;
+  text-align: right;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  line-clamp: 3;
+  margin-top: auto;
+  padding-inline: 0;
 }
 .chip-event {
   background: #e1f5ee;
@@ -1542,12 +1562,18 @@ onMounted(() => {
   .event-chip {
     display: block;
   }
+  .chip-public {
+    display: -webkit-box;
+  }
   .day-dot {
     display: none;
   }
   .day-cell {
     min-height: 72px;
     align-items: flex-start;
+  }
+  .day-cell.cell-public {
+    align-items: stretch;
   }
   .day-num {
     font-size: 11px;

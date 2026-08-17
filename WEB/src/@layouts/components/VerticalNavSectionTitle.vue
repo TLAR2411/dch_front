@@ -19,8 +19,8 @@ const shallRenderIcon = configStore.isVerticalNavMini();
 <template>
   <li
     v-if="
-      (can(item.action, item.subject) && !item.permission) ||
-      hasPermission(item.permission)
+      can(item.action, item.subject) &&
+      (!item.permission || hasPermission(item.permission))
     "
     class="nav-section-title"
   >

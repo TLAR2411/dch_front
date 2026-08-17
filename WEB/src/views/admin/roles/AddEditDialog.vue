@@ -90,7 +90,7 @@ const onFormSubmit = debounce(async (refForm) => {
     const event = roleId ? "onUpdate" : "onCreate";
 
     emit(event, payload, (res) => {
-      if (res === 200) {
+      if (res) {
         resetData();
       }
     });

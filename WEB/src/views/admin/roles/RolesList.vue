@@ -2,21 +2,10 @@
 import AddEditDialog from "@/views/admin/roles/AddEditDialog.vue";
 import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
-import { onMounted } from "vue";
+import { onMounted, watch } from "vue";
 import { getPermissions } from "@/services/dataService";
 import { useDisplay } from "vuetify";
 const { mdAndUp } = useDisplay();
-definePage({
-  meta: {
-    title: "Roles",
-    layout: "default",
-    subject: "Auth",
-    requiresAuth: true,
-    // permissions: "view-roles",
-    layoutWrapperClasses: "layout-content-height-fixed",
-  },
-});
-
 const { t } = useI18n();
 const formData = ref({});
 const dataTableRef = ref(null);
@@ -24,6 +13,13 @@ const isDialogVisible = ref(false);
 const isLoading = ref(true);
 const permissions = ref([]);
 const rolePermissions = ref([]);
+
+watch(isDialogVisible, (visible) => {
+  if (!visible) {
+    formData.value = {};
+    rolePermissions.value = [];
+  }
+});
 
 const filter = ref({
   search: null,
@@ -154,6 +150,9 @@ onMounted(async () => {
     is-edit
     is-delete
     create-dialog
+    can-create="add-roles"
+    can-edit="edit-roles"
+    can-delete="delete-roles"
     save-state
     @on-delete="onDelete"
     @on-edit="onEdit"

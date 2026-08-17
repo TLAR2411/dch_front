@@ -84,7 +84,7 @@ const systemParts = ref([
     icon: "tabler-settings",
     part: "admin",
     active: setting.system_part == "admin",
-    permission: "admin-allow-part",
+    permission: "allow-part-admin",
   },
 ]);
 
@@ -111,7 +111,7 @@ watch(
         icon: "tabler-settings",
         part: "admin",
         active: newVal == "admin",
-        permission: "admin-allow-part",
+        permission: "allow-part-admin",
       },
     ];
   },
@@ -142,14 +142,14 @@ const allUsers = computed(() => {
     color="success"
   >
     <VAvatar
-      class="cursor-pointer"
+      class="cursor-pointer navbar-user-avatar"
       :color="auth()?.user?.image_path ? undefined : 'primary'"
-      :class="auth()?.user?.image_path ? '' : 'v-avatar-light-bg primary--text'"
-      :variant="auth()?.user?.image_path ? undefined : 'tonal'"
+      :variant="auth()?.user?.image_path ? undefined : 'flat'"
     >
       <AppAvatar
         :image="auth()?.user?.image_path"
         :title="auth().user?.name_kh"
+        color="primary"
       />
       <!-- <VImg
         v-if="auth().user.image_path"

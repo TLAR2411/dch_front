@@ -33,7 +33,7 @@ definePage({
     layout: "default",
     subject: "Students",
     requiresAuth: true,
-    // permissions: "view-students",
+    // permissions: "students:view-page",
   },
 });
 

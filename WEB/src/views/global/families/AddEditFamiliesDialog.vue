@@ -63,7 +63,7 @@ watch(
       Array.isArray(newData?.guardians) && newData.guardians.length
         ? newData.guardians.map((g) => ({
             id: g.id ?? null,
-            name_en: g.name_en || g.name || "",
+            name_en: g.name_en || g.user_name || g.name || "",
             name_kh: g.name_kh || "",
             phone: g.phone || "",
             email: g.email || "",

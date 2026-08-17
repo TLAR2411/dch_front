@@ -21,9 +21,12 @@ const NON_CANCELLABLE_ENDPOINTS = [
 
 /**
  * Generates a unique key for the request.
- * Includes method, URL, query params, AND body — otherwise parallel POSTs to
- * the same path with different bodies (e.g. grading-rule-layout per subject)
- * look identical and abort each other (CanceledError on Individual report).
+ * Includes method, URL, query params, body, AND scope headers — otherwise
+ * parallel POSTs to the same path with different bodies (e.g.
+ * grading-rule-layout per subject) OR the same body under a different
+ * X-Branch-Id / X-Year-Id look identical and abort each other. That left
+ * Score Entry / Attendance showing the previous branch's classes after a
+ * navbar branch switch.
  */
 const getRequestKey = (config) => {
   const params = config.params ? JSON.stringify(config.params) : "";
@@ -33,7 +36,12 @@ const getRequestKey = (config) => {
       : typeof config.data === "string"
         ? config.data
         : JSON.stringify(config.data);
-  return `${config.method}::${config.url}::${params}::${data}`;
+  const headers = config.headers || {};
+  const branch = headers["X-Branch-Id"] ?? headers["x-branch-id"] ?? "";
+  const year = headers["X-Year-Id"] ?? headers["x-year-id"] ?? "";
+  const curriculum =
+    headers["X-Curriculum-Id"] ?? headers["x-curriculum-id"] ?? "";
+  return `${config.method}::${config.url}::${params}::${data}::${branch}::${year}::${curriculum}`;
 };
 
 /**
@@ -97,7 +105,42 @@ api.interceptors.request.use((config) => {
   const part = usePartStore();
   const year = useYearStore();
 
+  // --- AUTH & SCOPE HEADERS (before cancellation key) ---
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  // config.headers['X-CLIENT-ID'] = import.meta.env.VITE_CLIENT_ID;
+  config.headers['X-Branch-Id'] = settingStore.branch_id || "*";
+  config.headers['X-Curriculum-Id'] = part.cur_id || "*";
+  config.headers['X-Year-Id'] = year.year_id || '*';
+  config.headers['X-Branch-Symbol'] = settingStore.branch_symbol || null;
+
+  // --- DATA FORMATTING ---
+  if (config.data instanceof FormData) {
+    // Drop the instance default application/json so axios/browser can set
+    // multipart/form-data with a boundary. Otherwise File fields serialize as
+    // {} and multer never receives the upload.
+    if (config.headers) {
+      delete config.headers["Content-Type"];
+      delete config.headers["content-type"];
+    }
+    // For FormData, add branch ID if available
+    if (settingStore.branch_id) {
+      config.data.append("branchId", settingStore.branch_id);
+    }
+  } else {
+    // For regular JSON payloads
+    config.data = config.data || {};
+
+    // Preserve filter object if it exists
+    if (config.data.filter && typeof config.data.filter === 'object') {
+      config.data.filter = { ...config.data.filter };
+    }
+  }
+
   // --- CANCELLATION LOGIC ---
+  // Runs after headers/body so the key distinguishes branch/year scope.
   if (isCancellable(config.url)) {
     const requestKey = getRequestKey(config);
 
@@ -112,33 +155,6 @@ api.interceptors.request.use((config) => {
     const controller = new AbortController();
     config.signal = controller.signal;
     pendingRequests.set(requestKey, controller);
-  }
-
-  // --- AUTH & BRANCH HEADERS ---
-  if (accessToken) {
-    config.headers.Authorization = `Bearer ${accessToken}`;
-  }
-
-  // config.headers['X-CLIENT-ID'] = import.meta.env.VITE_CLIENT_ID;
-  config.headers['X-Branch-Id'] = settingStore.branch_id || "*";
-  config.headers['X-Curriculum-Id'] = part.cur_id || "*";
-  config.headers['X-Year-Id'] = year.year_id || '*';
-  config.headers['X-Branch-Symbol'] = settingStore.branch_symbol || null;
-
-  // --- DATA FORMATTING ---
-  if (config.data instanceof FormData) {
-    // For FormData, add branch ID if available
-    if (settingStore.branch_id) {
-      config.data.append("branchId", settingStore.branch_id);
-    }
-  } else {
-    // For regular JSON payloads
-    config.data = config.data || {};
-
-    // Preserve filter object if it exists
-    if (config.data.filter && typeof config.data.filter === 'object') {
-      config.data.filter = { ...config.data.filter };
-    }
   }
 
   return config;
@@ -188,20 +204,27 @@ api.interceptors.response.use(
 
     const authStore = useAuthStore();
     const statusCode = error.response?.status;
-    const errorMessage = error.response?.data?.message || error.message || "Connection Error";
+    const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || "Connection Error";
 
     // Handle authentication errors
     if (statusCode === 401) {
       authStore.unAuthenticated();
     }
 
-    const { showDialog } = useDialog();
-    showDialog({
-      title: errorMessage,
-      icon: "error",
-      isConfirm: false,
-      timer: 4000,
-    });
+    // 409 duplicate_candidates is human-gated in create forms — don't toast over the confirm dialog.
+    const isDuplicateCandidates =
+      statusCode === 409 &&
+      Array.isArray(error.response?.data?.data?.candidates);
+
+    if (!isDuplicateCandidates) {
+      const { showDialog } = useDialog();
+      showDialog({
+        title: errorMessage,
+        icon: "error",
+        isConfirm: false,
+        timer: 4000,
+      });
+    }
 
     return Promise.reject(error);
   }

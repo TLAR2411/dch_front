@@ -7,6 +7,7 @@ import { requiredValidator } from "@/@core/utils/validators";
 import AppCard from "@/components/AppCard.vue";
 import AppLabel from "@/components/AppLabel.vue";
 import AddEditFamiliesDialog from "@/views/global/families/AddEditFamiliesDialog.vue";
+import successAlert from "@/helper/successAlert.js";
 import { api } from "@/utils/api";
 import { app } from "@/utils/app";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
@@ -363,6 +364,13 @@ const resetForm = () => {
   villages.value = [];
 };
 
+const postStudent = (payload) =>
+  api.post("students-store", payload, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
 const onSubmit = async (validate) => {
   console.log(formData.value);
   const { valid } = await validate;
@@ -374,7 +382,10 @@ const onSubmit = async (validate) => {
     isLoading.value = true;
 
     if (!formData.value.family_id) {
-      console.error("Please select a family or create a new one");
+      successAlert.fire({
+        icon: "error",
+        title: "Please select a family or create a new one",
+      });
       return;
     }
 
@@ -388,18 +399,34 @@ const onSubmit = async (validate) => {
       m_contact: null,
     };
 
-    const res = await api.post("students-store", payload, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    let res;
+    try {
+      res = await postStudent(payload);
+    } catch (error) {
+      const status = error.response?.status;
+      const candidates = error.response?.data?.data?.candidates;
 
-    if (res.data.status) {
+      // Same parents / family often soft-matches siblings — not the same student.
+      // Retry once with confirmed=true; no dialog.
+      if (status === 409 && Array.isArray(candidates) && candidates.length) {
+        res = await postStudent({ ...payload, confirmed: true });
+      } else {
+        throw error;
+      }
+    }
+
+    if (res?.data?.status) {
       resetForm();
       router.push({ name: "admin-students" });
+    } else if (res?.data?.message) {
+      successAlert.fire({ icon: "error", title: res.data.message });
     }
   } catch (error) {
     console.error("Failed to create student:", error);
+    successAlert.fire({
+      icon: "error",
+      title: error.response?.data?.message || "Failed to create student",
+    });
   } finally {
     isLoading.value = false;
   }
@@ -672,7 +699,7 @@ onMounted(async () => {
             variant="tonal"
           >
             {{ guardianTypeLabel(g.type) }}:
-            {{ g.name_en || g.name_kh || g.name || "-" }}
+            {{ g.name_en || g.name_kh || g.user_name || g.name || "-" }}
             <template v-if="g.phone"> · {{ g.phone }}</template>
           </VChip>
         </div>

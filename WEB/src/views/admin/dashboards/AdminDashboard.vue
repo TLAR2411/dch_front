@@ -36,6 +36,14 @@ const totalStudents = computed(() =>
   toNumber(data.value?.students?.total_students),
 );
 
+const enrolledStudents = computed(() =>
+  toNumber(data.value?.students?.enrolled_students),
+);
+
+const notEnrolledStudents = computed(() =>
+  toNumber(data.value?.students?.not_enrolled_students),
+);
+
 const femaleStudents = computed(() =>
   toNumber(data.value?.students?.total_female_students),
 );
@@ -49,10 +57,15 @@ const summaryCards = computed(() => [
     key: "students",
     title: t("Students"),
     value: totalStudents.value,
-    subtitle: t("{female} female · {male} male", {
-      female: femaleStudents.value,
-      male: maleStudents.value,
-    }),
+    subtitle: t(
+      "{enrolled} enrolled · {notEnrolled} not enrolled · {female}F · {male}M",
+      {
+        enrolled: enrolledStudents.value,
+        notEnrolled: notEnrolledStudents.value,
+        female: femaleStudents.value,
+        male: maleStudents.value,
+      },
+    ),
     icon: "tabler-users",
     color: "primary",
     to: { name: "admin-students" },

@@ -6,7 +6,8 @@ import formatTime from "@/utils/formater/formatTime";
 import AddEditSubjectSettingDialog from "./AddEditSubjectSettingDialog.vue";
 import AddEditAssessmentDialog from "./AddEditAssessmentDialog.vue";
 import SubjectSettingRuleList from "./SubjectSettingRuleList.vue";
-import { onMounted, ref, computed } from "vue";
+import { onMounted, ref, computed, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { getSubjects } from "@/services/dataService.js";
 import {
   listGradingLayout,
@@ -21,10 +22,12 @@ import DeleteAlert from "@/helper/deleteAlert.js";
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
 
 import { useYearStore } from "@/stores/yearStore.js";
+import { usePartStore } from "@/stores/partStore.js";
 
 const yearStore = useYearStore();
-
-const yearId = yearStore.year_id;
+const partStore = usePartStore();
+const { year_id: yearId } = storeToRefs(yearStore);
+const { cur_id: curId } = storeToRefs(partStore);
 
 const { mdAndUp } = useDisplay();
 
@@ -73,10 +76,25 @@ const subjectRowKey = (gradeId, subjectId) => `${gradeId}-${subjectId}`;
 const isSubjectOpen = (gradeId, subjectId) =>
   openSubjectKey.value === subjectRowKey(gradeId, subjectId);
 
-const toggleSubject = (subjectRowId) => {
-  openSubjectKey.value =
-    openSubjectKey.value === subjectRowId ? null : subjectRowId;
+const toggleSubject = (gradeId, subject) => {
+  const subjectRowId = subjectRowKey(gradeId, subject.subject_id);
+  const opening = openSubjectKey.value !== subjectRowId;
+
+  openSubjectKey.value = opening ? subjectRowId : null;
   openRuleKey.value = null;
+
+  // Open the most useful panel first: children when they exist, else categories.
+  if (opening) {
+    const sectionKey = subjectSectionKey(gradeId, subject.subject_id);
+    if (!openSubjectSections.value[sectionKey]) {
+      openSubjectSections.value = {
+        ...openSubjectSections.value,
+        [sectionKey]: (subject.child_subjects || []).length
+          ? "child"
+          : "category",
+      };
+    }
+  }
 };
 
 const parentChildKey = (gradeId, parentSubjectId) =>
@@ -260,17 +278,67 @@ const onDelete = async (subjectId, gradeId) => {
 const onCreate = async (data, callback) => {
   try {
     isLoading.value = true;
+
+    const gradeIds = Array.isArray(data.grade_id)
+      ? data.grade_id
+      : data.grade_id != null
+        ? [data.grade_id]
+        : [];
+
+    if (
+      !data.subject_id ||
+      !data.year_id ||
+      !gradeIds.length ||
+      !data.rules?.length
+    ) {
+      successAlert.fire({
+        icon: "error",
+        title: t("year_id, subject_id and grade_id are required"),
+      });
+      callback(false);
+      return;
+    }
+
+    // Same parent/child checks as update — create previously skipped them.
+    const validationMessage = await validateParentChildCategoryMaxScores({
+      subjectId: data.subject_id,
+      yearId: data.year_id,
+      gradeIds,
+      rules: data.rules,
+    });
+
+    if (validationMessage) {
+      successAlert.fire({
+        icon: "error",
+        title: validationMessage,
+      });
+      callback(false);
+      return;
+    }
+
     const res = await api.post("grading-rule-store", data);
     if (res.data.status) {
       await fetchGrades1();
       isDialogVisible.value = false;
     } else {
       console.error("Error with the response:", res.data);
+      successAlert.fire({
+        icon: "error",
+        title: res.data.message || t("Failed to create grading rules"),
+      });
     }
     callback(res.data.status);
     subjects.value = await getSubjects();
   } catch (error) {
-    console.error("Failed to fetch data:", error);
+    console.error("Failed to create grading rules:", error);
+    successAlert.fire({
+      icon: "error",
+      title:
+        error?.response?.data?.message ||
+        error.message ||
+        t("Failed to create grading rules"),
+    });
+    callback(false);
   } finally {
     isLoading.value = false;
   }
@@ -364,13 +432,15 @@ const validateParentChildCategoryMaxScores = async ({
           return sum + Number(row?.max_score || 0);
         }, 0);
 
-        const parentRule = (
-          await listGradingLayout({
-            year_id: selectedYearId,
-            grade_id: gradeId,
-            subject_ids: [subjectRow.parent_id],
-          })
-        ).find((r) => Number(r.category_id) === Number(rule.category_id)) ?? null;
+        const parentRule =
+          (
+            await listGradingLayout({
+              year_id: selectedYearId,
+              grade_id: gradeId,
+              subject_ids: [subjectRow.parent_id],
+            })
+          ).find((r) => Number(r.category_id) === Number(rule.category_id)) ??
+          null;
         if (!parentRule) continue;
 
         const parentMax = Number(parentRule.max_score);
@@ -758,7 +828,9 @@ const fetchGrades1 = async () => {
           ),
       }))
       .sort((a, b) =>
-        String(a.grade?.name_en ?? "").localeCompare(String(b.grade?.name_en ?? "")),
+        String(a.grade?.name_en ?? "").localeCompare(
+          String(b.grade?.name_en ?? ""),
+        ),
       );
 
     const path = `${window.location.origin}${window.location.pathname}`;
@@ -827,9 +899,53 @@ const fetchGrades1 = async () => {
   }
 };
 
-const openCreateDialog = () => {
-  formData.value = {};
+const openCreateDialog = (preset = {}) => {
+  formData.value = {
+    ...preset,
+    isEdit: false,
+  };
   isDialogVisible.value = true;
+};
+
+const openCreateForSubject = (
+  subjectId,
+  gradeId,
+  existingRules,
+  isChild = false,
+) => {
+  openCreateDialog({
+    subject_id: subjectId,
+    grade_id: Array.isArray(gradeId) ? gradeId : [gradeId],
+    existingRules: existingRules || [],
+    lock_subject: true,
+    is_child: isChild,
+  });
+};
+
+/** Parent category max vs sum of matching child category max scores. */
+const categoryRollupRows = (subject) => {
+  const children = subject.child_subjects || [];
+  if (!children.length) return [];
+
+  return (subject.rules || []).map((rule) => {
+    const childSum = children.reduce((sum, child) => {
+      const childRule = (child.rules || []).find(
+        (r) => Number(r.category_id) === Number(rule.category_id),
+      );
+      return sum + Number(childRule?.max_score || 0);
+    }, 0);
+
+    const parentMax = Number(rule.max_score || 0);
+    const matched = Math.abs(parentMax - childSum) <= 0.01;
+
+    return {
+      category_id: rule.category_id,
+      category: rule.category,
+      parentMax,
+      childSum,
+      matched,
+    };
+  });
 };
 
 const openAssessmentDialog = (rule, subjectId) => {
@@ -912,6 +1028,23 @@ const onCreateAssessment = async (data, callback) => {
 
 onMounted(async () => {
   subjects.value = await getSubjects();
+  await fetchGrades1();
+});
+
+watch(curId, async (next, prev) => {
+  if (next === prev) return;
+  openGradeId.value = null;
+  openSubjectKey.value = null;
+  openChildSubjects.value = {};
+  openSubjectSections.value = {};
+  openRuleKey.value = null;
+  isDialogVisible.value = false;
+  isAssessmentDialogVisible.value = false;
+  await fetchGrades1();
+});
+
+watch(yearId, async (next, prev) => {
+  if (next === prev) return;
   await fetchGrades1();
 });
 </script>
@@ -997,8 +1130,8 @@ onMounted(async () => {
               <div class="text-caption text-medium-emphasis">
                 {{
                   reportPart === "khmer" || reportPart === "chinese"
-                    ? grade.grade?.name_en
-                    : grade.grade?.name_kh
+                    ? grade.grade?.name_kh
+                    : grade.grade?.name_en
                 }}
               </div>
             </div>
@@ -1050,8 +1183,8 @@ onMounted(async () => {
                 <div class="text-caption text-medium-emphasis">
                   {{
                     reportPart === "khmer" || reportPart === "chinese"
-                      ? grade.grade?.name_en
-                      : grade.grade?.name_kh
+                      ? grade.grade?.name_kh
+                      : grade.grade?.name_en
                   }}
                 </div>
               </div>
@@ -1084,13 +1217,20 @@ onMounted(async () => {
                 <!-- subject header -->
                 <div
                   class="d-flex align-center justify-space-between pa-4 cursor-pointer"
-                  @click="
-                    toggleSubject(`${grade.grade_id}-${subject.subject_id}`)
-                  "
+                  @click="toggleSubject(grade.grade_id, subject)"
                 >
                   <div class="d-flex align-center gap-3">
-                    <VAvatar color="lightprimary" variant="tonal" size="36" rounded="lg">
-                      <VIcon icon="tabler-book" color="lightprimary" size="18" />
+                    <VAvatar
+                      color="lightprimary"
+                      variant="tonal"
+                      size="36"
+                      rounded="lg"
+                    >
+                      <VIcon
+                        icon="tabler-book"
+                        color="lightprimary"
+                        size="18"
+                      />
                     </VAvatar>
                     <div>
                       <div class="text-body-1 font-weight-bold">
@@ -1117,13 +1257,12 @@ onMounted(async () => {
                         size="small"
                         density="comfortable"
                         @click.stop="
-                          openCreateDialog();
-                          formData = {
-                            subject_id: subject.subject_id,
-                            grade_id: grade.grade_id,
-                            existingRules: subject.rules,
-                            isEdit: false,
-                          };
+                          openCreateForSubject(
+                            subject.subject_id,
+                            grade.grade_id,
+                            subject.rules,
+                            false,
+                          )
                         "
                       >
                       </VBtn>
@@ -1156,7 +1295,7 @@ onMounted(async () => {
 
                     <!-- child subjects count -->
                     <VChip
-                      
+                      v-if="(subject.child_subjects || []).length"
                       size="small"
                       color="secondary"
                       variant="tonal"
@@ -1188,7 +1327,14 @@ onMounted(async () => {
                     variant="text"
                     size="small"
                     density="comfortable"
-                    @click.stop="onEdit(subject.subject_id, 'subject')"
+                    @click.stop="
+                      openCreateForSubject(
+                        subject.subject_id,
+                        grade.grade_id,
+                        subject.rules,
+                        false,
+                      )
+                    "
                   >
                     {{ t("Add Rule") }}
                   </VBtn>
@@ -1199,7 +1345,9 @@ onMounted(async () => {
                     variant="text"
                     size="small"
                     density="comfortable"
-                    @click.stop="onEdit(subject.subject_id)"
+                    @click.stop="
+                      onEdit(subject.subject_id, 'subject', grade.grade_id)
+                    "
                   >
                     {{ t("Edit") }}
                   </VBtn>
@@ -1241,16 +1389,27 @@ onMounted(async () => {
                           "
                         >
                           <div class="d-flex align-center gap-3">
-                            <VAvatar color="lightprimary" variant="tonal" size="36" rounded="lg">
-                              <VIcon icon="tabler-folders" color="lightprimary" size="18" />
+                            <VAvatar
+                              color="lightprimary"
+                              variant="tonal"
+                              size="36"
+                              rounded="lg"
+                            >
+                              <VIcon
+                                icon="tabler-folders"
+                                color="lightprimary"
+                                size="18"
+                              />
                             </VAvatar>
                             <div>
                               <div class="text-body-1 font-weight-bold">
-                                {{ t("Child") }}
+                                {{ t("Child Subjects") }}
                               </div>
                               <div class="text-caption text-medium-emphasis">
                                 {{ (subject.child_subjects || []).length }}
                                 {{ t("subjects") }}
+                                ·
+                                {{ t("Set max scores at 0% weight") }}
                               </div>
                             </div>
                           </div>
@@ -1313,7 +1472,11 @@ onMounted(async () => {
                                       size="36"
                                       rounded="lg"
                                     >
-                                      <VIcon icon="tabler-book-2" color="secondary" size="18" />
+                                      <VIcon
+                                        icon="tabler-book-2"
+                                        color="secondary"
+                                        size="18"
+                                      />
                                     </VAvatar>
                                     <div>
                                       <div class="text-body-1 font-weight-bold">
@@ -1344,13 +1507,12 @@ onMounted(async () => {
                                         size="small"
                                         density="comfortable"
                                         @click.stop="
-                                          openCreateDialog();
-                                          formData = {
-                                            subject_id: childSubject.subject_id,
-                                            grade_id: grade.grade_id,
-                                            existingRules: childSubject.rules,
-                                            isEdit: false,
-                                          };
+                                          openCreateForSubject(
+                                            childSubject.subject_id,
+                                            grade.grade_id,
+                                            childSubject.rules,
+                                            true,
+                                          )
                                         "
                                       />
                                       <VBtn
@@ -1416,13 +1578,12 @@ onMounted(async () => {
                                     size="small"
                                     density="comfortable"
                                     @click.stop="
-                                      openCreateDialog();
-                                      formData = {
-                                        subject_id: childSubject.subject_id,
-                                        grade_id: grade.grade_id,
-                                        existingRules: childSubject.rules,
-                                        isEdit: false,
-                                      };
+                                      openCreateForSubject(
+                                        childSubject.subject_id,
+                                        grade.grade_id,
+                                        childSubject.rules,
+                                        true,
+                                      )
                                     "
                                   >
                                     {{ t("Add Rule") }}
@@ -1476,7 +1637,11 @@ onMounted(async () => {
                                       v-if="!(childSubject.rules || []).length"
                                       class="pa-4 text-caption text-medium-emphasis text-center"
                                     >
-                                      {{ t("No categories yet.") }}
+                                      {{
+                                        t(
+                                          "No categories yet. Add Exam (0%) first; you can add more categories later.",
+                                        )
+                                      }}
                                     </div>
 
                                     <div
@@ -1503,10 +1668,14 @@ onMounted(async () => {
                                       <div
                                         class="d-flex justify-end ga-3 px-1 py-1 text-caption text-medium-emphasis"
                                       >
-                                        <span class="font-weight-bold font-mono">
+                                        <span
+                                          class="font-weight-bold font-mono"
+                                        >
                                           {{ totalMaxScore(childSubject) }}pts
                                         </span>
-                                        <span class="font-weight-bold font-mono">
+                                        <span
+                                          class="font-weight-bold font-mono"
+                                        >
                                           {{ totalPercentage(childSubject) }}%
                                         </span>
                                       </div>
@@ -1536,16 +1705,27 @@ onMounted(async () => {
                           "
                         >
                           <div class="d-flex align-center gap-3">
-                            <VAvatar color="info" variant="tonal" size="36" rounded="lg">
-                              <VIcon icon="tabler-category" color="info" size="18" />
+                            <VAvatar
+                              color="info"
+                              variant="tonal"
+                              size="36"
+                              rounded="lg"
+                            >
+                              <VIcon
+                                icon="tabler-category"
+                                color="info"
+                                size="18"
+                              />
                             </VAvatar>
                             <div>
                               <div class="text-body-1 font-weight-bold">
-                                {{ t("Category") }}
+                                {{ t("Parent Categories") }}
                               </div>
                               <div class="text-caption text-medium-emphasis">
                                 {{ (subject.rules || []).length }}
                                 {{ t("categories") }}
+                                ·
+                                {{ t("Weights should total 100%") }}
                               </div>
                             </div>
                           </div>
@@ -1558,13 +1738,12 @@ onMounted(async () => {
                                 size="small"
                                 density="comfortable"
                                 @click.stop="
-                                  openCreateDialog();
-                                  formData = {
-                                    subject_id: subject.subject_id,
-                                    grade_id: grade.grade_id,
-                                    existingRules: subject.rules,
-                                    isEdit: false,
-                                  };
+                                  openCreateForSubject(
+                                    subject.subject_id,
+                                    grade.grade_id,
+                                    subject.rules,
+                                    false,
+                                  )
                                 "
                               />
                               <VBtn
@@ -1608,13 +1787,12 @@ onMounted(async () => {
                             size="small"
                             density="comfortable"
                             @click.stop="
-                              openCreateDialog();
-                              formData = {
-                                subject_id: subject.subject_id,
-                                grade_id: grade.grade_id,
-                                existingRules: subject.rules,
-                                isEdit: false,
-                              };
+                              openCreateForSubject(
+                                subject.subject_id,
+                                grade.grade_id,
+                                subject.rules,
+                                false,
+                              )
                             "
                           >
                             {{ t("Add Rule") }}
@@ -1626,7 +1804,11 @@ onMounted(async () => {
                             size="small"
                             density="comfortable"
                             @click.stop="
-                              onEdit(subject.subject_id, 'subject', grade.grade_id)
+                              onEdit(
+                                subject.subject_id,
+                                'subject',
+                                grade.grade_id,
+                              )
                             "
                           >
                             {{ t("Edit") }}
@@ -1654,6 +1836,45 @@ onMounted(async () => {
                             </div>
 
                             <div v-else class="d-flex flex-column gap-2 pa-4">
+                              <VAlert
+                                v-if="categoryRollupRows(subject).length"
+                                :color="
+                                  categoryRollupRows(subject).every(
+                                    (r) => r.matched,
+                                  )
+                                    ? 'success'
+                                    : 'warning'
+                                "
+                                variant="tonal"
+                                density="compact"
+                                class="mb-1"
+                              >
+                                <div
+                                  class="text-body-2 font-weight-medium mb-1"
+                                >
+                                  {{ t("Child max-score rollup") }}
+                                </div>
+                                <div
+                                  v-for="row in categoryRollupRows(subject)"
+                                  :key="row.category_id"
+                                  class="d-flex justify-space-between text-caption"
+                                >
+                                  <span>{{ entityLabel(row.category) }}</span>
+                                  <span class="font-mono">
+                                    {{ row.childSum }} / {{ row.parentMax }} pts
+                                    <VIcon
+                                      :icon="
+                                        row.matched
+                                          ? 'tabler-circle-check'
+                                          : 'tabler-alert-circle'
+                                      "
+                                      size="14"
+                                      class="ms-1"
+                                    />
+                                  </span>
+                                </div>
+                              </VAlert>
+
                               <SubjectSettingRuleList
                                 :grade-id="grade.grade_id"
                                 :subject-id="subject.subject_id"

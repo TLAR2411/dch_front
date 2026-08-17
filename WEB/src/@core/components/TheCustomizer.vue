@@ -290,9 +290,10 @@ const resetCustomizer = async () => {
 </script>
 
 <template>
-  <div class="d-lg-block d-none">
+  <div>
     <VBtn
       icon
+      variant="text"
       class="app-customizer-toggler rounded-s-lg rounded-0"
       style="z-index: 1001"
       @click="isNavDrawerOpen = true"
@@ -300,18 +301,19 @@ const resetCustomizer = async () => {
       <VIcon size="22" icon="tabler-settings" />
     </VBtn>
 
-    <VNavigationDrawer
-      v-model="isNavDrawerOpen"
-      data-allow-mismatch
-      temporary
-      touchless
-      border="none"
-      location="end"
-      width="400"
-      elevation="10"
-      :scrim="false"
-      class="app-customizer"
-    >
+    <Teleport to="body">
+      <VNavigationDrawer
+        v-model="isNavDrawerOpen"
+        data-allow-mismatch
+        temporary
+        touchless
+        border="none"
+        location="end"
+        width="400"
+        elevation="10"
+        :scrim="false"
+        class="app-customizer"
+      >
       <!-- 👉 Header -->
       <div class="customizer-heading d-flex align-center justify-space-between">
         <div>
@@ -597,7 +599,8 @@ const resetCustomizer = async () => {
         </CustomizerSection>
         <!-- !SECTION -->
       </PerfectScrollbar>
-    </VNavigationDrawer>
+      </VNavigationDrawer>
+    </Teleport>
   </div>
 </template>
 

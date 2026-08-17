@@ -429,6 +429,9 @@
     "mergeDayRecords": true,
     "recordToStatus": true,
     "resolveReportSubjectId": true,
-    "statusToCode": true
+    "statusToCode": true,
+    "getPartHomeRoute": true,
+    "viewData": true,
+    "viewPage": true
   }
 }

@@ -14,7 +14,7 @@ definePage({
     layout: "default",
     subject: "Auth",
     requiresAuth: true,
-    permissions: "view-activity-log",
+    permissions: "activity-log:view-page",
     // layoutWrapperClasses: "layout-content-height-fixed",
   },
 });

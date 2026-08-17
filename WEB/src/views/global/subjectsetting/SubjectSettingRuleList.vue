@@ -61,19 +61,27 @@ const ruleKey = (rule) =>
           :size="compact ? 28 : 32"
           rounded="lg"
         >
-          <VIcon icon="tabler-category" :size="compact ? 14 : 16" color="info" />
+          <VIcon
+            icon="tabler-category"
+            :size="compact ? 14 : 16"
+            color="info"
+          />
         </VAvatar>
         <div>
           <div
-            :class="compact ? 'text-caption font-weight-bold' : 'text-body-2 font-weight-bold'"
+            :class="
+              compact
+                ? 'text-caption font-weight-bold'
+                : 'text-body-2 font-weight-bold'
+            "
           >
             {{ entityLabel(rule.category) }}
           </div>
           <div class="text-caption text-medium-emphasis">
             {{
               reportPart === "khmer" || reportPart === "chinese"
-                ? rule.category?.name_en
-                : rule.category?.name_kh
+                ? rule.category?.name_kh
+                : rule.category?.name_en
             }}
           </div>
         </div>

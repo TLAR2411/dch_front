@@ -9,7 +9,7 @@ export const journalTabs = [
         title: "Account List",
         icon: "tabler-list-details",
         tab: "list",
-        permission: "view-journals",
+        permission: "journals:view-page",
       },
       {
         title: "Journal",
@@ -21,7 +21,7 @@ export const journalTabs = [
         title: "Close Entry",
         tab: "close-entry",
         icon: "tabler-checklist",
-        permission: "view-close-entries",
+        permission: "close-entries:view-page",
       },
       // {
       //   title: "Income",

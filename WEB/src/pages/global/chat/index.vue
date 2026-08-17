@@ -1,432 +1,744 @@
-<template>
-  <div class="chat-wrapper border">
-    <!-- Header -->
-    <div class="chat-header">
-      <div class="avatar">
-        <span>🏫</span>
-      </div>
-      <div class="header-info">
-        <h2>School Assistant</h2>
-        <span class="status">● Online</span>
-      </div>
-      <div class="role-tabs">
-        <button
-          :class="['role-btn', { active: role === 'parent' }]"
-          @click="setRole('parent')"
-        >
-          Parent
-        </button>
-        <button
-          :class="['role-btn', { active: role === 'teacher' }]"
-          @click="setRole('teacher')"
-        >
-          Teacher
-        </button>
-      </div>
-    </div>
-
-    <!-- Messages -->
-    <div class="chat-messages" ref="messagesEl">
-      <div
-        v-for="(msg, i) in messages"
-        :key="i"
-        :class="['message-row', msg.sender === 'user' ? 'user-row' : 'bot-row']"
-      >
-        <div v-if="msg.sender === 'bot'" class="bot-icon">🤖</div>
-        <div
-          :class="[
-            'bubble',
-            msg.sender === 'user' ? 'user-bubble' : 'bot-bubble',
-          ]"
-        >
-          <span v-html="msg.text"></span>
-          <span class="time">{{ msg.time }}</span>
-        </div>
-      </div>
-
-      <!-- Typing indicator -->
-      <div v-if="isTyping" class="message-row bot-row">
-        <div class="bot-icon">🤖</div>
-        <div class="bubble bot-bubble typing">
-          <span class="dot"></span>
-          <span class="dot"></span>
-          <span class="dot"></span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Quick suggestions -->
-    <div class="quick-btns">
-      <button
-        v-for="q in quickQuestions"
-        :key="q"
-        class="quick-btn"
-        @click="sendQuick(q)"
-      >
-        {{ q }}
-      </button>
-    </div>
-
-    <!-- Input area -->
-    <div class="chat-input">
-      <input
-        v-model="inputText"
-        type="text"
-        :placeholder="'Ask something as a ' + role + '...'"
-        @keydown.enter="sendMessage"
-      />
-      <button
-        class="send-btn"
-        @click="sendMessage"
-        :disabled="!inputText.trim()"
-      >
-        ➤
-      </button>
-    </div>
-  </div>
-</template>
-
 <script setup>
-import { ref, computed, nextTick } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
+import { useDisplay } from "vuetify";
+import { useAuthStore } from "@/stores/authStore";
+import { usePartStore } from "@/stores/partStore";
+import { useSettingStore } from "@/stores/settingStore";
+import {
+  listClassChats,
+  listChatMessages,
+  sendChatMessage,
+  editChatMessage,
+  deleteChatMessage,
+} from "@/services/api/classChat";
+import { useChatUnreadStore } from "@/stores/chatUnreadStore";
+import { useDialog } from "@/composable/useDialog";
 
-// --- State ---
-const role = ref("parent");
-const inputText = ref("");
-const isTyping = ref(false);
-const messagesEl = ref(null);
-
-const messages = ref([
-  {
-    sender: "bot",
-    text: "Hello! I am your school assistant. How can I help you today?",
-    time: now(),
+definePage({
+  meta: {
+    title: "Chat",
+    layout: "default",
+    subject: "Auth",
+    requiresAuth: true,
+    layoutWrapperClasses: "layout-content-height-fixed",
   },
-]);
+});
 
-// --- Quick questions per role ---
-const parentQuestions = [
-  "What time does school end?",
-  "How is my child doing?",
-  "When is the next exam?",
-  "Is the fee paid?",
-];
-const teacherQuestions = [
-  "Who is absent today?",
-  "Show Grade 3 summary",
-  "When is parent meeting?",
-  "List low performers",
-];
-const quickQuestions = computed(() =>
-  role.value === "parent" ? parentQuestions : teacherQuestions,
-);
+const authStore = useAuthStore();
+const partStore = usePartStore();
+const settingStore = useSettingStore();
+const chatUnreadStore = useChatUnreadStore();
+const { showDialog } = useDialog();
+const { system_part: systemPart } = storeToRefs(partStore);
+const { branch_id: branchId } = storeToRefs(settingStore);
+const { mdAndUp } = useDisplay();
 
-// --- Preset answers (replace with real API call in production) ---
-const parentAnswers = {
-  "what time does school end": "School ends at <b>3:00 PM</b> today. 🕒",
-  "how is my child doing":
-    "Your child <b>Sophea</b>:<br>• Math: 85/100 ✅<br>• Khmer: 78/100 ✅<br>• Science: 90/100 ⭐",
-  "when is the next exam":
-    "Next exam: <b>June 15, 2026</b> — Math & Khmer for Grade 1–3.",
-  "is the fee paid": "June fee of <b>$45 is unpaid</b>. Due: June 10, 2026. 💳",
-};
-const teacherAnswers = {
-  "who is absent today":
-    "Today's absences in Grade 2A:<br>• Dara Sok<br>• Maly Chan<br>• Piseth Ros",
-  "show grade 3 summary":
-    "Grade 3 — June 2026:<br>• Avg score: <b>76.4%</b><br>• Top: Sokha Pov (94%)<br>• Need support: 4 students",
-  "when is parent meeting":
-    "Parent-Teacher Meeting: <b>June 20, 2026</b>, 8 AM–12 PM. 12 confirmed.",
-  "list low performers":
-    "Below 60% this term:<br>• Vuthy Keo — 52%<br>• Sreymom Tep — 58%<br>• Rithy Hang — 49%",
-};
+const loadingChats = ref(false);
+const loadingMessages = ref(false);
+const sending = ref(false);
+const search = ref("");
+const chats = ref([]);
+const activeChat = ref(null);
+const messages = ref([]);
+const draft = ref("");
+const pendingFile = ref(null);
+const messagesEl = ref(null);
+const fileInput = ref(null);
+/** Own message currently being edited (Telegram-style). */
+const editingMessage = ref(null);
+/** On small screens: false = chat list, true = conversation. */
+const mobileShowChat = ref(false);
+let pollTimer = null;
+let listPollTimer = null;
 
-// --- Methods ---
-function now() {
-  return new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+const currentUserId = computed(() => Number(authStore.id || authStore.user?.id || 0));
 
-function setRole(newRole) {
-  role.value = newRole;
-  messages.value.push({
-    sender: "bot",
-    text: `Switched to <b>${newRole === "parent" ? "Parent" : "Teacher"}</b> mode. What would you like to know?`,
-    time: now(),
-  });
-  scrollDown();
-}
+const showChatList = computed(() => mdAndUp.value || !mobileShowChat.value);
+const showConversation = computed(() => mdAndUp.value || mobileShowChat.value);
 
-function sendQuick(q) {
-  inputText.value = q;
-  sendMessage();
-}
-
-async function sendMessage() {
-  const text = inputText.value.trim();
-  if (!text) return;
-
-  // Add user message
-  messages.value.push({ sender: "user", text, time: now() });
-  inputText.value = "";
-  scrollDown();
-
-  // Show typing
-  isTyping.value = true;
-  await new Promise((r) => setTimeout(r, 800));
-  isTyping.value = false;
-
-  // Find answer
-  const key = text.toLowerCase();
-  const answers = role.value === "parent" ? parentAnswers : teacherAnswers;
-  const matched = Object.keys(answers).find(
-    (k) => key.includes(k.split(" ")[0]) && key.includes(k.split(" ").at(-1)),
+const filteredChats = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) return chats.value;
+  return chats.value.filter(
+    (c) =>
+      (c.name_en || "").toLowerCase().includes(q) ||
+      (c.name_kh || "").toLowerCase().includes(q),
   );
+});
 
-  const reply = matched
-    ? answers[matched]
-    : "I'm not sure about that. Please contact the school office directly. 🙏";
+const isEditing = computed(() => Boolean(editingMessage.value));
 
-  messages.value.push({ sender: "bot", text: reply, time: now() });
-  scrollDown();
+const canSend = computed(() => {
+  if (sending.value) return false;
+  if (isEditing.value) return Boolean(draft.value.trim());
+  return Boolean(draft.value.trim() || pendingFile.value);
+});
+
+function isOwnMessage(msg) {
+  return msg.sender_type === "user" && Number(msg.sender_id) === currentUserId.value;
 }
 
-async function scrollDown() {
+function canEditMessage(msg) {
+  return (
+    isOwnMessage(msg) &&
+    !msg.is_deleted &&
+    (msg.message_type === "text" || Boolean(msg.content))
+  );
+}
+
+function canDeleteMessage(msg) {
+  return isOwnMessage(msg) && !msg.is_deleted;
+}
+
+function replaceMessage(updated) {
+  if (!updated?.id) return;
+  messages.value = messages.value.map((msg) =>
+    Number(msg.id) === Number(updated.id) ? { ...msg, ...updated } : msg,
+  );
+}
+
+function formatTime(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleString();
+}
+
+function attachmentUrl(msg) {
+  return msg.attachments?.[0]?.file_url || msg.content;
+}
+
+function clearChatUnread(chatId) {
+  const chat = chats.value.find((c) => c.chat_id === chatId);
+  if (chat) chat.unread_count = 0;
+  chatUnreadStore.applyFromChatList(chats.value);
+}
+
+async function loadChats({ quiet = false } = {}) {
+  if (!quiet) loadingChats.value = true;
+  try {
+    chats.value = await listClassChats();
+    chatUnreadStore.applyFromChatList(chats.value);
+
+    const stillActive = chats.value.find(
+      (chat) => chat.chat_id === activeChat.value?.chat_id,
+    );
+    if (stillActive) {
+      activeChat.value = stillActive;
+      // Only fetch+mark-read when the conversation pane is actually open.
+      if (!quiet && (mdAndUp.value || mobileShowChat.value) && activeChat.value) {
+        await loadMessages();
+      }
+    } else if (!quiet) {
+      // Do NOT auto-open the first chat — that immediately mark-reads it and
+      // wipes unread badges before the user can see them.
+      activeChat.value = null;
+      messages.value = [];
+      mobileShowChat.value = false;
+      stopMessagePolling();
+    }
+  } finally {
+    if (!quiet) loadingChats.value = false;
+  }
+}
+
+async function loadMessages() {
+  if (!activeChat.value) return;
+  loadingMessages.value = messages.value.length === 0;
+  try {
+    messages.value = await listChatMessages(activeChat.value.chat_id, {
+      limit: 100,
+    });
+    clearChatUnread(activeChat.value.chat_id);
+    await scrollToBottom();
+  } finally {
+    loadingMessages.value = false;
+  }
+}
+
+async function selectChat(chat) {
+  activeChat.value = chat;
+  messages.value = [];
+  mobileShowChat.value = true;
+  await loadMessages();
+  startMessagePolling();
+}
+
+function backToChatList() {
+  mobileShowChat.value = false;
+  void loadChats({ quiet: true });
+}
+
+function startMessagePolling() {
+  stopMessagePolling();
+  pollTimer = setInterval(() => {
+    if (activeChat.value) void loadMessagesQuiet();
+  }, 5000);
+}
+
+function stopMessagePolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+function startListPolling() {
+  stopListPolling();
+  listPollTimer = setInterval(() => {
+    void loadChats({ quiet: true });
+  }, 15000);
+}
+
+function stopListPolling() {
+  if (listPollTimer) {
+    clearInterval(listPollTimer);
+    listPollTimer = null;
+  }
+}
+
+function isNearBottom(threshold = 100) {
+  const el = messagesEl.value;
+  if (!el) return true;
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+}
+
+async function loadMessagesQuiet() {
+  if (!activeChat.value || loadingMessages.value || sending.value) return;
+  try {
+    const stickToBottom = isNearBottom();
+    messages.value = await listChatMessages(activeChat.value.chat_id, {
+      limit: 100,
+    });
+    clearChatUnread(activeChat.value.chat_id);
+    // Only follow new messages if the user is already at the bottom.
+    // Scrolling up to read history must not jump back down on poll.
+    if (stickToBottom) {
+      await scrollToBottom();
+    }
+  } catch {
+    // polling errors are non-fatal
+  }
+}
+
+async function scrollToBottom() {
   await nextTick();
   if (messagesEl.value) {
     messagesEl.value.scrollTop = messagesEl.value.scrollHeight;
   }
 }
+
+function onFileSelected(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  pendingFile.value = file;
+  event.target.value = "";
+}
+
+function clearPendingFile() {
+  pendingFile.value = null;
+}
+
+function startEditMessage(msg) {
+  if (!canEditMessage(msg)) return;
+  editingMessage.value = msg;
+  draft.value = msg.content || "";
+  clearPendingFile();
+}
+
+function cancelEdit() {
+  editingMessage.value = null;
+  draft.value = "";
+}
+
+async function confirmDeleteMessage(msg) {
+  if (!canDeleteMessage(msg)) return;
+  const ok = await showDialog({
+    title: "Delete message?",
+    icon: "warning",
+    isConfirm: true,
+    isCancel: true,
+  });
+  if (!ok) return;
+
+  sending.value = true;
+  try {
+    const updated = await deleteChatMessage(msg.id);
+    replaceMessage(updated);
+    if (editingMessage.value && Number(editingMessage.value.id) === Number(msg.id)) {
+      cancelEdit();
+    }
+  } finally {
+    sending.value = false;
+  }
+}
+
+async function sendMessage() {
+  if (!activeChat.value || !canSend.value) return;
+  sending.value = true;
+  try {
+    if (editingMessage.value) {
+      const updated = await editChatMessage({
+        messageId: editingMessage.value.id,
+        content: draft.value.trim(),
+      });
+      replaceMessage(updated);
+      cancelEdit();
+      return;
+    }
+
+    const sent = await sendChatMessage({
+      chatId: activeChat.value.chat_id,
+      content: draft.value.trim(),
+      file: pendingFile.value,
+    });
+    draft.value = "";
+    clearPendingFile();
+    if (sent) {
+      messages.value = [...messages.value.filter((msg) => msg.id !== sent.id), sent];
+      await scrollToBottom();
+    }
+    await loadMessages();
+  } finally {
+    sending.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadChats();
+  startListPolling();
+});
+onBeforeUnmount(() => {
+  stopMessagePolling();
+  stopListPolling();
+});
+
+watch([systemPart, branchId], () => {
+  void loadChats();
+  void chatUnreadStore.refresh();
+});
 </script>
 
-<style scoped>
-/* Layout */
-.chat-wrapper {
-  height: 100%;
-  max-width: 50%;
+<template>
+  <div class="class-chat-layout border rounded">
+    <aside v-show="showChatList" class="chat-list-pane">
+      <div class="chat-list-header pa-3">
+        <h3 class="text-h6">{{ $t("Chat") }}</h3>
+        <p class="text-caption text-medium-emphasis mb-0">
+          {{ $t("Class group chats") }}
+          <span v-if="systemPart"> · {{ systemPart }}</span>
+        </p>
+        <AppTextField
+          v-model="search"
+          class="mt-3"
+          density="compact"
+          hide-details
+          :placeholder="$t('Search')"
+        />
+      </div>
+      <VDivider />
+      <div class="chat-list-body">
+        <VProgressLinear v-if="loadingChats" indeterminate />
+        <VList v-else nav density="comfortable">
+          <VListItem
+            v-for="chat in filteredChats"
+            :key="chat.chat_id"
+            :active="activeChat?.chat_id === chat.chat_id"
+            @click="selectChat(chat)"
+          >
+            <template #append>
+              <VChip
+                v-if="Number(chat.unread_count) > 0"
+                color="error"
+                size="x-small"
+                label
+              >
+                {{ chat.unread_count > 99 ? "99+" : chat.unread_count }}
+              </VChip>
+            </template>
+            <VListItemTitle
+              :class="{ 'font-weight-bold': Number(chat.unread_count) > 0 }"
+            >
+              {{ chat.name_en || chat.name_kh }}
+            </VListItemTitle>
+            <VListItemSubtitle v-if="chat.name_kh && chat.name_en">
+              {{ chat.name_kh }}
+            </VListItemSubtitle>
+          </VListItem>
+          <div
+            v-if="!filteredChats.length"
+            class="pa-4 text-center text-medium-emphasis text-body-2"
+          >
+            {{ $t("No class chats available") }}
+          </div>
+        </VList>
+      </div>
+    </aside>
 
-  font-family: "Segoe UI", sans-serif;
+    <section v-show="showConversation" class="chat-main d-flex flex-column">
+      <template v-if="activeChat">
+        <div class="chat-main-header pa-3 d-flex align-center gap-2">
+          <VBtn
+            v-if="!mdAndUp"
+            icon
+            variant="text"
+            size="small"
+            class="flex-shrink-0"
+            :aria-label="$t('Back')"
+            @click="backToChatList"
+          >
+            <VIcon icon="tabler-arrow-left" />
+          </VBtn>
+          <div class="chat-main-header-text">
+            <div class="text-h6 text-truncate">
+              {{ activeChat.name_en || activeChat.name_kh }}
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              {{ $t("Class group chat") }}
+            </div>
+          </div>
+        </div>
+        <VDivider />
+
+        <div ref="messagesEl" class="chat-messages flex-grow-1 pa-3 pa-md-4">
+          <VProgressLinear v-if="loadingMessages" indeterminate class="mb-2" />
+          <div
+            v-for="msg in messages"
+            :key="msg.id"
+            class="message-row mb-4"
+            :class="{ 'message-row-own': isOwnMessage(msg) }"
+          >
+            <div class="message-card">
+              <div class="message-meta text-caption text-medium-emphasis mb-1 d-flex align-center flex-wrap ga-1">
+                <strong>{{ msg.sender_name || $t("Unknown") }}</strong>
+                <span class="message-time">{{ formatTime(msg.created_at) }}</span>
+                <span v-if="msg.is_edited && !msg.is_deleted" class="message-edited">
+                  ({{ $t("edited") }})
+                </span>
+                <VMenu v-if="canEditMessage(msg) || canDeleteMessage(msg)">
+                  <template #activator="{ props: menuProps }">
+                    <VBtn
+                      v-bind="menuProps"
+                      icon
+                      size="x-small"
+                      variant="text"
+                      class="message-actions-btn"
+                      :aria-label="$t('Edit')"
+                    >
+                      <VIcon size="16" icon="tabler-dots-vertical" />
+                    </VBtn>
+                  </template>
+                  <VList density="compact" nav>
+                    <VListItem
+                      v-if="canEditMessage(msg)"
+                      :title="$t('Edit')"
+                      prepend-icon="tabler-edit"
+                      @click="startEditMessage(msg)"
+                    />
+                    <VListItem
+                      v-if="canDeleteMessage(msg)"
+                      :title="$t('Delete')"
+                      prepend-icon="tabler-trash"
+                      base-color="error"
+                      @click="confirmDeleteMessage(msg)"
+                    />
+                  </VList>
+                </VMenu>
+              </div>
+
+              <div
+                v-if="msg.is_deleted"
+                class="message-bubble message-bubble-deleted"
+                :class="{ 'message-bubble-own': isOwnMessage(msg) }"
+              >
+                <em>{{ $t("This message was deleted") }}</em>
+              </div>
+
+              <div
+                v-else-if="msg.message_type === 'text'"
+                class="message-bubble"
+                :class="{ 'message-bubble-own': isOwnMessage(msg) }"
+              >
+                {{ msg.content }}
+              </div>
+
+              <div
+                v-else-if="msg.message_type === 'image'"
+                class="message-media"
+                :class="{ 'message-media-own': isOwnMessage(msg) }"
+              >
+                <img
+                  :src="attachmentUrl(msg)"
+                  :alt="msg.attachments?.[0]?.file_name || 'image'"
+                  class="chat-image"
+                  loading="lazy"
+                />
+                <div v-if="msg.content" class="message-caption mt-1">
+                  {{ msg.content }}
+                </div>
+              </div>
+
+              <div
+                v-else-if="msg.message_type === 'video'"
+                class="message-media"
+                :class="{ 'message-media-own': isOwnMessage(msg) }"
+              >
+                <video
+                  :src="attachmentUrl(msg)"
+                  controls
+                  class="chat-video"
+                  preload="metadata"
+                />
+                <div v-if="msg.content" class="message-caption mt-1">
+                  {{ msg.content }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <VDivider />
+        <div class="chat-composer pa-3">
+          <div
+            v-if="isEditing"
+            class="editing-banner mb-2 d-flex align-center justify-space-between gap-2"
+          >
+            <div class="text-caption text-medium-emphasis text-truncate">
+              {{ $t("Editing message") }}:
+              <strong>{{ editingMessage.content }}</strong>
+            </div>
+            <VBtn icon size="x-small" variant="text" @click="cancelEdit">
+              <VIcon icon="tabler-x" />
+            </VBtn>
+          </div>
+          <div v-if="pendingFile && !isEditing" class="pending-file mb-2 d-flex align-center gap-2">
+            <VChip closable class="text-truncate" @click:close="clearPendingFile">
+              {{ pendingFile.name }}
+            </VChip>
+          </div>
+          <div class="chat-composer-row">
+            <VBtn
+              v-if="!isEditing"
+              icon
+              variant="text"
+              class="flex-shrink-0"
+              :disabled="sending"
+              @click="fileInput?.click()"
+            >
+              <VIcon icon="tabler-paperclip" />
+            </VBtn>
+            <input
+              ref="fileInput"
+              type="file"
+              accept="image/*,video/*"
+              class="d-none"
+              @change="onFileSelected"
+            />
+            <AppTextField
+              v-model="draft"
+              class="chat-composer-input"
+              density="comfortable"
+              hide-details
+              :placeholder="isEditing ? $t('Editing message') : $t('Type a message')"
+              @keydown.enter.prevent="sendMessage"
+              @keydown.esc="cancelEdit"
+            />
+            <VBtn
+              color="primary"
+              class="flex-shrink-0"
+              :loading="sending"
+              :disabled="!canSend"
+              @click="sendMessage"
+            >
+              {{ isEditing ? $t("Edit") : $t("Send") }}
+            </VBtn>
+          </div>
+        </div>
+      </template>
+
+      <div
+        v-else
+        class="flex-grow-1 d-flex align-center justify-center text-medium-emphasis pa-4 text-center"
+      >
+        {{ $t("Select a class chat to start") }}
+      </div>
+    </section>
+  </div>
+</template>
+
+<style scoped>
+.class-chat-layout {
+  display: flex;
+  height: calc(100vh - 8rem);
+  min-height: 28rem;
+  overflow: hidden;
+  background: rgb(var(--v-theme-surface));
+}
+
+.chat-list-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 300px;
+  width: 300px;
+  max-width: 100%;
+  border-inline-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  min-width: 0;
+}
+
+.chat-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.chat-list-header,
+.chat-main-header,
+.chat-composer {
+  flex-shrink: 0;
+  background: rgb(var(--v-theme-surface));
+}
+
+.chat-main-header-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.chat-list-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.chat-messages {
+  overflow-y: auto;
+  min-height: 0;
   background: #f5f7fa;
 }
 
-@media (max-width: 480px) {
-  .chat-wrapper {
-    max-width: 100%;
-    height: 100dvh; /* dvh = dynamic viewport height, fixes mobile browser bar */
-  }
-}
-
-/* Header */
-.chat-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  background: #ffffff;
-  border-bottom: 1px solid #e8eaed;
-}
-.avatar {
-  width: 40px;
-  height: 40px;
-  background: #e8f0fe;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-}
-.header-info h2 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1a1a2e;
-}
-.status {
-  font-size: 11px;
-  color: #34a853;
-}
-.role-tabs {
-  margin-left: auto;
-  display: flex;
-  gap: 6px;
-}
-.role-btn {
-  padding: 5px 12px;
-  border-radius: 20px;
-  border: 1px solid #ddd;
-  background: transparent;
-  color: #666;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.role-btn.active {
-  background: #1a73e8;
-  border-color: #1a73e8;
-  color: #fff;
-}
-
-/* Messages area */
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.message-row {
+.chat-composer-row {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-}
-.user-row {
-  flex-direction: row-reverse;
-}
-.bot-icon {
-  width: 30px;
-  height: 30px;
-  background: #e8f0fe;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  flex-shrink: 0;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
-/* Bubbles */
-.bubble {
-  max-width: 72%;
-  padding: 10px 14px;
-  border-radius: 18px;
-  font-size: 14px;
-  line-height: 1.5;
-  position: relative;
+.chat-composer-input {
+  flex: 1 1 auto;
+  min-width: 0;
 }
-.bot-bubble {
-  background: #ffffff;
-  color: #1a1a2e;
-  border-bottom-left-radius: 4px;
-  border: 1px solid #e8eaed;
+
+.message-row {
+  display: flex;
+  justify-content: flex-start;
+  min-width: 0;
 }
-.user-bubble {
-  background: #1a73e8;
-  color: #ffffff;
-  border-bottom-right-radius: 4px;
+
+.message-row-own {
+  justify-content: flex-end;
 }
-.time {
-  display: block;
-  font-size: 10px;
-  margin-top: 4px;
-  opacity: 0.55;
+
+.message-card {
+  max-width: min(85%, 520px);
+  min-width: 0;
+}
+
+.message-row-own .message-card {
   text-align: right;
 }
 
-/* Typing dots */
-.typing {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  padding: 12px 16px;
-}
-.dot {
-  width: 7px;
-  height: 7px;
-  background: #aaa;
-  border-radius: 50%;
-  animation: bounce 1.2s infinite;
-}
-.dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-.dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-@keyframes bounce {
-  0%,
-  80%,
-  100% {
-    transform: translateY(0);
-  }
-  40% {
-    transform: translateY(-6px);
-  }
+.message-meta {
+  overflow-wrap: anywhere;
+  gap: 0.35rem;
 }
 
-/* Quick buttons */
-.quick-btns {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 16px;
-  background: #fff;
-  border-top: 1px solid #e8eaed;
-}
-.quick-btn {
-  padding: 5px 12px;
-  border-radius: 20px;
-  border: 1px solid #ddd;
-  background: #f8f9fa;
-  color: #444;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.15s;
+.message-time {
   white-space: nowrap;
-}
-.quick-btn:hover {
-  background: #e8f0fe;
-  border-color: #1a73e8;
-  color: #1a73e8;
+  font-size: 10px;
 }
 
-/* Input */
-.chat-input {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #ffffff;
-  border-top: 1px solid #e8eaed;
+.message-edited {
+  white-space: nowrap;
+  font-style: italic;
+  opacity: 0.85;
+  font-size: 10px;
 }
-.chat-input input {
-  flex: 1;
-  padding: 10px 14px;
-  border-radius: 24px;
-  border: 1px solid #ddd;
-  outline: none;
-  font-size: 14px;
-  background: #f8f9fa;
-  transition: border 0.2s;
+
+.message-actions-btn {
+  opacity: 0.55;
 }
-.chat-input input:focus {
-  border-color: #1a73e8;
-  background: #fff;
+
+.message-actions-btn:hover {
+  opacity: 1;
 }
-.send-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: none;
-  background: #1a73e8;
-  color: #fff;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    background 0.2s,
-    transform 0.1s;
+
+.message-bubble,
+.message-media {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: start;
 }
-.send-btn:hover {
-  background: #1557b0;
+
+.message-bubble-own,
+.message-media-own {
+  background: #1976d2;
+  color: white;
+  border-color: #1976d2;
 }
-.send-btn:active {
-  transform: scale(0.93);
+
+.message-bubble-deleted {
+  opacity: 0.75;
+  font-style: italic;
 }
-.send-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
+
+.editing-banner {
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-primary), 0.08);
+  border-inline-start: 3px solid rgb(var(--v-theme-primary));
+}
+
+.chat-image {
+  display: block;
+  width: 100%;
+  max-width: min(100%, 420px);
+  max-height: 320px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #000;
+}
+
+.chat-video {
+  display: block;
+  width: 100%;
+  max-width: min(100%, 480px);
+  max-height: 360px;
+  border-radius: 12px;
+  background: #000;
+}
+
+.message-caption {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 959px) {
+  .class-chat-layout {
+    height: calc(100vh - 6.5rem);
+    min-height: 0;
+  }
+
+  .chat-list-pane,
+  .chat-main {
+    flex: 1 1 100%;
+    width: 100%;
+    border-inline-end: none;
+  }
 }
 </style>

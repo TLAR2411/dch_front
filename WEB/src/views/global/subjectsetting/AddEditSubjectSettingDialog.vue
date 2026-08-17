@@ -1,10 +1,10 @@
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { debounce } from "lodash";
-import { requiredValidator } from "@/@core/utils/validators";
 import { useI18n } from "vue-i18n";
 import { usePartStore } from "@/stores/partStore";
 import { getCategories, getGrades, getSubjects } from "@/services/dataService";
+import { showSubject } from "@/services/api/subjects";
 import AppTextField from "@/@core/components/app-form-elements/AppTextField.vue";
 import { useDisplay } from "vuetify";
 import AppAddEditDrawer from "@/components/AppAddEditDrawer.vue";
@@ -26,6 +26,8 @@ const isAllGrade = ref(false);
 const isSelectGrade = ref(true);
 
 const existingRules = ref([]);
+const selectedSubjectMeta = ref(null);
+const subjectLocked = ref(false);
 
 const props = defineProps({
   itemData: {
@@ -56,10 +58,9 @@ const categories = ref([]);
 const subjects = ref([]);
 const grades = ref([]);
 
-// default empty rule row
-const emptyRule = () => ({
+const emptyRule = (isChild = false) => ({
   category_id: null,
-  percentage: null,
+  percentage: isChild ? 0 : null,
   max_score: null,
 });
 
@@ -70,10 +71,63 @@ const itemData = ref({
   rules: [emptyRule()],
 });
 
-// applies default rule row if rules are empty
+const isChildSubject = computed(() => Boolean(selectedSubjectMeta.value?.parent_id));
+
+const dialogTitle = computed(() => {
+  if (itemData.value.isEdit) {
+    return isChildSubject.value
+      ? t("Update Child Categories")
+      : t("Update Subject Setting");
+  }
+
+  return isChildSubject.value
+    ? t("Add Child Categories")
+    : t("Add Subject Setting");
+});
+
 const applyDefaultRule = () => {
   if (!itemData.value.rules || itemData.value.rules.length === 0) {
-    itemData.value.rules = [emptyRule()];
+    itemData.value.rules = [emptyRule(isChildSubject.value)];
+  }
+};
+
+const ensureSubjectInList = (subjectRow) => {
+  if (!subjectRow?.id) return;
+  if (!subjects.value.some((s) => Number(s.id) === Number(subjectRow.id))) {
+    subjects.value = [...subjects.value, subjectRow];
+  }
+};
+
+const applyChildPercentageDefaults = () => {
+  if (!isChildSubject.value) return;
+  itemData.value.rules = (itemData.value.rules || []).map((rule) => ({
+    ...rule,
+    percentage: 0,
+  }));
+};
+
+const resolveSelectedSubject = async (subjectId) => {
+  if (!subjectId) {
+    selectedSubjectMeta.value = null;
+    return;
+  }
+
+  const cached = subjects.value.find((s) => Number(s.id) === Number(subjectId));
+  if (cached?.parent_id != null || cached?.parent_id === null) {
+    // Parent list from subjects-all has no parent_id field; treat missing as parent
+    // unless we already enriched the row.
+  }
+
+  try {
+    const subjectRow = await showSubject(subjectId);
+    selectedSubjectMeta.value = subjectRow;
+    ensureSubjectInList(subjectRow);
+    applyChildPercentageDefaults();
+  } catch (error) {
+    console.error("Failed to resolve subject:", error);
+    selectedSubjectMeta.value = cached
+      ? { ...cached, parent_id: cached.parent_id ?? null }
+      : null;
   }
 };
 
@@ -89,17 +143,30 @@ watch(
       rules:
         newData?.rules && newData.rules.length
           ? newData.rules.map((r) => ({ ...r }))
-          : [emptyRule()],
+          : [emptyRule(Boolean(newData?.is_child))],
     };
 
-    console.log("newDataEdit", newData);
-
+    subjectLocked.value = Boolean(newData?.lock_subject);
     existingRules.value = newData?.existingRules
       ? newData.existingRules.map((r) => ({ ...r }))
       : [];
     applyDefaultRule();
+
+    if (newData?.subject_id) {
+      resolveSelectedSubject(newData.subject_id);
+    } else {
+      selectedSubjectMeta.value = null;
+    }
   },
   { deep: true, immediate: true },
+);
+
+watch(
+  () => itemData.value.subject_id,
+  (subjectId, prevId) => {
+    if (Number(subjectId) === Number(prevId)) return;
+    resolveSelectedSubject(subjectId);
+  },
 );
 
 const resetData = () => {
@@ -112,22 +179,20 @@ const resetData = () => {
   isAllGrade.value = false;
   isSelectGrade.value = true;
   existingRules.value = [];
+  selectedSubjectMeta.value = null;
+  subjectLocked.value = false;
   applyDefaultRule();
 };
 
-// add a new empty rule row
 const addRule = () => {
-  itemData.value.rules.push(emptyRule());
+  itemData.value.rules.push(emptyRule(isChildSubject.value));
 };
 
-// remove a rule row by index (keep at least 1 row)
 const removeRule = (index) => {
   if (itemData.value.rules.length > 1) {
     itemData.value.rules.splice(index, 1);
   }
 };
-
-// returns categories not yet used in OTHER rows (current row keeps its own selection visible)
 
 const availableCategories = (index) => {
   const usedInExisting = existingRules.value
@@ -143,7 +208,6 @@ const availableCategories = (index) => {
   return categories.value.filter((c) => !usedIds.includes(c.id));
 };
 
-// sum of all percentage values across rules
 const totalPercentage = computed(() => {
   const existingSum = existingRules.value.reduce((sum, r) => {
     const val = parseFloat(r.percentage);
@@ -158,20 +222,60 @@ const totalPercentage = computed(() => {
   return existingSum + newSum;
 });
 
-const isOverLimit = computed(() => totalPercentage.value > 100);
-const isComplete = computed(() => totalPercentage.value === 100);
+const formPercentageTotal = computed(() =>
+  itemData.value.rules.reduce((sum, r) => {
+    const val = parseFloat(r.percentage);
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0),
+);
+
+const isOverLimit = computed(() => {
+  if (isChildSubject.value) {
+    // New rows must stay at 0%. Existing DB rows are not edited in create mode.
+    return formPercentageTotal.value > 0;
+  }
+  return totalPercentage.value > 100;
+});
+
+const isComplete = computed(() => {
+  if (isChildSubject.value) return formPercentageTotal.value === 0;
+  return totalPercentage.value === 100;
+});
+
+const canAddMoreRules = computed(() => {
+  if (isChildSubject.value) {
+    return (
+      availableCategories(itemData.value.rules.length - 1).length > 0 &&
+      itemData.value.rules.length < categories.value.length
+    );
+  }
+
+  return (
+    !isComplete.value &&
+    !isOverLimit.value &&
+    availableCategories(itemData.value.rules.length - 1).length > 0 &&
+    itemData.value.rules.length < categories.value.length
+  );
+});
 
 const onFormSubmit = debounce(async (refForm) => {
   const { valid } = await refForm;
   if (!valid) return;
 
-  if (totalPercentage.value > 100) {
+  if (isChildSubject.value) {
+    applyChildPercentageDefaults();
+    if (formPercentageTotal.value > 0) return;
+  } else if (totalPercentage.value > 100) {
     return;
   }
 
   const payload = {
     ...itemData.value,
-    year_id: yearId.value, // <-- add this
+    year_id: yearId.value,
+    rules: (itemData.value.rules || []).map((rule) => ({
+      ...rule,
+      percentage: isChildSubject.value ? 0 : rule.percentage,
+    })),
   };
 
   const itemId = itemData.value.isEdit || null;
@@ -191,15 +295,14 @@ const onCloseDialog = () => {
   emit("update:isDialogVisible", false);
 };
 
-const dialogModelValueUpdate = (newVal) => {
-  emit("update:isDialogVisible", newVal);
-};
-
 onMounted(async () => {
   categories.value = await getCategories();
-  subjects.value = await getSubjects();
+  subjects.value = (await getSubjects()) || [];
   grades.value = await getGrades();
   applyDefaultRule();
+  if (itemData.value.subject_id) {
+    await resolveSelectedSubject(itemData.value.subject_id);
+  }
 });
 </script>
 
@@ -207,13 +310,27 @@ onMounted(async () => {
   <AppAddEditDialog
     v-if="!xs"
     max-width="700"
-    :title="itemData.isEdit ? t('Update Subjects') : t('Create Subjects')"
+    :title="dialogTitle"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
+    <VAlert
+      v-if="isChildSubject"
+      class="mb-4"
+      type="info"
+      variant="tonal"
+      density="compact"
+    >
+      {{
+        t(
+          "Child subject categories use 0% weight. Set max scores so they sum to the parent category max.",
+        )
+      }}
+    </VAlert>
+
     <VRow style="margin-top: -20px">
       <VCol cols="6" sm="6" md="6">
         <AppAutocomplete
@@ -222,6 +339,7 @@ onMounted(async () => {
           :item-title="selectItemTitle"
           item-value="id"
           :label="t('Choose Subject')"
+          :disabled="subjectLocked"
           autocomplete="off"
           persistent-hint
         />
@@ -271,11 +389,8 @@ onMounted(async () => {
       </VCol>
     </VRow>
 
-    <!-- <AppLabel title="Setup Rule" />
-      -->
     <VDivider class="mt-5" />
 
-    <!-- Rules list -->
     <VRow
       v-for="(rule, index) in itemData.rules"
       :key="index"
@@ -300,6 +415,9 @@ onMounted(async () => {
           v-model="rule.percentage"
           suffix="%"
           :label="t('Percentage')"
+          :disabled="isChildSubject"
+          :hint="isChildSubject ? t('Always 0% for child subjects') : undefined"
+          :persistent-hint="isChildSubject"
         />
       </VCol>
 
@@ -322,15 +440,11 @@ onMounted(async () => {
           <VIcon icon="tabler-circle-minus" />
         </VBtn>
         <VBtn
-          v-if="!isComplete"
+          v-if="index === itemData.rules.length - 1 && canAddMoreRules"
           icon
           size="small"
           color="success"
           variant="text"
-          :disabled="
-            availableCategories(index).length === 0 ||
-            itemData.rules.length >= categories.length
-          "
           @click="addRule"
         >
           <VIcon icon="tabler-circle-plus" />
@@ -338,10 +452,24 @@ onMounted(async () => {
       </VCol>
     </VRow>
 
-    <!-- Percentage total summary -->
     <VRow style="margin-top: 0">
       <VCol cols="12">
         <VAlert
+          v-if="isChildSubject"
+          :color="isOverLimit ? 'error' : 'success'"
+          variant="tonal"
+          density="compact"
+        >
+          {{ t("Child weight") }}: {{ formPercentageTotal }}%
+          <span v-if="isOverLimit">
+            — {{ t("Child categories must stay at 0%") }}
+          </span>
+          <span v-else>
+            — {{ t("Weights belong on the parent subject") }}
+          </span>
+        </VAlert>
+        <VAlert
+          v-else
           :color="isOverLimit ? 'error' : isComplete ? 'success' : 'warning'"
           variant="tonal"
           density="compact"
@@ -357,13 +485,27 @@ onMounted(async () => {
 
   <AppAddEditDrawer
     v-else
-    :title="itemData.id == null ? t('Create Subjects') : t('Update Subjects')"
+    :title="dialogTitle"
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
+    <VAlert
+      v-if="isChildSubject"
+      class="mb-4"
+      type="info"
+      variant="tonal"
+      density="compact"
+    >
+      {{
+        t(
+          "Child subject categories use 0% weight. Set max scores so they sum to the parent category max.",
+        )
+      }}
+    </VAlert>
+
     <VRow style="margin-top: -20px">
       <VCol cols="12" sm="4" md="4">
         <AppAutocomplete
@@ -372,6 +514,7 @@ onMounted(async () => {
           :item-title="selectItemTitle"
           item-value="id"
           :label="t('Choose Subject')"
+          :disabled="subjectLocked"
           autocomplete="off"
           persistent-hint
         />
@@ -393,11 +536,8 @@ onMounted(async () => {
       </VCol>
     </VRow>
 
-    <!-- <AppLabel title="Setup Rule" />
-      -->
     <VDivider class="mt-5" />
 
-    <!-- Rules list -->
     <VRow
       v-for="(rule, index) in itemData.rules"
       :key="index"
@@ -407,7 +547,6 @@ onMounted(async () => {
       <VCol cols="5" md="5">
         <AppAutocomplete
           v-model="rule.category_id"
-          :disabled="isAllGrade"
           :items="availableCategories(index)"
           :item-title="selectItemTitle"
           item-value="id"
@@ -418,7 +557,11 @@ onMounted(async () => {
       </VCol>
 
       <VCol cols="3" md="3">
-        <AppTextField v-model="rule.percentage" :label="t('%')" />
+        <AppTextField
+          v-model="rule.percentage"
+          :label="t('%')"
+          :disabled="isChildSubject"
+        />
       </VCol>
 
       <VCol cols="3" md="3">
@@ -439,15 +582,11 @@ onMounted(async () => {
         </VBtn>
 
         <VBtn
-          v-if="itemData.rules.length === 1 && !isComplete"
+          v-if="index === itemData.rules.length - 1 && canAddMoreRules"
           icon
           size="small"
           color="success"
           variant="text"
-          :disabled="
-            availableCategories(index).length === 0 ||
-            itemData.rules.length >= categories.length
-          "
           @click="addRule"
         >
           <VIcon icon="tabler-circle-plus" />
@@ -455,10 +594,23 @@ onMounted(async () => {
       </VCol>
     </VRow>
 
-    <!-- Percentage total summary -->
     <VRow style="margin-top: 0">
-      <VCol cols="12" class="d-flex ga-5">
+      <VCol cols="12" class="d-flex ga-5 align-center">
         <VAlert
+          v-if="isChildSubject"
+          class="flex-grow-1"
+          :color="isOverLimit ? 'error' : 'success'"
+          variant="tonal"
+          density="compact"
+        >
+          {{ t("Child weight") }}: {{ formPercentageTotal }}%
+          <span v-if="isOverLimit">
+            — {{ t("Child categories must stay at 0%") }}
+          </span>
+        </VAlert>
+        <VAlert
+          v-else
+          class="flex-grow-1"
           :color="isOverLimit ? 'error' : isComplete ? 'success' : 'warning'"
           variant="tonal"
           density="compact"
@@ -468,20 +620,6 @@ onMounted(async () => {
             — {{ t("exceeds 100%, please adjust") }}
           </span>
         </VAlert>
-        <VBtn
-          icon
-          size="small"
-          color="success"
-          variant="text"
-          v-if="!isComplete && isOverLimit === false"
-          :disabled="
-            availableCategories(index).length === 0 ||
-            itemData.rules.length >= categories.length
-          "
-          @click="addRule"
-        >
-          <VIcon icon="tabler-circle-plus" />
-        </VBtn>
       </VCol>
     </VRow>
   </AppAddEditDrawer>

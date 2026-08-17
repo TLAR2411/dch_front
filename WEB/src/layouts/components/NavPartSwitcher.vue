@@ -5,7 +5,8 @@ import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import hasPermission from "@/utils/hasPermission.js";
-import { getPartDashboardRoute } from "@/utils/partHomeRoutes";
+import { getPartHomeRoute } from "@/utils/partHomeRoutes";
+import { auth } from "@/utils/auth.js";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -58,7 +59,7 @@ const current = computed(
 const switchPart = (part) => {
   if (part === system_part.value) return;
   partStore.setSystemPart(part); // also sets cur_id
-  router.push({ name: getPartDashboardRoute(part) });
+  router.push(getPartHomeRoute(part, auth()?.permissions || []));
 };
 
 // const switchPart = (newPart) => {
@@ -86,11 +87,12 @@ const switchPart = (part) => {
 <template>
   <VBtn
     size="small"
-    variant="tonal"
+    variant="flat"
     :color="current?.color ?? 'primary'"
     :prepend-icon="current?.icon"
+    class="navbar-part-switcher"
   >
-    <span class="d-none d-sm-inline">
+    <span class="d-none d-md-inline">
       {{ current ? t(current.title) : t("Switch Part") }}
     </span>
     <VMenu activator="parent" location="bottom end" offset="6" class="pa-0">

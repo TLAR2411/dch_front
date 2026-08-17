@@ -172,7 +172,7 @@ onMounted(() => {
                   {{ guardianTypeLabel(g.type) }}
                 </VChip>
               </td>
-              <td>{{ g.name_en || g.name || "-" }}</td>
+              <td>{{ g.name_en || g.user_name || "-" }}</td>
               <td>{{ g.name_kh || "-" }}</td>
               <td>{{ g.phone || "-" }}</td>
               <td>{{ g.email || "-" }}</td>

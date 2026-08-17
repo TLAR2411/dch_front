@@ -14,10 +14,12 @@
  *   4. Edit cells → Save upserts student_scores
  */
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { getClasses } from "@/services/dataService.js";
 import { useYearStore } from "@/stores/yearStore.js";
 import { usePartStore } from "@/stores/partStore";
+import { useSettingStore } from "@/stores/settingStore";
 import { getEntityLabel } from "@/utils/reportLabels.js";
 import successAlert from "@/helper/successAlert.js";
 import { validateScore } from "@/utils/gradeCalculation.js";
@@ -46,7 +48,9 @@ import StudentBehavior from "./StudentBehavior.vue";
 const { t } = useI18n();
 const yearStore = useYearStore();
 const partStore = usePartStore();
-const yearId = computed(() => yearStore.year_id);
+const settingStore = useSettingStore();
+const { year_id: yearId } = storeToRefs(yearStore);
+const { branch_id: branchId } = storeToRefs(settingStore);
 const reportPart = computed(() => partStore.system_part || "english");
 
 function selectItemTitle(item) {
@@ -150,7 +154,11 @@ async function loadSubjects() {
     if (seq !== subjectsLoadSeq) return;
 
     classGradeId.value = gradeId;
-    const list = await fetchSubjectsForGrade(yearId.value, gradeId);
+    const list = await fetchSubjectsForGrade(
+      yearId.value,
+      gradeId,
+      form.value.class_id,
+    );
     if (seq !== subjectsLoadSeq) return;
 
     subjects.value = list;
@@ -421,17 +429,43 @@ watch(
   },
 );
 
-watch(yearId, async () => {
+let classesLoadSeq = 0;
+
+function filterClassesForBranch(list = []) {
+  const branch = branchId.value;
+  if (branch == null || branch === "*") return list;
+  return list.filter((c) => String(c.branch_id) === String(branch));
+}
+
+async function loadClasses() {
+  const seq = ++classesLoadSeq;
+  const list = await getClasses();
+  if (seq !== classesLoadSeq) return;
+  // Canceled in-flight reload — do not clobber with [].
+  if (list == null) return;
+  classes.value = filterClassesForBranch(list);
+}
+
+async function resetFiltersForContextChange() {
   form.value.class_id = null;
   form.value.subject_id = null;
   classGradeId.value = null;
+  classes.value = [];
   clearGrid();
-  await loadTerms();
-});
+  await Promise.all([loadClasses(), loadTerms()]);
+}
+
+watch(
+  () => [yearId.value, branchId.value],
+  async (next, prev) => {
+    if (!prev) return;
+    if (next[0] === prev[0] && String(next[1]) === String(prev[1])) return;
+    await resetFiltersForContextChange();
+  },
+);
 
 onMounted(async () => {
-  classes.value = await getClasses();
-  await loadTerms();
+  await Promise.all([loadClasses(), loadTerms()]);
 });
 </script>
 

@@ -6,7 +6,7 @@ definePage({
     layout: "default",
     subject: "EditStudent",
     requiresAuth: true,
-    // permissions: "view-students",
+    // permissions: "students:view-page",
   },
 });
 </script>
