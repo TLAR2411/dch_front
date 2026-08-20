@@ -40,7 +40,6 @@ import {
   fetchSubjectsForGrade,
   fetchTerms,
   resolveClassGradeId,
-  resolveCurrentTermId,
   upsertScores,
 } from "./scoreEntryService.js";
 import StudentBehavior from "./StudentBehavior.vue";
@@ -187,12 +186,7 @@ async function loadTerms() {
   loadingFilters.value = true;
   try {
     terms.value = await fetchTerms(yearId.value);
-    if (
-      !form.value.term_id ||
-      !terms.value.some((t) => Number(t.id) === Number(form.value.term_id))
-    ) {
-      form.value.term_id = resolveCurrentTermId(terms.value);
-    }
+    form.value.term_id = null;
   } catch (error) {
     console.error(error);
     terms.value = [];
@@ -503,18 +497,6 @@ onMounted(async () => {
         </VCol>
         <VCol cols="12" md="3">
           <AppSelect
-            v-model="form.term_id"
-            :items="terms"
-            :item-title="selectItemTitle"
-            item-value="id"
-            :placeholder="$t('Term')"
-            clearable
-            :disabled="loadingFilters"
-          />
-        </VCol>
-
-        <VCol cols="12" md="3">
-          <AppSelect
             v-model="form.subject_id"
             :items="subjects"
             :item-title="selectItemTitle"
@@ -522,6 +504,18 @@ onMounted(async () => {
             :placeholder="$t('Subject')"
             clearable
             :disabled="!form.class_id || loadingFilters"
+          />
+        </VCol>
+
+        <VCol cols="12" md="3">
+          <AppSelect
+            v-model="form.term_id"
+            :items="terms"
+            :item-title="selectItemTitle"
+            item-value="id"
+            :placeholder="$t('Term')"
+            clearable
+            :disabled="!form.subject_id || loadingFilters"
           />
         </VCol>
 
