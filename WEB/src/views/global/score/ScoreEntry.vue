@@ -85,14 +85,18 @@ const form = ref({
 const scores = reactive({});
 
 const selectedTerm = computed(
-  () => terms.value.find((t) => Number(t.id) === Number(form.value.term_id)) ?? null,
+  () =>
+    terms.value.find((t) => Number(t.id) === Number(form.value.term_id)) ??
+    null,
 );
 
 /** Scheduled subject school days in term (not full term school_days). */
 const attendanceMax = ref(null);
 
 const selectedClass = computed(
-  () => classes.value.find((c) => Number(c.id) === Number(form.value.class_id)) ?? null,
+  () =>
+    classes.value.find((c) => Number(c.id) === Number(form.value.class_id)) ??
+    null,
 );
 
 const hasClass = computed(() => !!form.value.class_id);
@@ -132,8 +136,7 @@ function setStudentScores(studentId, bag) {
 
 function onUpdateScore({ studentId, itemId, value }) {
   if (!scores[studentId]) scores[studentId] = {};
-  scores[studentId][itemId] =
-    value === "" || value == null ? null : value;
+  scores[studentId][itemId] = value === "" || value == null ? null : value;
 }
 
 async function loadSubjects() {
@@ -412,20 +415,33 @@ watch(
   },
 );
 
-watch(
-  () => form.value.subject_id,
-  (subjectId) => {
-    if (!subjectId && activeTab.value === "scores") {
-      activeTab.value = "recommend";
-    }
-  },
-);
+// watch(
+//   () => form.value.subject_id,
+//   (subjectId) => {
+//     if (!subjectId && activeTab.value === "scores") {
+//       activeTab.value = "recommend";
+//     }
+//   },
+// );
+
+// watch(
+//   () => [form.value.subject_id, form.value.term_id],
+//   () => {
+//     if (canLoad.value) loadGrid();
+//     else clearGrid();
+//   },
+// );
 
 watch(
-  () => [form.value.subject_id, form.value.term_id],
-  () => {
-    if (canLoad.value) loadGrid();
-    else clearGrid();
+  () => [form.value.class_id, form.value.term_id, form.value.subject_id],
+  ([classId, termId, subjectId]) => {
+    if (!classId || !termId || !subjectId) {
+      activeTab.value = "recommend";
+      clearGrid();
+      return;
+    }
+
+    loadGrid();
   },
 );
 
@@ -474,9 +490,7 @@ onMounted(async () => {
     <!-- Shared search — once for both tabs -->
     <VCard class="pa-3 mb-3">
       <VRow align="center" dense>
-
         <VCol cols="12" md="3">
-          
           <AppSelect
             v-model="form.class_id"
             :items="classes"
@@ -498,7 +512,7 @@ onMounted(async () => {
             :disabled="loadingFilters"
           />
         </VCol>
-       
+
         <VCol cols="12" md="3">
           <AppSelect
             v-model="form.subject_id"
@@ -510,7 +524,7 @@ onMounted(async () => {
             :disabled="!form.class_id || loadingFilters"
           />
         </VCol>
-        
+
         <VCol cols="12" md="3" class="d-flex gap-2 justify-end">
           <VBtn
             v-if="activeTab === 'scores'"
@@ -524,7 +538,7 @@ onMounted(async () => {
             {{ $t("Refresh") }}
           </VBtn>
           <VBtn
-           density="comfortable"
+            density="comfortable"
             v-if="activeTab === 'scores'"
             color="primary"
             :loading="saving"
@@ -549,13 +563,9 @@ onMounted(async () => {
       </div>
     </VCard>
 
-    <template v-else>
+    <template v-else-if="canLoad">
       <VTabs v-model="activeTab" color="primary" class="mb-3">
-        <VTab
-          v-if="hasSubject"
-          value="scores"
-          prepend-icon="tabler-table"
-        >
+        <VTab v-if="hasSubject" value="scores" prepend-icon="tabler-table">
           {{ $t("Insert Score") }}
         </VTab>
         <VTab value="recommend" prepend-icon="tabler-message-2">
@@ -566,7 +576,11 @@ onMounted(async () => {
         </VTab>
       </VTabs>
 
-      <VWindow v-model="activeTab" class="disable-tab-transition" :touch="false">
+      <VWindow
+        v-model="activeTab"
+        class="disable-tab-transition"
+        :touch="false"
+      >
         <VWindowItem v-if="hasSubject" value="scores">
           <VCard v-if="!canLoad" class="pa-8 text-center">
             <VIcon size="48" class="mb-3" style="opacity: 0.35">
@@ -576,7 +590,11 @@ onMounted(async () => {
               {{ $t("Select Class, Subject, and Term") }}
             </div>
             <div class="text-body-2 mt-1" style="opacity: 0.7">
-              {{ $t("Choose filters above once, then switch tabs for scores or recommendations.") }}
+              {{
+                $t(
+                  "Choose filters above once, then switch tabs for scores or recommendations.",
+                )
+              }}
             </div>
           </VCard>
 
