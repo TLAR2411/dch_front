@@ -10,6 +10,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     defaults:
       run:
@@ -52,28 +53,36 @@ jobs:
           VITE_FORCE_HMR=false
           EOF
 
+      - name: Verify Required ENV
+        run: |
+          test -n "${{ secrets.VITE_API_URL }}"
+          test -n "${{ secrets.VITE_SUPABASE_URL }}"
+          test -n "${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}"
+          test -n "${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}"
+          test -n "${{ secrets.VITE_CLIENT_ID }}"
+
       - name: Build WEB
         run: npm run build
 
       - name: Check Build Output
         run: |
-          echo "WEB build files:"
-          ls -la dist
-          echo "Assets:"
-          ls -la dist/assets || true
+          test -f dist/index.html
+          echo "Build OK"
+          du -sh dist
+          find dist -type f | wc -l
 
       - name: Deploy to FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           port: ${{ secrets.FTP_PORT }}
           protocol: ftp
-
           local-dir: WEB/dist/
           server-dir: /
-
+          timeout: 180000
+          log-level: minimal
           exclude: |
             **/.git*
             **/.git*/**
