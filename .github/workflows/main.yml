@@ -2,7 +2,8 @@ name: DCH-Deploy-Action
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - "WEB/**"
       - ".github/workflows/**"
@@ -35,41 +36,32 @@ jobs:
       - name: Install Dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Create WEB .env
+      - name: Create .env
         run: |
-          cat > .env <<EOF
-          VITE_APP_NAME="DEWEY DEVELOPER"
-          VITE_APP_TITLE_NAME="ប្រព័ន្ធគ្រប់គ្រង"
+          echo "VITE_APP_NAME=DEWEY DEVELOPER" > .env
+          echo "VITE_APP_TITLE_NAME=ប្រព័ន្ធគ្រប់គ្រង" >> .env
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> .env
+          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" >> .env
+          echo "VITE_SUPABASE_PUBLISHABLE_KEY=${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}" >> .env
+          echo "VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}" >> .env
+          echo "VITE_CLIENT_ID=${{ secrets.VITE_CLIENT_ID }}" >> .env
+          echo "VITE_FORCE_HMR=false" >> .env
 
-          VITE_API_URL=${{ secrets.VITE_API_URL }}
-
-          VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY=${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-
-          VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
-
-          VITE_CLIENT_ID=${{ secrets.VITE_CLIENT_ID }}
-
-          VITE_FORCE_HMR=false
-          EOF
-
-      - name: Verify Required ENV
+      - name: Verify ENV
         run: |
-          test -n "${{ secrets.VITE_API_URL }}"
-          test -n "${{ secrets.VITE_SUPABASE_URL }}"
-          test -n "${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}"
-          test -n "${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}"
-          test -n "${{ secrets.VITE_CLIENT_ID }}"
+          echo "Checking ENV..."
+          grep '^VITE_API_URL=' .env
+          grep '^VITE_SUPABASE_URL=' .env
+          grep '^VITE_SUPABASE_PUBLISHABLE_KEY=' .env | sed 's/=.*/=***HIDDEN***/'
 
       - name: Build WEB
         run: npm run build
 
-      - name: Check Build Output
+      - name: Verify Build
         run: |
           test -f dist/index.html
           echo "Build OK"
           du -sh dist
-          find dist -type f | wc -l
 
       - name: Deploy to FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
@@ -79,10 +71,13 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           port: ${{ secrets.FTP_PORT }}
           protocol: ftp
+
           local-dir: WEB/dist/
           server-dir: /
+
           timeout: 180000
           log-level: minimal
+
           exclude: |
             **/.git*
             **/.git*/**
