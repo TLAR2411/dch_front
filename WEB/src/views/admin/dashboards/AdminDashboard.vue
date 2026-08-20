@@ -110,10 +110,10 @@ const summaryCards = computed(() => [
     key: "users",
     title: t("Users"),
     value: toNumber(data.value?.users?.active_users),
-    subtitle: t("{disabled} disabled · {total} total", {
-      disabled: toNumber(data.value?.users?.disabled_users),
-      total: toNumber(data.value?.users?.total_users),
-    }),
+    // subtitle: t("{disabled} disabled · {total} total", {
+    //   disabled: toNumber(data.value?.users?.disabled_users),
+    //   total: toNumber(data.value?.users?.total_users),
+    // }),
     icon: "tabler-user-cog",
     color: "error",
     to: { name: "admin-users" },
@@ -125,9 +125,9 @@ const systemCards = computed(() => [
     key: "years",
     title: t("Years"),
     value: toNumber(data.value?.years?.active_years),
-    subtitle: t("{total} configured", {
-      total: toNumber(data.value?.years?.total_years),
-    }),
+    // subtitle: t("{total} configured", {
+    //   total: toNumber(data.value?.years?.total_years),
+    // }),
     icon: "tabler-calendar",
     color: "primary",
     to: { name: "admin-years" },
@@ -165,19 +165,28 @@ const byCurriculum = computed(() => data.value?.by_curriculum ?? []);
 
 const quickLinks = [
   { title: "Students", icon: "tabler-user", to: { name: "admin-students" } },
-  { title: "Families", icon: "tabler-home-heart", to: { name: "global-families" } },
+  {
+    title: "Families",
+    icon: "tabler-home-heart",
+    to: { name: "global-families" },
+  },
   { title: "Users", icon: "tabler-users", to: { name: "admin-users" } },
-  { title: "Branches", icon: "tabler-building-bank", to: { name: "admin-branches" } },
+  {
+    title: "Branches",
+    icon: "tabler-building-bank",
+    to: { name: "admin-branches" },
+  },
   { title: "Years", icon: "tabler-calendar", to: { name: "admin-years" } },
-  { title: "Curriculums", icon: "tabler-books", to: { name: "admin-curriculums" } },
+  {
+    title: "Curriculums",
+    icon: "tabler-books",
+    to: { name: "admin-curriculums" },
+  },
 ];
 
-watch(
-  [() => settingStore.branch_id, () => yearStore.year_id],
-  () => {
-    getData();
-  },
-);
+watch([() => settingStore.branch_id, () => yearStore.year_id], () => {
+  getData();
+});
 
 onMounted(() => {
   getData();
@@ -198,24 +207,12 @@ onMounted(() => {
         sm="6"
         lg="4"
       >
-        <VCard
-          :to="card.to"
-          class="stat-card"
-          :ripple="false"
-        >
+        <VCard :to="card.to" class="stat-card" :ripple="false">
           <VCardText class="pa-4">
             <div class="d-flex align-center justify-space-between mb-2">
               <div class="d-flex align-center gap-2">
-                <VAvatar
-                  :color="card.color"
-                  size="44"
-                  rounded
-                  variant="tonal"
-                >
-                  <VIcon
-                    :icon="card.icon"
-                    size="24"
-                  />
+                <VAvatar :color="card.color" size="44" rounded variant="tonal">
+                  <VIcon :icon="card.icon" size="24" />
                 </VAvatar>
 
                 <div class="text-body-1 font-weight-medium">
@@ -252,25 +249,16 @@ onMounted(() => {
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td
-              colspan="4"
-              class="text-center text-medium-emphasis py-6"
-            >
+            <td colspan="4" class="text-center text-medium-emphasis py-6">
               {{ $t("Loading…") }}
             </td>
           </tr>
           <tr v-else-if="!byCurriculum.length">
-            <td
-              colspan="4"
-              class="text-center text-medium-emphasis py-6"
-            >
+            <td colspan="4" class="text-center text-medium-emphasis py-6">
               {{ $t("No curriculums found") }}
             </td>
           </tr>
-          <tr
-            v-for="row in byCurriculum"
-            :key="row.cur_id"
-          >
+          <tr v-for="row in byCurriculum" :key="row.cur_id">
             <td>
               <div class="d-flex align-center gap-2">
                 <VChip
@@ -297,31 +285,13 @@ onMounted(() => {
     </div>
 
     <VRow>
-      <VCol
-        v-for="card in systemCards"
-        :key="card.key"
-        cols="12"
-        sm="6"
-        lg="3"
-      >
-        <VCard
-          :to="card.to"
-          class="stat-card"
-          :ripple="false"
-        >
+      <VCol v-for="card in systemCards" :key="card.key" cols="12" sm="6" lg="3">
+        <VCard :to="card.to" class="stat-card" :ripple="false">
           <VCardText class="pa-4">
             <div class="d-flex align-center justify-space-between mb-2">
               <div class="d-flex align-center gap-2">
-                <VAvatar
-                  :color="card.color"
-                  size="40"
-                  rounded
-                  variant="tonal"
-                >
-                  <VIcon
-                    :icon="card.icon"
-                    size="22"
-                  />
+                <VAvatar :color="card.color" size="40" rounded variant="tonal">
+                  <VIcon :icon="card.icon" size="22" />
                 </VAvatar>
 
                 <div class="text-body-2 font-weight-medium">
@@ -363,7 +333,9 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .stat-card {
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 
   &:hover {
     transform: translateY(-2px);
