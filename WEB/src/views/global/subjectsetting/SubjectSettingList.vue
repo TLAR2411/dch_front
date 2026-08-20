@@ -255,7 +255,7 @@ const onDelete = async (subjectId, gradeId) => {
       const result = await cascadeDeleteGradingRules({
         subject_id: subjectId,
         grade_id: gradeId,
-        year_id: yearId,
+        year_id: yearId.value,
       });
 
       successAlert.fire({
@@ -328,7 +328,6 @@ const onCreate = async (data, callback) => {
       });
     }
     callback(res.data.status);
-    subjects.value = await getSubjects();
   } catch (error) {
     console.error("Failed to create grading rules:", error);
     successAlert.fire({
@@ -446,9 +445,9 @@ const validateParentChildCategoryMaxScores = async ({
         const parentMax = Number(parentRule.max_score);
         if (!Number.isFinite(parentMax)) continue;
 
-        if (Math.abs(parentMax - siblingTotal) > 0.01) {
-          return `Child max scores for this category sum to ${siblingTotal} pts, but the parent category max is ${parentMax} pts. Adjust parent or child rules so they match.`;
-        }
+        // if (Math.abs(parentMax - siblingTotal) > 0.01) {
+        //   return `Child max scores for this category sum to ${siblingTotal} pts, but the parent category max is ${parentMax} pts. Adjust parent or child rules so they match.`;
+        // }
       }
     }
 
@@ -737,8 +736,9 @@ const fetchGrades1 = async () => {
   try {
     // Rules and the child subjects of every parent that appears, in one call —
     // the child query was derived entirely from the ids the first returned.
+
     const { rules: ruleRows, children: fetchedChildren } =
-      await listGradingRuleSettings({ year_id: yearId });
+      await listGradingRuleSettings({ year_id: yearId.value });
 
     const rows = ruleRows ?? [];
     const rulesByGradeSubjectId = new Map();

@@ -96,7 +96,7 @@ watch([systemPart, branchId], () => {
     <!-- 👉 Pages -->
     <slot />
 
-    <MobileBottomNav />
+    <!-- <MobileBottomNav /> -->
 
     <!-- 👉 Footer -->
     <!-- <template #footer>

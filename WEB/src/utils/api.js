@@ -30,18 +30,26 @@ const NON_CANCELLABLE_ENDPOINTS = [
  */
 const getRequestKey = (config) => {
   const params = config.params ? JSON.stringify(config.params) : "";
-  const data =
-    config.data == null
-      ? ""
-      : typeof config.data === "string"
-        ? config.data
-        : JSON.stringify(config.data);
+
+  let serializedData = "";
+  if (config.data != null) {
+    if (typeof config.data === "string") {
+      serializedData = config.data;
+    } else {
+      try {
+        serializedData = JSON.stringify(config.data);
+      } catch {
+        serializedData = "[non-serializable request data]";
+      }
+    }
+  }
+
   const headers = config.headers || {};
   const branch = headers["X-Branch-Id"] ?? headers["x-branch-id"] ?? "";
   const year = headers["X-Year-Id"] ?? headers["x-year-id"] ?? "";
   const curriculum =
     headers["X-Curriculum-Id"] ?? headers["x-curriculum-id"] ?? "";
-  return `${config.method}::${config.url}::${params}::${data}::${branch}::${year}::${curriculum}`;
+  return `${config.method}::${config.url}::${params}::${serializedData}::${branch}::${year}::${curriculum}`;
 };
 
 /**

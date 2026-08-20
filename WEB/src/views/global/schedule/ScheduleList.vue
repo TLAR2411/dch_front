@@ -22,9 +22,9 @@ const selectedClassName = computed(() => {
 onMounted(async () => {
   classes.value = (await getClasses()) || [];
 
-  if (classes.value.length > 0) {
-    form.value.class_id = classes.value[0].id;
-  }
+  // if (classes.value.length > 0) {
+  //   form.value.class_id = classes.value[0].id;
+  // }
 });
 </script>
 
@@ -32,7 +32,6 @@ onMounted(async () => {
   <VRow>
     <VCol cols="12" md="4" class="mt-2 schedule-list-no-print">
       <AppSelect
-        :loading="form.class_id == null"
         v-model="form.class_id"
         :items="classes"
         :item-title="selectItemTitle"

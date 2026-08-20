@@ -400,7 +400,16 @@ export const getSubjects = async () => {
         const response = await api.post("subjects-all");
         return response.data.data;
     } catch (error) {
+        if (
+            error?.code === "ERR_CANCELED" ||
+            error?.name === "CanceledError" ||
+            error?.message === "canceled"
+        ) {
+            return null;
+        }
+
         console.error("Server subjects error: ", error);
+        return [];
     }
 }
 
