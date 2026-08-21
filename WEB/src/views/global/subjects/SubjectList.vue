@@ -36,8 +36,9 @@ const filter = ref({
 const headers = [
   { title: t("Name Khmer"), key: "name_kh", visible: true },
   { title: t("Name English"), key: "name_en", visible: true },
-  { title: t("Name Chinese"), key: "name_cn", visible: true },
+  // { title: t("Name Chinese"), key: "name_cn", visible: true },
   { title: t("Symbol"), key: "code", visible: true },
+  // { title: t("Main Subject"), key: "parent_subject", visible: true },
   { title: t("Child Subject"), key: "sub_subjects", visible: true },
   { title: t("Description"), key: "description", visible: true },
 
@@ -66,8 +67,6 @@ const onDelete = async (item) => {
     isLoading.value = false;
   }
 };
-
-
 
 const onCreate = async (data, callback) => {
   try {
@@ -210,10 +209,22 @@ onMounted(async () => {
     </template>
 
     <template v-slot:item.sub_subjects="{ item }">
-      <VChip color="info" size="small">
+      <VChip color="info" size="small" v-if="item.sub_subjects > 0">
         {{ item.sub_subjects }} <VIcon icon="tabler-folder" class="ml-1" />
       </VChip>
     </template>
+
+    <!-- <template v-slot:item.parent_subject="{ item }">
+      <span v-if="item.parent_id">
+        {{
+          item.parent_name_en ||
+          item.parent_name_kh ||
+          item.parent_name_cn ||
+          "-"
+        }}
+      </span>
+      <span v-else>-</span>
+    </template> -->
 
     <template v-slot:item.default="{ item }">
       <VChip color="success" size="small" v-if="item.default == true">

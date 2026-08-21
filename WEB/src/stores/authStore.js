@@ -70,6 +70,9 @@ export const useAuthStore = defineStore("auth", {
           }
         );
 
+        const redirectTo = `${window.location.origin}/login`;
+        console.log("Redirecting to Google OAuth with redirectTo:", redirectTo);
+
         if (response.data.status) {
 
           const data = response.data.data;
@@ -123,6 +126,9 @@ export const useAuthStore = defineStore("auth", {
         setAccessToken(token);
 
         console.log("token-session:", token);
+        const redirectTo = `${window.location.origin}/login`;
+        console.log("Redirecting to Google OAuth with redirectTo:", redirectTo);
+
 
         this.$patch({
           isAuthenticated: true,
@@ -157,12 +163,12 @@ export const useAuthStore = defineStore("auth", {
         // the bare origin. This one was the sole exception, which forced
         // VITE_API_URL to carry a trailing /api to keep login working — and
         // that in turn doubled every other path into /api/api/...
-        
+
         const response = await api.post("/api/auth/verify-session", {
           google_id: this.googleId,
         });
 
-        
+
         console.log("verify-session:", response.data.data.branches);
         if (response.data.success == true || response.data.success == 'true') {
           const branches = response.data.data.branches;

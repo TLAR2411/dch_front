@@ -50,6 +50,7 @@ onMounted(async () => {
 const onGoogleSignIn = async () => {
   isGoogleLoading.value = true;
   const redirectTo = `${window.location.origin}/login`;
+  console.log("Redirecting to Google OAuth with redirectTo:", redirectTo);
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo },
@@ -62,6 +63,8 @@ const onGoogleSignIn = async () => {
   }
   console.log("Login redirect initiated", data);
 };
+
+
 
 const { smAndDown } = useDisplay();
 </script>
@@ -92,9 +95,7 @@ const { smAndDown } = useDisplay();
                 :src="LoginLogo"
               />
               <!-- <VNodeRenderer :nodes="themeConfig.app.logo" /> -->
-              <h1
-                class="app-logo-title mt-4 w-100 mb-2 text-primary moul"
-              >
+              <h1 class="app-logo-title mt-4 w-100 mb-2 text-primary moul">
                 <span
                   style="
                     display: block;

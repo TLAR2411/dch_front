@@ -1,4 +1,6 @@
 <script setup>
+import AppAutocomplete from "@/@core/components/app-form-elements/AppAutocomplete.vue";
+import successAlert from "@/helper/successAlert.js";
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
@@ -11,6 +13,11 @@ const { t } = useI18n();
 
 const isLoading = ref(true);
 const family = ref(null);
+const addStudentDialogVisible = ref(false);
+const studentOptions = ref([]);
+const selectedStudentId = ref(null);
+const studentSearchLoading = ref(false);
+const addStudentLoading = ref(false);
 
 const guardianTypeLabel = (type) => {
   const map = {
@@ -28,6 +35,69 @@ const guardianTypeLabel = (type) => {
 
 const guardians = computed(() => family.value?.guardians ?? []);
 const students = computed(() => family.value?.students ?? []);
+
+const searchStudents = async () => {
+  try {
+    studentSearchLoading.value = true;
+    const res = await api.post("students-all");
+
+    if (res.data.status) {
+      const linkedStudentIds = new Set(
+        students.value.map((student) => student.student_id),
+      );
+      const rows = res.data.data?.data || [];
+
+      studentOptions.value = rows
+        .filter((student) => !linkedStudentIds.has(student.id))
+        .map((student) => ({
+          id: student.id,
+          label:
+            student.name_en ||
+            student.name_kh ||
+            student.student_id ||
+            `Student #${student.id}`,
+        }));
+    }
+  } catch (error) {
+    console.error("Failed to search students:", error);
+  } finally {
+    studentSearchLoading.value = false;
+  }
+};
+
+const addStudentToFamily = async () => {
+  if (!selectedStudentId.value) return;
+
+  try {
+    addStudentLoading.value = true;
+    const res = await api.post("student-family-link", {
+      student_id: selectedStudentId.value,
+      family_id: route.params.id,
+    });
+
+    if (!res.data.status) {
+      throw new Error(res.data.message || "Failed to link student");
+    }
+
+    addStudentDialogVisible.value = false;
+    selectedStudentId.value = null;
+    await getFamilyDetail();
+    await searchStudents();
+
+    successAlert.fire({
+      icon: "success",
+      title: t("Student linked to family"),
+    });
+  } catch (error) {
+    console.error("Failed to link student:", error);
+    successAlert.fire({
+      icon: "error",
+      title: error.response?.data?.message || t("Failed to link student"),
+    });
+  } finally {
+    addStudentLoading.value = false;
+  }
+};
 
 const stats = computed(() => {
   const guardianCount = guardians.value.length;
@@ -81,6 +151,40 @@ onMounted(() => {
 </script>
 
 <template>
+  <VDialog v-model="addStudentDialogVisible" max-width="520">
+    <VCard>
+      <VCardTitle>{{ t("Add Student to Family") }}</VCardTitle>
+
+      <VCardText>
+        <AppAutocomplete
+          v-model="selectedStudentId"
+          label="Student"
+          :items="studentOptions"
+          item-value="id"
+          item-title="label"
+          :loading="studentSearchLoading"
+          clearable
+          @focus="searchStudents"
+        />
+      </VCardText>
+
+      <VCardActions>
+        <VSpacer />
+        <VBtn variant="text" @click="addStudentDialogVisible = false">
+          {{ t("Cancel") }}
+        </VBtn>
+        <VBtn
+          color="primary"
+          :loading="addStudentLoading"
+          :disabled="!selectedStudentId"
+          @click="addStudentToFamily"
+        >
+          {{ t("Add") }}
+        </VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+
   <div class="family-detail-page">
     <div class="d-flex align-center ga-2 mb-4">
       <VBtn icon variant="text" size="small" @click="goBack">
@@ -94,7 +198,9 @@ onMounted(() => {
 
     <template v-else-if="family">
       <VCard rounded="lg" class="pa-4 pa-sm-5 mb-4">
-        <div class="d-flex flex-column flex-sm-row align-sm-start justify-space-between ga-3">
+        <div
+          class="d-flex flex-column flex-sm-row align-sm-start justify-space-between ga-3"
+        >
           <div>
             <p class="text-h5 font-weight-medium mb-1">
               {{ family.name_en || family.family_name || "-" }}
@@ -182,9 +288,19 @@ onMounted(() => {
       </VCard>
 
       <VCard rounded="lg" class="pa-4 pa-sm-5 mb-4">
-        <p class="text-h6 font-weight-medium mb-3">
-          {{ t("Linked Students") }}
-        </p>
+        <div class="d-flex align-center justify-space-between mb-3">
+          <p class="text-h6 font-weight-medium mb-0">
+            {{ t("Linked Students") }}
+          </p>
+          <VBtn
+            color="primary"
+            variant="tonal"
+            prepend-icon="tabler-user-plus"
+            @click="addStudentDialogVisible = true"
+          >
+            {{ t("Add Student") }}
+          </VBtn>
+        </div>
 
         <div v-if="!students.length" class="text-center py-8">
           <VIcon size="40" class="text-medium-emphasis mb-2">
@@ -202,7 +318,6 @@ onMounted(() => {
               <th>{{ t("Name English") }}</th>
               <th>{{ t("Name Khmer") }}</th>
               <th>{{ t("Gender") }}</th>
-              <th>{{ t("Primary") }}</th>
               <th>{{ t("Status") }}</th>
             </tr>
           </thead>
@@ -212,15 +327,6 @@ onMounted(() => {
               <td>{{ s.name_en || "-" }}</td>
               <td>{{ s.name_kh || "-" }}</td>
               <td>{{ formatGender(s.gender, t) }}</td>
-              <td>
-                <VChip
-                  size="small"
-                  :color="s.is_primary ? 'success' : 'default'"
-                  variant="tonal"
-                >
-                  {{ s.is_primary ? t("Yes") : t("No") }}
-                </VChip>
-              </td>
               <td>
                 <AppStatusChip
                   :color="s.is_active ? 'success' : 'error'"

@@ -79,7 +79,10 @@ const familyOptions = ref([]);
 const familySearchLoading = ref(false);
 
 const familyLabel = (f) =>
-  f?.name_en || f?.name_kh || f?.family_name || (f?.id != null ? `Family #${f.id}` : "");
+  f?.name_en ||
+  f?.name_kh ||
+  f?.family_name ||
+  (f?.id != null ? `Family #${f.id}` : "");
 
 const mapFamilyOption = (f) => ({
   ...f,
@@ -93,7 +96,9 @@ const searchFamilies = async (search = "") => {
     const res = await api.post("families-all", { search: search || null });
     if (res.data.status) {
       const rows = res.data.data?.data || [];
-      familyOptions.value = (Array.isArray(rows) ? rows : []).map(mapFamilyOption);
+      familyOptions.value = (Array.isArray(rows) ? rows : []).map(
+        mapFamilyOption,
+      );
     }
   } catch (error) {
     console.error("Failed to search families:", error);
@@ -103,7 +108,8 @@ const searchFamilies = async (search = "") => {
 };
 
 const selectedFamily = computed(() => {
-  const id = formData.value.family_id != null ? Number(formData.value.family_id) : null;
+  const id =
+    formData.value.family_id != null ? Number(formData.value.family_id) : null;
   return familyOptions.value.find((f) => f.id === id) || null;
 });
 
@@ -381,14 +387,6 @@ const onSubmit = async (validate) => {
   try {
     isLoading.value = true;
 
-    if (!formData.value.family_id) {
-      successAlert.fire({
-        icon: "error",
-        title: "Please select a family or create a new one",
-      });
-      return;
-    }
-
     // Student save only links an existing family — never creates one here.
     const payload = {
       ...formData.value,
@@ -455,259 +453,258 @@ onMounted(async () => {
       :loading="isLoading"
       @on-submit="onSubmit"
     >
-    <VRow>
-      <VCol cols="12">
-        <div class="d-flex mt-3">
-          <VAvatar
-            rounded="lg"
-            size="100"
-            class="me-6 rounded-lg border-sm"
-            :image="getPhoto()"
-          />
+      <VRow>
+        <VCol cols="12">
+          <div class="d-flex mt-3">
+            <VAvatar
+              rounded="lg"
+              size="100"
+              class="me-6 rounded-lg border-sm"
+              :image="getPhoto()"
+            />
 
-          <!-- 👉 Upload Photo -->
-          <form class="d-flex flex-column justify-center customFontSiemreap">
-            <div class="d-flex flex-wrap">
-              <VBtn
-                @click="refInputEl?.click()"
-                variant="tonal"
-                color="orange mr-2"
-              >
-                <VIcon icon="tabler-upload" class="d-sm-none" />
-                <span class="d-none d-sm-block">បញ្ចូលរូបភាព</span>
-              </VBtn>
+            <!-- 👉 Upload Photo -->
+            <form class="d-flex flex-column justify-center customFontSiemreap">
+              <div class="d-flex flex-wrap">
+                <VBtn
+                  @click="refInputEl?.click()"
+                  variant="tonal"
+                  color="orange mr-2"
+                >
+                  <VIcon icon="tabler-upload" class="d-sm-none" />
+                  <span class="d-none d-sm-block">បញ្ចូលរូបភាព</span>
+                </VBtn>
 
-              <input
-                ref="refInputEl"
-                type="file"
-                name="file"
-                accept=".jpeg,.png,.jpg,.gif,.pdf"
-                hidden
-                @input="handleFileUpload"
+                <input
+                  ref="refInputEl"
+                  type="file"
+                  name="file"
+                  accept=".jpeg,.png,.jpg,.gif,.pdf"
+                  hidden
+                  @input="handleFileUpload"
+                />
+              </div>
+
+              <p class="text-body-2 mt-2 mb-0 customFontSiemreap">
+                អនុញ្ញាតបញ្ចូលបានតែ JPG, GIF ឬ PNG នឹងទំហំអតិបរិមា 800K
+              </p>
+            </form>
+          </div>
+        </VCol>
+
+        <AppLabel title="Personal Information" />
+
+        <VCol cols="12">
+          <VRow class="mt-2">
+            <VCol cols="12" md="4" sm="6">
+              <AppTextField
+                v-model="formData.name_kh"
+                label="Name Khmer"
+                :rules="[requiredValidator]"
+                autocomplete="off"
               />
-            </div>
+            </VCol>
+            <VCol cols="12" md="4" sm="6">
+              <AppTextField
+                v-model="formData.name_en"
+                label="Name English"
+                autocomplete="off"
+              />
+            </VCol>
+            <VCol cols="6" md="2" sm="6">
+              <AppSelect
+                v-model="formData.gender"
+                :items="genderOptions"
+                item-title="name"
+                item-value="value"
+                label="Gender"
+                :rules="[requiredValidator]"
+                autocomplete="off"
+              />
+            </VCol>
 
-            <p class="text-body-2 mt-2 mb-0 customFontSiemreap">
-              អនុញ្ញាតបញ្ចូលបានតែ JPG, GIF ឬ PNG នឹងទំហំអតិបរិមា 800K
-            </p>
-          </form>
-        </div>
-      </VCol>
+            <VCol cols="6" md="2" sm="6">
+              <AppSelect
+                v-model="formData.nation"
+                :items="nationOptions"
+                item-title="name"
+                item-value="value"
+                label="Nation"
+                autocomplete="off"
+              />
+            </VCol>
 
-      <AppLabel title="Personal Information" />
+            <VCol cols="12" md="4" sm="6">
+              <AppDateTimePicker
+                v-model="formData.dob"
+                label="Date of Birth"
+                :config="{ allowInput: true }"
+                autocomplete="off"
+              />
+            </VCol>
+            <VCol cols="12" md="4" sm="6">
+              <AppTextField
+                v-model="formData.email"
+                label="Email"
+                type="email"
+                autocomplete="off"
+              />
+            </VCol>
 
-      <VCol cols="12">
-        <VRow class="mt-2">
-          <VCol cols="12" md="4" sm="6">
-            <AppTextField
-              v-model="formData.name_kh"
-              label="Name Khmer"
-              :rules="[requiredValidator]"
-              autocomplete="off"
-            />
-          </VCol>
-          <VCol cols="12" md="4" sm="6">
-            <AppTextField
-              v-model="formData.name_en"
-              label="Name English"
-              autocomplete="off"
-            />
-          </VCol>
-          <VCol cols="6" md="2" sm="6">
-            <AppSelect
-              v-model="formData.gender"
-              :items="genderOptions"
-              item-title="name"
-              item-value="value"
-              label="Gender"
-              :rules="[requiredValidator]"
-              autocomplete="off"
-            />
-          </VCol>
+            <VCol cols="12" md="4" sm="6">
+              <AppTextField
+                v-model="formData.old_school"
+                label="Old School"
+                autocomplete="off"
+              />
+            </VCol>
+          </VRow>
+        </VCol>
 
-          <VCol cols="6" md="2" sm="6">
-            <AppSelect
-              v-model="formData.nation"
-              :items="nationOptions"
-              item-title="name"
-              item-value="value"
-              label="Nation"
-              autocomplete="off"
-            />
-          </VCol>
+        <AppLabel title="Physical Information" />
 
-          <VCol cols="12" md="4" sm="6">
-            <AppDateTimePicker
-              v-model="formData.dob"
-              label="Date of Birth"
-              :config="{ allowInput: true }"
-              autocomplete="off"
-            />
-          </VCol>
-          <VCol cols="12" md="4" sm="6">
-            <AppTextField
-              v-model="formData.email"
-              label="Email"
-              type="email"
-              autocomplete="off"
-            />
-          </VCol>
+        <VCol cols="6" lg="3" md="4" sm="6">
+          <AppTextField
+            v-model="formData.height"
+            label="Height (cm)"
+            numbers-only
+            autocomplete="off"
+          />
+        </VCol>
+        <VCol cols="6" lg="3" md="4" sm="6">
+          <AppTextField
+            v-model="formData.weight"
+            label="Weight (kg)"
+            numbers-only
+            autocomplete="off"
+          />
+        </VCol>
+        <VCol cols="6" lg="3" md="4" sm="6">
+          <AppTextField
+            :model-value="bodyMassIndex != null ? String(bodyMassIndex) : ''"
+            label="Body Mass Index"
+            readonly
+            autocomplete="off"
+          />
+        </VCol>
+        <VCol cols="6" lg="3" md="4" sm="6">
+          <AppTextField
+            :model-value="bmiStatusLabel"
+            label="BMI Status"
+            readonly
+            autocomplete="off"
+          />
+        </VCol>
 
-          <VCol cols="12" md="4" sm="6">
-            <AppTextField
-              v-model="formData.old_school"
-              label="Old School"
-              autocomplete="off"
-            />
-          </VCol>
-        </VRow>
-      </VCol>
+        <AppLabel title="School Information" />
 
-      <AppLabel title="Physical Information" />
+        <VCol cols="12" lg="5" md="5" sm="5">
+          <AppAutocomplete
+            v-model="formData.cur_id"
+            label="Curriculums"
+            :items="curriculums"
+            item-value="id"
+            item-title="name_en"
+            autocomplete="off"
+            multiple
+            eager
+            closable-chips
+            chips
+          />
+        </VCol>
+        <AppLabel title="Address" />
 
-      <VCol cols="6" lg="3" md="4" sm="6">
-        <AppTextField
-          v-model="formData.height"
-          label="Height (cm)"
-          numbers-only
-          autocomplete="off"
-        />
-      </VCol>
-      <VCol cols="6" lg="3" md="4" sm="6">
-        <AppTextField
-          v-model="formData.weight"
-          label="Weight (kg)"
-          numbers-only
-          autocomplete="off"
-        />
-      </VCol>
-      <VCol cols="6" lg="3" md="4" sm="6">
-        <AppTextField
-          :model-value="bodyMassIndex != null ? String(bodyMassIndex) : ''"
-          label="Body Mass Index"
-          readonly
-          autocomplete="off"
-        />
-      </VCol>
-      <VCol cols="6" lg="3" md="4" sm="6">
-        <AppTextField
-          :model-value="bmiStatusLabel"
-          label="BMI Status"
-          readonly
-          autocomplete="off"
-        />
-      </VCol>
+        <VCol cols="6" lg="3" md="4" sm="6">
+          <AppAutocomplete
+            v-model="formData.province_code"
+            label="Province"
+            :items="provinces"
+            item-value="code"
+            item-title="name_kh"
+            autocomplete="off"
+          />
+        </VCol>
+        <VCol cols="6" lg="3" md="4" sm="6">
+          <AppAutocomplete
+            v-model="formData.district_code"
+            label="District"
+            :items="districts"
+            item-value="code"
+            item-title="name_kh"
+            autocomplete="off"
+          />
+        </VCol>
+        <VCol cols="6" lg="3" md="4" sm="6">
+          <AppAutocomplete
+            v-model="formData.commune_code"
+            label="Commune"
+            :items="communes"
+            item-value="code"
+            item-title="name_kh"
+            autocomplete="off"
+          />
+        </VCol>
+        <VCol cols="6" lg="3" md="4" sm="6">
+          <AppAutocomplete
+            v-model="formData.village_code"
+            label="Village"
+            :items="villages"
+            item-value="code"
+            item-title="name_kh"
+            autocomplete="off"
+          />
+        </VCol>
 
-      <AppLabel title="School Information" />
+        <AppLabel title="Family Information" />
 
-      <VCol cols="12" lg="5" md="5" sm="5">
-        <AppAutocomplete
-          v-model="formData.cur_id"
-          label="Curriculums"
-          :items="curriculums"
-          item-value="id"
-          item-title="name_en"
-          autocomplete="off"
-          multiple
-          eager
-          closable-chips
-          chips
-        />
-      </VCol>
-      <AppLabel title="Address" />
-
-      <VCol cols="6" lg="3" md="4" sm="6">
-        <AppAutocomplete
-          v-model="formData.province_code"
-          label="Province"
-          :items="provinces"
-          item-value="code"
-          item-title="name_kh"
-          autocomplete="off"
-        />
-      </VCol>
-      <VCol cols="6" lg="3" md="4" sm="6">
-        <AppAutocomplete
-          v-model="formData.district_code"
-          label="District"
-          :items="districts"
-          item-value="code"
-          item-title="name_kh"
-          autocomplete="off"
-        />
-      </VCol>
-      <VCol cols="6" lg="3" md="4" sm="6">
-        <AppAutocomplete
-          v-model="formData.commune_code"
-          label="Commune"
-          :items="communes"
-          item-value="code"
-          item-title="name_kh"
-          autocomplete="off"
-        />
-      </VCol>
-      <VCol cols="6" lg="3" md="4" sm="6">
-        <AppAutocomplete
-          v-model="formData.village_code"
-          label="Village"
-          :items="villages"
-          item-value="code"
-          item-title="name_kh"
-          autocomplete="off"
-        />
-      </VCol>
-
-      <AppLabel title="Family Information" />
-
-      <VCol cols="12" md="8" lg="6">
-        <AppAutocomplete
-          v-model="formData.family_id"
-          label="Family"
-          :items="familyOptions"
-          item-value="id"
-          item-title="label"
-          server-side
-          :loading="familySearchLoading"
-          :rules="[requiredValidator]"
-          clearable
-          autocomplete="off"
-          @search="searchFamilies"
-        />
-      </VCol>
-      <VCol cols="12" md="4" lg="3" class="d-flex align-center">
-        <VBtn
-          variant="tonal"
-          prepend-icon="tabler-plus"
-          @click="openCreateFamilyDialog"
-        >
-          New Family
-        </VBtn>
-      </VCol>
-
-      <VCol v-if="formData.family_id" cols="12">
-        <div class="text-body-2 text-medium-emphasis mb-2">
-          Guardians (read only)
-        </div>
-        <div
-          v-if="selectedFamilyGuardians.length"
-          class="d-flex flex-wrap ga-2"
-        >
-          <VChip
-            v-for="g in selectedFamilyGuardians"
-            :key="g.id || `${g.type}-${g.name_en}`"
-            size="small"
+        <VCol cols="12" md="8" lg="6">
+          <AppAutocomplete
+            v-model="formData.family_id"
+            label="Family"
+            :items="familyOptions"
+            item-value="id"
+            item-title="label"
+            server-side
+            :loading="familySearchLoading"
+            clearable
+            autocomplete="off"
+            @search="searchFamilies"
+          />
+        </VCol>
+        <VCol cols="12" md="4" lg="3" class="d-flex align-center">
+          <VBtn
             variant="tonal"
+            prepend-icon="tabler-plus"
+            @click="openCreateFamilyDialog"
           >
-            {{ guardianTypeLabel(g.type) }}:
-            {{ g.name_en || g.name_kh || g.user_name || g.name || "-" }}
-            <template v-if="g.phone"> · {{ g.phone }}</template>
-          </VChip>
-        </div>
-        <div v-else class="text-caption text-medium-emphasis">
-          No guardians on this family yet. Use New Family or Admin → Families.
-        </div>
-      </VCol>
-    </VRow>
+            New Family
+          </VBtn>
+        </VCol>
+
+        <VCol v-if="formData.family_id" cols="12">
+          <div class="text-body-2 text-medium-emphasis mb-2">
+            Guardians (read only)
+          </div>
+          <div
+            v-if="selectedFamilyGuardians.length"
+            class="d-flex flex-wrap ga-2"
+          >
+            <VChip
+              v-for="g in selectedFamilyGuardians"
+              :key="g.id || `${g.type}-${g.name_en}`"
+              size="small"
+              variant="tonal"
+            >
+              {{ guardianTypeLabel(g.type) }}:
+              {{ g.name_en || g.name_kh || g.user_name || g.name || "-" }}
+              <template v-if="g.phone"> · {{ g.phone }}</template>
+            </VChip>
+          </div>
+          <div v-else class="text-caption text-medium-emphasis">
+            No guardians on this family yet. Use New Family or Admin → Families.
+          </div>
+        </VCol>
+      </VRow>
     </AppCard>
   </div>
 </template>
