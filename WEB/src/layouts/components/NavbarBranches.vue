@@ -14,10 +14,25 @@ const { smAndDown } = useDisplay();
 const canAccessAllBranches = computed(() => Number(authStore.user?.manage_branch) === 3);
 const canSwitchBranch = computed(() => showBranches.value.length > 1);
 
+const normalizeBranchId = (id) => {
+  if (id == null || id === "") return null;
+  if (id === "*") return "*";
+  const n = Number(id);
+  return Number.isFinite(n) ? n : id;
+};
+
+const branchTitle = (branch) => {
+  if (locale.value === "km") {
+    return branch.name_kh || branch.name_en || "";
+  }
+  return branch.name_en || branch.name_kh || "";
+};
+
 const normalizeBranches = (branchList = []) => {
   const mapped = branchList.map((branch) => ({
     ...branch,
-    title: locale.value === "km" ? branch.name_kh : branch.name_en,
+    id: normalizeBranchId(branch.id),
+    title: branchTitle(branch),
     symbol: branch.symbol ?? null,
     province_code: branch.province_code ?? null,
   }));
@@ -51,19 +66,27 @@ const resolveDefaultBranchId = () => {
   const items = showBranches.value;
   if (!items.length) return null;
 
-  const hasItem = (id) => items.some((item) => String(item.id) === String(id));
+  // Always return the item's id (canonical type) so AppAutocomplete/VSelect
+  // can match item-value and show the branch name, not the raw stored id.
+  const findItemId = (id) => {
+    const item = items.find((entry) => String(entry.id) === String(id));
+    return item ? item.id : null;
+  };
 
   // Prefer the branch already selected (persisted) so refresh keeps Battambang etc.
-  if (settingStore.branch_id != null && hasItem(settingStore.branch_id)) {
-    return settingStore.branch_id;
+  if (settingStore.branch_id != null) {
+    const matched = findItemId(settingStore.branch_id);
+    if (matched != null) return matched;
   }
 
-  if (authStore.user?.branch_id != null && hasItem(authStore.user.branch_id)) {
-    return authStore.user.branch_id;
+  if (authStore.user?.branch_id != null) {
+    const matched = findItemId(authStore.user.branch_id);
+    if (matched != null) return matched;
   }
 
-  if (canAccessAllBranches.value && hasItem("*")) {
-    return "*";
+  if (canAccessAllBranches.value) {
+    const matched = findItemId("*");
+    if (matched != null) return matched;
   }
 
   return items[0]?.id ?? null;
@@ -81,6 +104,9 @@ const setBranch = () => {
   filter.value.branch_id = nextId;
   if (String(settingStore.branch_id) !== String(nextId)) {
     settingStore.setBranchId(nextId);
+  } else if (settingStore.branch_id !== nextId) {
+    // Same branch, but type may still be string "1" from API/localStorage.
+    settingStore.setBranchId(nextId);
   }
 
   const selected = showBranches.value.find(
@@ -94,20 +120,26 @@ const setBranch = () => {
 const changeBranch = (id) => {
   if (id == null || id === "") return;
 
+  const nextId = normalizeBranchId(id);
+  if (nextId == null) return;
+
   // Compare against the store, not filter.branch_id. AppAutocomplete's v-model
   // updates filter first, so comparing to filter always early-returns and the
   // store stays on "*" (All Branch). Refresh then restores All Branch and
   // scoped pages never reload.
-  if (String(id) === String(settingStore.branch_id)) {
-    filter.value.branch_id = id;
+  if (String(nextId) === String(settingStore.branch_id)) {
+    filter.value.branch_id = nextId;
+    if (settingStore.branch_id !== nextId) {
+      settingStore.setBranchId(nextId);
+    }
     return;
   }
 
-  filter.value.branch_id = id;
-  settingStore.setBranchId(id);
+  filter.value.branch_id = nextId;
+  settingStore.setBranchId(nextId);
 
   const selected = showBranches.value.find(
-    (item) => String(item.id) === String(id),
+    (item) => String(item.id) === String(nextId),
   );
 
   settingStore.setBranchSymbol(selected?.symbol ?? null);
@@ -115,7 +147,7 @@ const changeBranch = (id) => {
 };
 
 watch(
-  () => [authStore.branches, authStore.user?.branch_id, locale.value],
+  () => [authStore.branches, authStore.user?.branch_id, settingStore.branch_id, locale.value],
   () => {
     setBranch();
   },

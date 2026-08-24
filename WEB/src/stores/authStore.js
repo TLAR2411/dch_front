@@ -190,13 +190,10 @@ export const useAuthStore = defineStore("auth", {
             partStore.setSystemPart(defaultPart);
           }
 
-          if (!settingStore.branch_id) {
-            useSettingStore().setBranchId(defaultBranch);
-          }
-
           await useAppStore().getAllAppStore();
 
-
+          // Patch branches before setting branch_id so NavbarBranches can resolve
+          // the selected item's title on first sign-in (not just the raw id).
           this.$patch({
             id: userData?.id ?? null,
             user: userData ?? [],
@@ -205,6 +202,10 @@ export const useAuthStore = defineStore("auth", {
             isAuthenticated: true,
             accessToken: token,
           });
+
+          if (!settingStore.branch_id && defaultBranch != null && defaultBranch !== "") {
+            settingStore.setBranchId(defaultBranch);
+          }
         }
       } catch (error) {
         console.error("Verify user error:", error);

@@ -10,6 +10,8 @@ import {
 import successAlert from "@/helper/successAlert.js";
 import DeleteAlert from "@/helper/deleteAlert.js";
 import { useYearStore } from "@/stores/yearStore.js";
+import { useSettingStore } from "@/stores/settingStore.js";
+import { storeToRefs } from "pinia";
 import AddEditGradeSubjectDialog from "./AddEditGradeSubjectDialog.vue";
 import AppTextField from "@/@core/components/app-form-elements/AppTextField.vue";
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
@@ -17,6 +19,9 @@ import { useEntityLabel } from "@/composable/useEntityLabel.js";
 const { t } = useI18n();
 const { entityLabel, reportPart } = useEntityLabel();
 const yearStore = useYearStore();
+const settingStore = useSettingStore();
+const { year_id: yearId } = storeToRefs(yearStore);
+const { branch_id: branchId } = storeToRefs(settingStore);
 
 definePage({
   meta: {
@@ -38,8 +43,6 @@ const filter = ref({ search: null });
 const openGradeId = ref(null);
 const openSubjectKey = ref(null);
 const openChildSubjects = ref({});
-
-const yearId = computed(() => yearStore.year_id);
 
 const parentChildKey = (gradeId, parentSubjectId) =>
   `${gradeId}-${parentSubjectId}`;
@@ -295,10 +298,21 @@ onMounted(async () => {
   allSubjects.value = (await getSubjects()) ?? [];
   await fetchGradeSubjects();
 });
+
 watch(yearId, async () => {
   openGradeId.value = null;
   openSubjectKey.value = null;
   openChildSubjects.value = {};
+  await fetchGradeSubjects();
+});
+
+watch(branchId, async (next, prev) => {
+  if (String(next) === String(prev)) return;
+  openGradeId.value = null;
+  openSubjectKey.value = null;
+  openChildSubjects.value = {};
+  isDialogVisible.value = false;
+  allSubjects.value = (await getSubjects()) ?? [];
   await fetchGradeSubjects();
 });
 </script>

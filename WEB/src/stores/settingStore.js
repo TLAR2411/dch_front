@@ -25,7 +25,18 @@ export const useSettingStore = defineStore("setting", {
 
   actions: {
     setBranchId(id) {
-      this.branch_id = id;
+      // Keep "*" as string; coerce numeric branch ids so VSelect can match
+      // item-value (number) after first login when API sends default_branch as text.
+      if (id == null || id === "") {
+        this.branch_id = null;
+        return;
+      }
+      if (id === "*") {
+        this.branch_id = "*";
+        return;
+      }
+      const n = Number(id);
+      this.branch_id = Number.isFinite(n) ? n : id;
     },
     setBranchSymbol(symbol) {
       this.branch_symbol = symbol;

@@ -247,7 +247,7 @@ function categoryColspan(cat) {
                 <input
                   class="score-input"
                   type="number"
-                  min="0"
+                  min="30"
                   :max="itemMaxForValidation(cat, item) ?? undefined"
                   step="any"
                   :disabled="readonly"

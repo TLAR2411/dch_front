@@ -16,18 +16,24 @@ import {
   syncGradingRules,
 } from "@/services/api/gradingRules";
 import { addAssessmentItems } from "@/services/api/assessmentItems";
-import { listSubjectParentMap, showSubject } from "@/services/api/subjects";
+import { listSubjectParentMap, showSubject, copySubjectsToBranch } from "@/services/api/subjects";
 import successAlert from "@/helper/successAlert.js";
 import DeleteAlert from "@/helper/deleteAlert.js";
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
+import CopySubjectToBranchDialog from "./CopySubjectToBranchDialog.vue";
+import { useAuthStore } from "@/stores/authStore";
 
 import { useYearStore } from "@/stores/yearStore.js";
 import { usePartStore } from "@/stores/partStore.js";
+import { useSettingStore } from "@/stores/settingStore.js";
 
 const yearStore = useYearStore();
 const partStore = usePartStore();
+const authStore = useAuthStore();
+const settingStore = useSettingStore();
 const { year_id: yearId } = storeToRefs(yearStore);
 const { cur_id: curId } = storeToRefs(partStore);
+const { branch_id: branchId } = storeToRefs(settingStore);
 
 const { mdAndUp } = useDisplay();
 
@@ -50,6 +56,18 @@ const isDialogVisible = ref(false);
 const isAssessmentDialogVisible = ref(false);
 const assessmentFormData = ref({});
 const isLoading = ref(true);
+const isCopyDialogVisible = ref(false);
+const isCopying = ref(false);
+const copyForm = ref({
+  subjectId: null,
+  gradeId: null,
+  yearId: null,
+  subjectLabel: "",
+});
+
+const canCopyToOtherBranch = computed(
+  () => (authStore.branches || []).length > 1,
+);
 
 const subjects = ref([]);
 const grades = ref([]); // grouped grade -> subjects -> rules, same shape as the API payload
@@ -273,6 +291,74 @@ const onDelete = async (subjectId, gradeId) => {
       });
     }
   });
+};
+
+const openCopyToBranch = (subject, gradeId) => {
+  if (!canCopyToOtherBranch.value) {
+    successAlert.fire({
+      icon: "info",
+      title: t("You need access to another branch to copy."),
+    });
+    return;
+  }
+
+  copyForm.value = {
+    subjectId: subject.subject_id,
+    gradeId,
+    yearId: yearId.value,
+    subjectLabel: entityLabel(subject.subject),
+  };
+  isCopyDialogVisible.value = true;
+};
+
+const onCopySubject = async (payload) => {
+  try {
+    isCopying.value = true;
+    const res = await copySubjectsToBranch(payload);
+
+    if (!res?.status) {
+      successAlert.fire({
+        icon: "error",
+        title: res?.message || t("Failed to copy subject setup"),
+      });
+      return;
+    }
+
+    const created = res.data?.created ?? 0;
+    const updated = res.data?.updated ?? 0;
+    const skipped = res.data?.skipped ?? 0;
+    const applied = created + updated;
+    const skipReasons = (res.data?.results || [])
+      .filter((r) => r.status === "skipped" && r.reason)
+      .map((r) => r.reason);
+
+    successAlert.fire({
+      icon: applied > 0 ? "success" : "info",
+      title:
+        res.message ||
+        t("Created {created}, updated {updated}, skipped {skipped}", {
+          created,
+          updated,
+          skipped,
+        }),
+      text: skipReasons.length ? [...new Set(skipReasons)].join("\n") : undefined,
+    });
+
+    if (applied > 0) {
+      isCopyDialogVisible.value = false;
+    }
+  } catch (error) {
+    console.error("Failed to copy subject setup:", error);
+    successAlert.fire({
+      icon: "error",
+      title:
+        error?.response?.data?.message ||
+        error.message ||
+        t("Failed to copy subject setup"),
+    });
+  } finally {
+    isCopying.value = false;
+  }
 };
 
 const onCreate = async (data, callback) => {
@@ -1047,6 +1133,20 @@ watch(yearId, async (next, prev) => {
   if (next === prev) return;
   await fetchGrades1();
 });
+
+watch(branchId, async (next, prev) => {
+  if (String(next) === String(prev)) return;
+  openGradeId.value = null;
+  openSubjectKey.value = null;
+  openChildSubjects.value = {};
+  openSubjectSections.value = {};
+  openRuleKey.value = null;
+  isDialogVisible.value = false;
+  isAssessmentDialogVisible.value = false;
+  isCopyDialogVisible.value = false;
+  subjects.value = await getSubjects();
+  await fetchGrades1();
+});
 </script>
 
 <template>
@@ -1064,6 +1164,16 @@ watch(yearId, async (next, prev) => {
     :item-data="assessmentFormData"
     :loading="isLoading"
     @on-create="onCreateAssessment"
+  />
+
+  <CopySubjectToBranchDialog
+    v-model:isDialogVisible="isCopyDialogVisible"
+    :loading="isCopying"
+    :subject-id="copyForm.subjectId"
+    :grade-id="copyForm.gradeId"
+    :year-id="copyForm.yearId"
+    :subject-label="copyForm.subjectLabel"
+    @on-copy="onCopySubject"
   />
 
   <div class="grading-rules-scroll">
@@ -1279,6 +1389,18 @@ watch(yearId, async (next, prev) => {
                         "
                       ></VBtn>
 
+                      <!-- copy to other branch -->
+                      <VBtn
+                        v-if="canCopyToOtherBranch"
+                        icon="tabler-copy"
+                        color="info"
+                        variant="text"
+                        size="small"
+                        density="comfortable"
+                        :title="t('Copy subject setup to branch')"
+                        @click.stop="openCopyToBranch(subject, grade.grade_id)"
+                      ></VBtn>
+
                       <!-- delete -->
                       <VBtn
                         icon="tabler-trash"
@@ -1353,6 +1475,18 @@ watch(yearId, async (next, prev) => {
                   </VBtn>
 
                   <VBtn
+                    v-if="canCopyToOtherBranch"
+                    prepend-icon="tabler-copy"
+                    color="info"
+                    variant="text"
+                    size="small"
+                    density="comfortable"
+                    @click.stop="openCopyToBranch(subject, grade.grade_id)"
+                  >
+                    {{ t("Copy setup") }}
+                  </VBtn>
+
+                  <VBtn
                     prepend-icon="tabler-trash"
                     color="error"
                     variant="text"
@@ -1372,8 +1506,9 @@ watch(yearId, async (next, prev) => {
 
                     <!-- drill-down: Child | Category -->
                     <div class="d-flex flex-column gap-3 pa-4">
-                      <!-- Child section -->
+                      <!-- Child section — only when this subject has children -->
                       <VCard
+                        v-if="(subject.child_subjects || []).length"
                         variant="outlined"
                         rounded="lg"
                         class="panel-section-card"

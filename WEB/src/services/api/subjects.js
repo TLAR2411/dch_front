@@ -19,3 +19,10 @@ export const listSubjectParentMap = (parentIds) =>
   api
     .post("/api/subjects-parent-map", parentIds ? { parent_ids: parentIds } : {})
     .then((r) => r.data.data);
+
+/**
+ * Clone parent subject(s) + children + grade links + grading rules + assessment
+ * items into other branch(es). Always creates new subject ids in the target.
+ */
+export const copySubjectsToBranch = (payload) =>
+  api.post("/api/subjects-copy-to-branch", payload).then((r) => r.data);
