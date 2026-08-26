@@ -67,6 +67,14 @@ const onGoogleSignIn = async () => {
 
 
 const { smAndDown } = useDisplay();
+
+const {
+  isIos,
+  isIosSafari,
+  showInstallButton,
+  showInstructions,
+  install,
+} = usePwaInstall();
 </script>
 
 <template>
@@ -234,11 +242,71 @@ const { smAndDown } = useDisplay();
                   </span>
                   <VDivider class="flex-grow-1 border-opacity-25" />
                 </div>
+
+                <VBtn
+                  v-if="showInstallButton"
+                  block
+                  type="button"
+                  variant="tonal"
+                  color="primary"
+                  class="install-app-btn text-none font-weight-medium"
+                  prepend-icon="tabler-download"
+                  @click="install"
+                >
+                  {{ $t("Install app") }}
+                </VBtn>
               </VCol>
             </VRow>
           </VForm>
         </VCardText>
       </VCard>
+
+      <VDialog v-model="showInstructions" max-width="400">
+        <VCard>
+          <VCardText class="pb-2">
+            <div class="d-flex align-center mb-3">
+              <VIcon icon="tabler-device-mobile-plus" size="22" color="primary" class="me-2" />
+              <span class="text-h6">{{ $t("Add to Home Screen") }}</span>
+            </div>
+            <p class="text-body-2 text-medium-emphasis mb-4">
+              {{ $t("Add this app to your phone home screen") }}
+            </p>
+
+            <template v-if="isIos">
+              <div class="text-subtitle-2 mb-2">
+                {{ $t("How to install on iPhone") }}
+              </div>
+              <p v-if="!isIosSafari" class="text-body-2 text-warning mb-3">
+                {{ $t("Open this page in Safari first") }}
+              </p>
+              <ol class="install-steps text-body-2 ps-4 mb-0">
+                <li class="mb-2">
+                  {{ $t("Tap the Share button") }}
+                  <VIcon icon="tabler-share-2" size="16" class="ms-1" />
+                </li>
+                <li class="mb-2">{{ $t("Then tap Add to Home Screen") }}</li>
+                <li>{{ $t("Then tap Add") }}</li>
+              </ol>
+            </template>
+
+            <template v-else>
+              <div class="text-subtitle-2 mb-2">
+                {{ $t("How to install on Android") }}
+              </div>
+              <ol class="install-steps text-body-2 ps-4 mb-0">
+                <li class="mb-2">{{ $t("Tap the browser menu") }}</li>
+                <li>{{ $t("Then tap Install app or Add to Home screen") }}</li>
+              </ol>
+            </template>
+          </VCardText>
+          <VCardActions class="px-4 pb-4">
+            <VSpacer />
+            <VBtn color="primary" @click="showInstructions = false">
+              {{ $t("Got it") }}
+            </VBtn>
+          </VCardActions>
+        </VCard>
+      </VDialog>
     </div>
   </div>
 </template>
@@ -265,5 +333,13 @@ const { smAndDown } = useDisplay();
 
 .google-sign-in-btn__icon {
   margin-inline-end: 2px;
+}
+
+.install-app-btn {
+  min-block-size: 44px;
+}
+
+.install-steps {
+  line-height: 1.5;
 }
 </style>

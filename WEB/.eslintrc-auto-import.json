@@ -432,6 +432,10 @@
     "statusToCode": true,
     "getPartHomeRoute": true,
     "viewData": true,
-    "viewPage": true
+    "viewPage": true,
+    "getPwaInstallState": true,
+    "subscribePwaInstall": true,
+    "triggerPwaInstall": true,
+    "usePwaInstall": true
   }
 }

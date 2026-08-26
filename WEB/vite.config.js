@@ -47,12 +47,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',        // check & install updates in bg
       injectRegister: 'auto',            // injects the register code for you
-      includeAssets: ['favicon.ico', 'robots.txt'],
-      selfDestroying: true,
+      includeAssets: ['favicon.ico', 'robots.txt', 'logo/logo-192.png', 'logo/logo-512.png'],
       manifest: {
-        name: 'POS System',
-        short_name: 'POS',
-        description: 'POS System',
+        name: 'Score Management System',
+        short_name: 'DCH SMS',
+        description: 'DCH System',
         start_url: '/',                  // important for scope
         scope: '/',                      // make SW control whole app
         display: 'standalone',

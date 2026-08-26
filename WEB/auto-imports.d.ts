@@ -121,6 +121,7 @@ declare global {
   const getProductPrices: typeof import('./src/utils/getData.js')['getProductPrices']
   const getProductPricesByQuantity: typeof import('./src/utils/getData.js')['getProductPricesByQuantity']
   const getProducts: typeof import('./src/utils/getData.js')['getProducts']
+  const getPwaInstallState: typeof import('./src/utils/pwaInstall.js')['getPwaInstallState']
   const getReceiveDay: typeof import('./src/utils/getData.js')['getReceiveDay']
   const getReceiveDays: typeof import('./src/utils/getData.js')['getReceiveDays']
   const getRefreshToken: typeof import('./src/utils/accessToken.js')['getRefreshToken']
@@ -242,6 +243,7 @@ declare global {
   const statusToCode: typeof import('./src/utils/attendanceReport.js')['statusToCode']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const subjectToSkillPhrase: typeof import('./src/utils/teacherRecommendation.js')['subjectToSkillPhrase']
+  const subscribePwaInstall: typeof import('./src/utils/pwaInstall.js')['subscribePwaInstall']
   const sumItemScores: typeof import('./src/utils/gradeCalculation.js')['sumItemScores']
   const supabase: typeof import('./src/utils/supabase.js')['supabase']
   const syncRef: typeof import('@vueuse/core')['syncRef']
@@ -255,6 +257,7 @@ declare global {
   const toRefs: typeof import('vue')['toRefs']
   const toValue: typeof import('vue')['toValue']
   const toast: typeof import('./src/utils/toast.js')['default']
+  const triggerPwaInstall: typeof import('./src/utils/pwaInstall.js')['triggerPwaInstall']
   const triggerRef: typeof import('vue')['triggerRef']
   const tryOnBeforeMount: typeof import('@vueuse/core')['tryOnBeforeMount']
   const tryOnBeforeUnmount: typeof import('@vueuse/core')['tryOnBeforeUnmount']
@@ -393,6 +396,7 @@ declare global {
   const usePreferredReducedTransparency: typeof import('@vueuse/core').usePreferredReducedTransparency
   const usePrevious: typeof import('@vueuse/core')['usePrevious']
   const useProjection: typeof import('@vueuse/math')['useProjection']
+  const usePwaInstall: typeof import('./src/composables/usePwaInstall.js')['usePwaInstall']
   const useRafFn: typeof import('@vueuse/core')['useRafFn']
   const useRefHistory: typeof import('@vueuse/core')['useRefHistory']
   const useResizeObserver: typeof import('@vueuse/core')['useResizeObserver']
@@ -558,6 +562,7 @@ declare module 'vue' {
     readonly getEntityLabel: UnwrapRef<typeof import('./src/utils/reportLabels.js')['getEntityLabel']>
     readonly getPartDashboardRoute: UnwrapRef<typeof import('./src/utils/partHomeRoutes.js')['getPartDashboardRoute']>
     readonly getPartHomeRoute: UnwrapRef<typeof import('./src/utils/partHomeRoutes.js')['getPartHomeRoute']>
+    readonly getPwaInstallState: UnwrapRef<typeof import('./src/utils/pwaInstall.js')['getPwaInstallState']>
     readonly getSelectTitleField: UnwrapRef<typeof import('./src/utils/reportLabels.js')['getSelectTitleField']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hasPermission2: UnwrapRef<typeof import('./src/utils/hasPermission2.js')['default']>
@@ -652,6 +657,7 @@ declare module 'vue' {
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly subjectToSkillPhrase: UnwrapRef<typeof import('./src/utils/teacherRecommendation.js')['subjectToSkillPhrase']>
+    readonly subscribePwaInstall: UnwrapRef<typeof import('./src/utils/pwaInstall.js')['subscribePwaInstall']>
     readonly sumItemScores: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['sumItemScores']>
     readonly supabase: UnwrapRef<typeof import('./src/utils/supabase.js')['default']>
     readonly supabase: UnwrapRef<typeof import('./src/utils/supabase.js')['supabase']>
@@ -665,6 +671,7 @@ declare module 'vue' {
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>
     readonly toRefs: UnwrapRef<typeof import('vue')['toRefs']>
     readonly toValue: UnwrapRef<typeof import('vue')['toValue']>
+    readonly triggerPwaInstall: UnwrapRef<typeof import('./src/utils/pwaInstall.js')['triggerPwaInstall']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
     readonly tryOnBeforeMount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeMount']>
     readonly tryOnBeforeUnmount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeUnmount']>
@@ -797,6 +804,7 @@ declare module 'vue' {
     readonly usePreferredReducedMotion: UnwrapRef<typeof import('@vueuse/core')['usePreferredReducedMotion']>
     readonly usePrevious: UnwrapRef<typeof import('@vueuse/core')['usePrevious']>
     readonly useProjection: UnwrapRef<typeof import('@vueuse/math')['useProjection']>
+    readonly usePwaInstall: UnwrapRef<typeof import('./src/composables/usePwaInstall.js')['usePwaInstall']>
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
