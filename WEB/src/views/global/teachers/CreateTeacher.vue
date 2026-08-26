@@ -339,6 +339,7 @@ onMounted(async () => {
             <AppTextField
               v-model="formData.name_en"
               :label="t('Name English')"
+              :rules="[requiredValidator]"
               autocomplete="off"
             />
           </VCol>
@@ -361,6 +362,7 @@ onMounted(async () => {
               item-title="name"
               item-value="value"
               :label="t('Nation')"
+              :rules="[requiredValidator]"
               autocomplete="off"
             />
           </VCol>
@@ -371,6 +373,7 @@ onMounted(async () => {
               :label="t('email')"
               type="email"
               autocomplete="off"
+              :rules="[requiredValidator]"
             />
           </VCol>
 
@@ -389,6 +392,7 @@ onMounted(async () => {
               item-title="display_name"
               item-value="id"
               autocomplete="off"
+              :rules="[requiredValidator]"
             />
           </VCol>
 

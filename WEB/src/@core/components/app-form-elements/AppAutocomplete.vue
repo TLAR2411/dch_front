@@ -7,9 +7,11 @@ import {
   onMounted,
   onBeforeUnmount,
   nextTick,
+  useAttrs,
 } from "vue";
 import { api } from "@/utils/api";
 import { useSettingStore } from "@/stores/settingStore";
+import { requiredValidator } from "@/@core/utils/validators";
 
 defineOptions({
   name: "AppSelect",
@@ -34,6 +36,21 @@ const props = defineProps({
 
 const emit = defineEmits(["search", "update:menu", "update:items"]);
 const model = defineModel();
+const attrs = useAttrs();
+
+const isRequired = computed(() => {
+  const requiredAttr = attrs.required;
+  if (
+    requiredAttr === true ||
+    requiredAttr === "" ||
+    requiredAttr === "required"
+  ) {
+    return true;
+  }
+  const rules = attrs.rules;
+  if (!Array.isArray(rules)) return false;
+  return rules.includes(requiredValidator);
+});
 
 const settingStore = useSettingStore();
 const selectRef = ref(null);
@@ -396,8 +413,10 @@ watch(
       :for="elementId"
       class="mb-1 text-wrap notasans font-size-0-75 pt-2"
       style="line-height: 15px"
-      :text="$t(props.label)"
-    />
+    >
+      {{ $t(props.label) }}
+      <span v-if="isRequired" class="text-error">*</span>
+    </VLabel>
 
     <VSelect
       v-model="model"

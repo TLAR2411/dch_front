@@ -113,6 +113,7 @@ const dialogModelValueUpdate = (newVal) => {
           :config="{
             allowInput: true,
           }"
+           :rules="[requiredValidator]"
         />
       </VCol>
       <VCol cols="12" sm="6" md="6">
@@ -124,7 +125,9 @@ const dialogModelValueUpdate = (newVal) => {
           :config="{
             allowInput: true,
           }"
+           :rules="[requiredValidator]"
         />
+        
       </VCol>
     </VRow>
   </AppAddEditDialog>

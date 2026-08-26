@@ -104,6 +104,7 @@ onMounted(async () => {
       <VCol cols="12" lg="3" md="4" sm="6">
         <AppTextField
           v-model="formData.name_en"
+          :rules="[requiredValidator]"
           :label="t('Name English')"
           autocomplete="off"
         />
@@ -147,6 +148,7 @@ onMounted(async () => {
           v-model="formData.user_name"
           :label="t('Username')"
           autocomplete="off"
+          :rules="[requiredValidator]"
         />
       </VCol>
 

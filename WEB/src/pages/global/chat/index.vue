@@ -11,9 +11,11 @@ import {
   sendChatMessage,
   editChatMessage,
   deleteChatMessage,
+  listClassChatMembers,
 } from "@/services/api/classChat";
 import { useChatUnreadStore } from "@/stores/chatUnreadStore";
 import { useDialog } from "@/composable/useDialog";
+import ChatMembersDialog from "@/views/global/chat/ChatMembersDialog.vue";
 
 definePage({
   meta: {
@@ -49,6 +51,8 @@ const fileInput = ref(null);
 const editingMessage = ref(null);
 /** On small screens: false = chat list, true = conversation. */
 const mobileShowChat = ref(false);
+const membersDialogVisible = ref(false);
+const memberCount = ref(null);
 let pollTimer = null;
 let listPollTimer = null;
 
@@ -133,6 +137,8 @@ async function loadChats({ quiet = false } = {}) {
       // wipes unread badges before the user can see them.
       activeChat.value = null;
       messages.value = [];
+      memberCount.value = null;
+      membersDialogVisible.value = false;
       mobileShowChat.value = false;
       stopMessagePolling();
     }
@@ -155,12 +161,38 @@ async function loadMessages() {
   }
 }
 
+async function loadMemberCount() {
+  if (!activeChat.value?.chat_id) {
+    memberCount.value = null;
+    return;
+  }
+  try {
+    const data = await listClassChatMembers(activeChat.value.chat_id);
+    memberCount.value = data?.member_count ?? 0;
+  } catch {
+    memberCount.value = null;
+  }
+}
+
+function onMembersUpdated(payload) {
+  if (payload && typeof payload.member_count === "number") {
+    memberCount.value = payload.member_count;
+  } else {
+    void loadMemberCount();
+  }
+}
+
 async function selectChat(chat) {
   activeChat.value = chat;
   messages.value = [];
+  memberCount.value = null;
   mobileShowChat.value = true;
-  await loadMessages();
+  await Promise.all([loadMessages(), loadMemberCount()]);
   startMessagePolling();
+}
+
+function openMembersDialog() {
+  membersDialogVisible.value = true;
 }
 
 function backToChatList() {
@@ -388,14 +420,35 @@ watch([systemPart, branchId], () => {
           >
             <VIcon icon="tabler-arrow-left" />
           </VBtn>
-          <div class="chat-main-header-text">
+          <div
+            class="chat-main-header-text chat-main-header-clickable"
+            role="button"
+            tabindex="0"
+            @click="openMembersDialog"
+            @keydown.enter.prevent="openMembersDialog"
+          >
             <div class="text-h6 text-truncate">
               {{ activeChat.name_en || activeChat.name_kh }}
             </div>
             <div class="text-caption text-medium-emphasis">
-              {{ $t("Class group chat") }}
+              <template v-if="memberCount != null">
+                {{ memberCount }} {{ $t("members") }}
+              </template>
+              <template v-else>
+                {{ $t("Class group chat") }}
+              </template>
             </div>
           </div>
+          <VBtn
+            icon
+            variant="text"
+            size="small"
+            class="flex-shrink-0"
+            :aria-label="$t('Members')"
+            @click="openMembersDialog"
+          >
+            <VIcon icon="tabler-users" />
+          </VBtn>
         </div>
         <VDivider />
 
@@ -562,6 +615,15 @@ watch([systemPart, branchId], () => {
         {{ $t("Select a class chat to start") }}
       </div>
     </section>
+
+    <ChatMembersDialog
+      v-if="activeChat"
+      v-model="membersDialogVisible"
+      :chat-id="activeChat.chat_id"
+      :class-id="activeChat.class_id"
+      :class-name="activeChat.name_en || activeChat.name_kh"
+      @updated="onMembersUpdated"
+    />
   </div>
 </template>
 
@@ -601,6 +663,17 @@ watch([systemPart, branchId], () => {
 .chat-main-header-text {
   min-width: 0;
   flex: 1 1 auto;
+}
+
+.chat-main-header-clickable {
+  cursor: pointer;
+  border-radius: 8px;
+  padding-block: 2px;
+}
+
+.chat-main-header-clickable:hover .text-h6 {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .chat-list-body {

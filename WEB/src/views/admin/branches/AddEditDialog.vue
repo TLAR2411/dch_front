@@ -118,6 +118,7 @@ const onCloseDialog = () => {
           v-model="itemData.name_en"
           label="Name English"
           placeholder="Head office"
+          :rules="[requiredValidator]"
         />
       </VCol>
       <VCol cols="12" sm="6">

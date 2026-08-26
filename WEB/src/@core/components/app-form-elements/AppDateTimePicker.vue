@@ -7,6 +7,7 @@ import { VInput, makeVInputProps } from "vuetify/lib/components/VInput/VInput";
 import { filterInputAttrs } from "vuetify/lib/util/helpers";
 import { useConfigStore } from "@core/stores/config";
 import { Khmer } from "flatpickr/dist/l10n/km.js";
+import { requiredValidator } from "@/@core/utils/validators";
 
 const props = defineProps({
   autofocus: Boolean,
@@ -62,6 +63,20 @@ const [rootAttrs, compAttrs] = filterInputAttrs(attrs);
 
 const inputProps = ref(VInput.filterProps(props));
 const fieldProps = ref(VField.filterProps(props));
+
+const isRequired = computed(() => {
+  const requiredAttr = attrs.required ?? props.required;
+  if (
+    requiredAttr === true ||
+    requiredAttr === "" ||
+    requiredAttr === "required"
+  ) {
+    return true;
+  }
+  const rules = props.rules ?? attrs.rules;
+  if (!Array.isArray(rules)) return false;
+  return rules.includes(requiredValidator);
+});
 
 const refFlatPicker = ref();
 
@@ -205,8 +220,10 @@ const elementId = computed(() => {
       class="mb-1 text-wrap notasans font-size-0-75 pt-2"
       style="line-height: 15px"
       :for="elementId"
-      :text="$t(fieldProps.label)"
-    />
+    >
+      {{ $t(fieldProps.label) }}
+      <span v-if="isRequired" class="text-error">*</span>
+    </VLabel>
 
     <VInput
       v-bind="{ ...inputProps, ...rootAttrs }"
@@ -261,7 +278,7 @@ const elementId = computed(() => {
                 @on-open="isCalendarOpen = true"
                 @on-close="
                   isCalendarOpen = false;
-                  validate();
+                  nextTick(() => validate());
                 "
                 @update:model-value="emitModelValue"
               />

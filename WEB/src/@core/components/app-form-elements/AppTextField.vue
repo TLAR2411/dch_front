@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch, useAttrs, useId } from "vue";
+import { requiredValidator } from "@/@core/utils/validators";
 
 defineOptions({
   name: "AppTextField",
@@ -44,6 +45,20 @@ const elementId = computed(() => {
 });
 
 const label = computed(() => useAttrs().label);
+
+const isRequired = computed(() => {
+  const requiredAttr = attrs.required;
+  if (
+    requiredAttr === true ||
+    requiredAttr === "" ||
+    requiredAttr === "required"
+  ) {
+    return true;
+  }
+  const rules = attrs.rules;
+  if (!Array.isArray(rules)) return false;
+  return rules.includes(requiredValidator);
+});
 const displayValue = ref("");
 
 // Helper: Format number with commas
@@ -224,8 +239,10 @@ const inputMode = computed(() => {
       :for="elementId"
       class="mb-1 text-wrap notosans font-size-0-75 pt-2"
       style="line-height: 15px"
-      :text="$t(label)"
-    />
+    >
+      {{ $t(label) }}
+      <span v-if="isRequired" class="text-error">*</span>
+    </VLabel>
     <VTextField
       v-bind="{
         ...$attrs,

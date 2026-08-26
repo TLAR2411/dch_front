@@ -509,6 +509,7 @@ onMounted(async () => {
                 v-model="formData.name_en"
                 label="Name English"
                 autocomplete="off"
+                :rules="[requiredValidator]"
               />
             </VCol>
             <VCol cols="6" md="2" sm="6">
@@ -540,6 +541,7 @@ onMounted(async () => {
                 label="Date of Birth"
                 :config="{ allowInput: true }"
                 autocomplete="off"
+                :rules="[requiredValidator]"
               />
             </VCol>
             <VCol cols="12" md="4" sm="6">

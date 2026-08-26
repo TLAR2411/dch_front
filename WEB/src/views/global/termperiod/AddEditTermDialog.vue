@@ -223,6 +223,7 @@ onMounted(async () => {
           :label="t('Start Date')"
           :placeholder="t('Start Date')"
           autocomplete="off"
+          :rules="[requiredValidator]"
         />
       </VCol>
       <VCol cols="12" sm="4" md="4">
@@ -234,6 +235,7 @@ onMounted(async () => {
           :config="{
             allowInput: true,
           }"
+          :rules="[requiredValidator]"
         />
       </VCol>
 
@@ -246,6 +248,7 @@ onMounted(async () => {
           :label="t('Year')"
           autocomplete="off"
           persistent-hint
+          :rules="[requiredValidator]"
         />
       </VCol>
       <VCol cols="12">

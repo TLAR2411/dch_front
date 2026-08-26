@@ -225,6 +225,7 @@ onMounted(async () => {
           item-value="id"
           :label="t('Grade')"
           autocomplete="off"
+          :rules="[requiredValidator]"
           persistent-hint
         />
       </VCol>
@@ -238,6 +239,7 @@ onMounted(async () => {
           :label="t('Symbol')"
           autocomplete="off"
           persistent-hint
+          :rules="[requiredValidator]"
         />
       </VCol>
 
@@ -262,6 +264,7 @@ onMounted(async () => {
           :label="t('Year')"
           autocomplete="off"
           persistent-hint
+          :rules="[requiredValidator]"
         />
       </VCol>
 
@@ -272,7 +275,7 @@ onMounted(async () => {
         <AppTextField
           v-model="itemData.name_en"
           :label="t('Name En')"
-          :rules="[requiredValidator]"
+
         />
       </VCol>
       <VCol cols="12" sm="4" md="4">

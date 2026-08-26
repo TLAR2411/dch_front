@@ -52,3 +52,8 @@ export const deleteChatMessage = (messageId) =>
   api
     .post("/api/class-chat-delete", { message_id: messageId })
     .then((r) => r.data.data);
+
+export const listClassChatMembers = (chatId) =>
+  api
+    .post("/api/class-chat-members", { chat_id: chatId })
+    .then((r) => r.data.data ?? null);

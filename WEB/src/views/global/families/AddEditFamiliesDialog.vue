@@ -163,6 +163,7 @@ const dialogModelValueUpdate = (newVal) => {
           <AppTextField
             v-model="itemData.name_kh"
             :label="t('Name Khmer')"
+             :rules="[requiredValidator]"
             autocomplete="off"
           />
         </VCol>
@@ -202,6 +203,7 @@ const dialogModelValueUpdate = (newVal) => {
                   v-model="g.name_en"
                   :label="t('Name English')"
                   autocomplete="off"
+                   :rules="[requiredValidator]"
                 />
               </VCol>
               <VCol cols="12" md="3">
@@ -209,6 +211,7 @@ const dialogModelValueUpdate = (newVal) => {
                   v-model="g.name_kh"
                   :label="t('Name Khmer')"
                   autocomplete="off"
+                   :rules="[requiredValidator]"
                 />
               </VCol>
               <VCol cols="12" md="3">
@@ -216,6 +219,7 @@ const dialogModelValueUpdate = (newVal) => {
                   v-model="g.phone"
                   :label="t('Phone')"
                   autocomplete="off"
+                   :rules="[requiredValidator]"
                 />
               </VCol>
               <VCol cols="12" class="d-flex justify-end">
@@ -270,6 +274,7 @@ const dialogModelValueUpdate = (newVal) => {
           <AppTextField
             v-model="itemData.name_kh"
             :label="t('Name Khmer')"
+            :rules="[requiredValidator]"
             autocomplete="off"
           />
         </VCol>
@@ -300,10 +305,11 @@ const dialogModelValueUpdate = (newVal) => {
                   :items="guardianTypes"
                   item-title="name"
                   item-value="value"
+                  :rules="[requiredValidator]"
                 />
               </VCol>
               <VCol cols="12">
-                <AppTextField v-model="g.name_en" :label="t('Name English')" />
+                <AppTextField v-model="g.name_en" :label="t('Name English')" :rules="[requiredValidator]"/>
               </VCol>
               <VCol cols="12">
                 <AppTextField v-model="g.phone" :label="t('Phone')" />
