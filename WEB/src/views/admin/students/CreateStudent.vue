@@ -13,10 +13,12 @@ import { app } from "@/utils/app";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { getCurriculums } from "@/services/dataService";
+import { usePageTour } from "@/composable/usePageTour";
 
 const curriculums = ref([]);
 
 const router = useRouter();
+usePageTour("admin-students-create");
 
 const genderOptions = [
   { name: "ប្រុស", value: "male" },
@@ -455,7 +457,7 @@ onMounted(async () => {
     >
       <VRow>
         <VCol cols="12">
-          <div class="d-flex mt-3">
+          <div id="page-tour-student-photo" class="d-flex mt-3">
             <VAvatar
               rounded="lg"
               size="100"
@@ -495,7 +497,7 @@ onMounted(async () => {
         <AppLabel title="Personal Information" />
 
         <VCol cols="12">
-          <VRow class="mt-2">
+          <VRow id="page-tour-student-personal" class="mt-2">
             <VCol cols="12" md="4" sm="6">
               <AppTextField
                 v-model="formData.name_kh"
@@ -600,7 +602,13 @@ onMounted(async () => {
 
         <AppLabel title="School Information" />
 
-        <VCol cols="12" lg="5" md="5" sm="5">
+        <VCol
+          id="page-tour-student-curriculum"
+          cols="12"
+          lg="5"
+          md="5"
+          sm="5"
+        >
           <AppAutocomplete
             v-model="formData.cur_id"
             label="Curriculums"
@@ -659,7 +667,7 @@ onMounted(async () => {
 
         <AppLabel title="Family Information" />
 
-        <VCol cols="12" md="8" lg="6">
+        <VCol cols="12" md="8" lg="6" id="page-tour-student-family">
           <AppAutocomplete
             v-model="formData.family_id"
             label="Family"

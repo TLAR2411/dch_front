@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, computed, watch } from "vue";
+import { onMounted, ref, computed, watch, nextTick } from "vue";
 import StudentClassList from "../studentclass/StudentClassList.vue";
 import { getWeekdays } from "@/services/dataService.js";
 
@@ -7,8 +7,10 @@ import { useRouter, useRoute } from "vue-router";
 import Schedule from "../components/Schedule.vue";
 import TeacherClass from "../components/TeacherClass.vue";
 import { api } from "@/utils/api.js";
+import { usePageTour } from "@/composable/usePageTour";
 
 const route = useRoute();
+usePageTour("global-class-detail", { delayMs: 600 });
 
 const payload = ref({
   class_id: route.params.id,
@@ -82,10 +84,10 @@ onMounted(async () => {
 
 <template>
   <div class="class-detail-page">
-    <VTabs v-model="currentTab" class="my-3">
-      <VTab>General</VTab>
-      <VTab>Students</VTab>
-      <VTab>Teachers</VTab>
+    <VTabs v-model="currentTab" id="page-tour-class-tabs" class="my-3">
+        <VTab value="window1" id="page-tour-class-tab-general">General</VTab>
+        <VTab value="window2" id="page-tour-class-tab-students">Students</VTab>
+        <VTab value="window3" id="page-tour-class-tab-teachers">Teachers</VTab>
     </VTabs>
 
     <div>
@@ -131,28 +133,9 @@ onMounted(async () => {
               </div>
             </div>
 
-            <!-- Period row -->
             <VDivider class="my-3" />
-            <!-- <div
-            class="d-flex align-center flex-wrap ga-2"
-            v-if="classDetail.period?.length"
-          >
-            <VChip
-              v-for="term in classDetail.period"
-              :key="term.id"
-              class="font-weight-bold"
-              style=""
-              variant="outlined"
-            >
-              {{ term.name_en }}
-              <span class="text-caption ml-1" style="">
-                {{ formatDate(term.start_date) }} -
-                {{ formatDate(term.end_date) }}
-              </span>
-            </VChip>
-          </div> -->
 
-            <VRow class="mb-2">
+            <VRow id="page-tour-class-stats" class="mb-2">
               <VCol cols="12" md="3" v-for="stat in stats" :key="stat.label">
                 <VCard rounded="lg" class="pa-3">
                   <div class="d-flex align-center justify-space-between mb-2">
@@ -179,7 +162,7 @@ onMounted(async () => {
               </VCol>
             </VRow>
           </VCard>
-          <Schedule :class_id="route.params.id" />
+          <Schedule id="page-tour-class-schedule" :class_id="route.params.id" />
         </VWindowItem>
         <VWindowItem value="window2">
           <StudentClassList :payload="payload" />

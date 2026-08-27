@@ -201,7 +201,10 @@ defineExpose({
 
 <template>
   <div>
-    <div class="d-flex justify-end ga-2 flex-wrap mb-3">
+    <div
+      id="page-tour-score-behavior-actions"
+      class="d-flex justify-end ga-2 flex-wrap mb-3"
+    >
       <VBtn
         variant="tonal"
         color="secondary"

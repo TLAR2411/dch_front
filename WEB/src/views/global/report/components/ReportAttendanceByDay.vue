@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { usePartStore } from "@/stores/partStore";
 import { getEntityLabel } from "@/utils/reportLabels.js";
 import FooterRepor from "@/views/global/components/footerRepor.vue";
+import ReportSheetHeader from "./ReportSheetHeader.vue";
 
 const { t } = useI18n();
 const partStore = usePartStore();
@@ -27,6 +28,17 @@ const props = defineProps({
   class_id: {
     type: Number,
   },
+  class_name: {
+    type: String,
+    default: "",
+  },
+});
+
+const programName = computed(() => {
+  const part = reportPart.value;
+  if (part === "khmer") return t("Khmer Curriculum");
+  if (part === "chinese") return t("Chinese Curriculum");
+  return t("English Curriculum");
 });
 
 const loading = ref(false);
@@ -154,8 +166,12 @@ onMounted(() => {
 
 <template>
   <!-- ── filter ─────────────────────────────────────────────────────── -->
-  <VRow class="mt-1 report-no-print" align="center">
-    <VCol cols="9" md="3">
+  <VRow
+    id="page-tour-att-report-filters"
+    class="mt-1 report-no-print"
+    align="center"
+  >
+    <VCol id="page-tour-att-report-period" cols="9" md="3">
       <AppDateTimePicker
         v-model="formDay.start_date"
         :placeholder="$t('Select date')"
@@ -163,6 +179,7 @@ onMounted(() => {
     </VCol>
     <VCol cols="3" md="5" class="d-flex gap-2">
       <VBtn
+        id="page-tour-att-report-search"
         color="primary"
         @click="getData"
         variant="tonal"
@@ -173,6 +190,7 @@ onMounted(() => {
         >{{ $t("Search") }}</VBtn
       >
       <VBtn
+        id="page-tour-att-report-print"
         variant="tonal"
  
         :disabled="!hasData || loading || !attData.length"
@@ -303,9 +321,11 @@ onMounted(() => {
           />
         </div>
         <div v-else id="printAreaDay" class="border rounded-lg pa-3">
-          <div class="text-center mb-3 d-none d-print-block">
-            <div class="font-weight-medium">{{ printTitle }}</div>
-          </div>
+          <ReportSheetHeader
+            :title="printTitle"
+            :class-label="class_name || '—'"
+            :program-name="programName"
+          />
         <VTable
           fixed-header
           density="comfortable"

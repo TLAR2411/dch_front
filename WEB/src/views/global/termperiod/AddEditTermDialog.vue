@@ -9,12 +9,17 @@ import { useSettingStore } from "@/stores/settingStore";
 import { getYears } from "@/services/dataService";
 import { calculateSchoolDayCountsForTerm } from "@/utils/schoolDays.js";
 import { useDisplay } from "vuetify";
+import { usePageTour } from "@/composable/usePageTour";
 
 const { xs } = useDisplay();
 const partStore = usePartStore();
 const settingStore = useSettingStore();
 
 const { t } = useI18n();
+const { startTour: startCreateDialogTour } = usePageTour(
+  "global-term-create-dialog",
+  { autoStart: false, delayMs: 500 },
+);
 
 const props = defineProps({
   itemData: {
@@ -183,6 +188,16 @@ const dialogModelValueUpdate = (newVal) => {
 onMounted(async () => {
   years.value = await getYears();
 });
+
+watch(
+  () => props.isDialogVisible,
+  (open) => {
+    if (!open) return;
+    // Only guide create (insert), not update
+    if (props.itemData?.id) return;
+    startCreateDialogTour({ force: false });
+  },
+);
 </script>
 
 <template>
@@ -193,63 +208,69 @@ onMounted(async () => {
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
+    :show-tour-help="!itemData.id"
+    @on-tour-help="startCreateDialogTour({ force: true })"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
     <VRow>
-      <VCol cols="12" sm="3" md="3">
-        <AppTextField
-          v-model="itemData.name_kh"
-          :label="t('Name Kh')"
-          :rules="[requiredValidator]"
-        />
-      </VCol>
-      <VCol cols="12" sm="3" md="3">
-        <AppTextField
-          v-model="itemData.name_en"
-          :label="t('Name En')"
-          :rules="[requiredValidator]"
-        />
-      </VCol>
-      <VCol cols="12" sm="3" md="3">
-        <AppTextField v-model="itemData.name_cn" :label="t('Name Cn')" />
-      </VCol>
-      <VCol cols="12" sm="3" md="3">
-        <AppTextField v-model="itemData.symbol" :label="t('Symbol')" />
-      </VCol>
-      <VCol cols="12" sm="4" md="4">
-        <AppDateTimePicker
-          v-model="itemData.start_date"
-          :label="t('Start Date')"
-          :placeholder="t('Start Date')"
-          autocomplete="off"
-          :rules="[requiredValidator]"
-        />
-      </VCol>
-      <VCol cols="12" sm="4" md="4">
-        <AppDateTimePicker
-          v-model="itemData.end_date"
-          :label="t('End Date')"
-          :placeholder="t('End Date')"
-          autocomplete="off"
-          :config="{
-            allowInput: true,
-          }"
-          :rules="[requiredValidator]"
-        />
-      </VCol>
+      <VCol id="page-tour-term-required" cols="12">
+        <VRow>
+          <VCol cols="12" sm="3" md="3">
+            <AppTextField
+              v-model="itemData.name_kh"
+              :label="t('Name Kh')"
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+          <VCol cols="12" sm="3" md="3">
+            <AppTextField
+              v-model="itemData.name_en"
+              :label="t('Name En')"
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+          <VCol cols="12" sm="3" md="3">
+            <AppTextField v-model="itemData.name_cn" :label="t('Name Cn')" />
+          </VCol>
+          <VCol cols="12" sm="3" md="3">
+            <AppTextField v-model="itemData.symbol" :label="t('Symbol')" />
+          </VCol>
+          <VCol cols="12" sm="4" md="4">
+            <AppDateTimePicker
+              v-model="itemData.start_date"
+              :label="t('Start Date')"
+              :placeholder="t('Start Date')"
+              autocomplete="off"
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+          <VCol cols="12" sm="4" md="4">
+            <AppDateTimePicker
+              v-model="itemData.end_date"
+              :label="t('End Date')"
+              :placeholder="t('End Date')"
+              autocomplete="off"
+              :config="{
+                allowInput: true,
+              }"
+              :rules="[requiredValidator]"
+            />
+          </VCol>
 
-      <VCol cols="4" sm="4" md="4">
-        <AppAutocomplete
-          v-model="itemData.year_id"
-          :items="years"
-          item-title="year_name"
-          item-value="id"
-          :label="t('Year')"
-          autocomplete="off"
-          persistent-hint
-          :rules="[requiredValidator]"
-        />
+          <VCol cols="4" sm="4" md="4">
+            <AppAutocomplete
+              v-model="itemData.year_id"
+              :items="years"
+              item-title="year_name"
+              item-value="id"
+              :label="t('Year')"
+              autocomplete="off"
+              persistent-hint
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+        </VRow>
       </VCol>
       <VCol cols="12">
         <AppTextarea
@@ -309,60 +330,69 @@ onMounted(async () => {
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
+    :show-tour-help="!itemData.id"
+    @on-tour-help="startCreateDialogTour({ force: true })"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
     <VRow>
-      <VCol cols="12" sm="3" md="3">
-        <AppTextField
-          v-model="itemData.name_kh"
-          :label="t('Name Kh')"
-          :rules="[requiredValidator]"
-        />
-      </VCol>
-      <VCol cols="12" sm="3" md="3">
-        <AppTextField
-          v-model="itemData.name_en"
-          :label="t('Name En')"
-          :rules="[requiredValidator]"
-        />
-      </VCol>
-      <VCol cols="12" sm="3" md="3">
-        <AppTextField v-model="itemData.name_cn" :label="t('Name Cn')" />
-      </VCol>
-      <VCol cols="6" sm="3" md="3">
-        <AppTextField v-model="itemData.symbol" :label="t('Symbol')" />
-      </VCol>
+      <VCol id="page-tour-term-required" cols="12">
+        <VRow>
+          <VCol cols="12" sm="3" md="3">
+            <AppTextField
+              v-model="itemData.name_kh"
+              :label="t('Name Kh')"
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+          <VCol cols="12" sm="3" md="3">
+            <AppTextField
+              v-model="itemData.name_en"
+              :label="t('Name En')"
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+          <VCol cols="12" sm="3" md="3">
+            <AppTextField v-model="itemData.name_cn" :label="t('Name Cn')" />
+          </VCol>
+          <VCol cols="6" sm="3" md="3">
+            <AppTextField v-model="itemData.symbol" :label="t('Symbol')" />
+          </VCol>
 
-      <VCol cols="6" sm="4" md="4">
-        <AppAutocomplete
-          v-model="itemData.year_id"
-          :items="years"
-          item-title="year_name"
-          item-value="id"
-          :label="t('Year')"
-          autocomplete="off"
-          persistent-hint
-        />
-      </VCol>
-      <VCol cols="12" sm="4" md="4">
-        <AppDateTimePicker
-          v-model="itemData.start_date"
-          :label="t('Start Date')"
-          :placeholder="t('Start Date')"
-          autocomplete="off"
-        />
-      </VCol>
-      <VCol cols="12" sm="4" md="4">
-        <AppDateTimePicker
-          v-model="itemData.end_date"
-          :label="t('End Date')"
-          :placeholder="t('End Date')"
-          autocomplete="off"
-          :config="{
-            allowInput: true,
-          }"
-        />
+          <VCol cols="6" sm="4" md="4">
+            <AppAutocomplete
+              v-model="itemData.year_id"
+              :items="years"
+              item-title="year_name"
+              item-value="id"
+              :label="t('Year')"
+              autocomplete="off"
+              persistent-hint
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+          <VCol cols="12" sm="4" md="4">
+            <AppDateTimePicker
+              v-model="itemData.start_date"
+              :label="t('Start Date')"
+              :placeholder="t('Start Date')"
+              autocomplete="off"
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+          <VCol cols="12" sm="4" md="4">
+            <AppDateTimePicker
+              v-model="itemData.end_date"
+              :label="t('End Date')"
+              :placeholder="t('End Date')"
+              autocomplete="off"
+              :config="{
+                allowInput: true,
+              }"
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+        </VRow>
       </VCol>
 
       <VCol cols="12" sm="12" md="12">

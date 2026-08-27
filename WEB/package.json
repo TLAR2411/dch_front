@@ -39,6 +39,7 @@
     "cookie-es": "1.2.2",
     "crypto-js": "^4.2.0",
     "destr": "2.0.5",
+    "driver.js": "^1.8.0",
     "eslint-plugin-regexp": "2.7.0",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",

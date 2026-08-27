@@ -12,6 +12,7 @@ import { api } from "@/utils/api";
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
+import { usePageTour } from "@/composable/usePageTour";
 
 definePage({
   meta: {
@@ -27,6 +28,7 @@ definePage({
 const router = useRouter();
 const { t } = useI18n();
 const { selectItemTitle } = useEntityLabel();
+usePageTour("admin-users-create");
 
 const gender = [
   { name: "ប្រុស", value: "male" },
@@ -91,7 +93,7 @@ onMounted(async () => {
     :loading="isLoading"
     @on-submit="onSubmit"
   >
-    <VRow>
+    <VRow id="page-tour-user-form">
       <AppLabel :title="t('Personal Information')" />
       <VCol cols="12" lg="3" md="4" sm="6">
         <AppTextField
@@ -164,7 +166,7 @@ onMounted(async () => {
           autocomplete="off"
         />
       </VCol>
-      <VCol cols="12" lg="3" md="4" sm="6">
+      <VCol id="page-tour-user-role" cols="12" lg="3" md="4" sm="6">
         <AppAutocomplete
           v-model="formData.role_id"
           :label="t('Roles')"

@@ -24,6 +24,7 @@ import { useSettingStore } from "@/stores/settingStore";
 import { useChatUnreadStore } from "@/stores/chatUnreadStore";
 import NavbarAcademicYear from "./NavbarAcademicYear.vue";
 import MobileBottomNav from "./MobileBottomNav.vue";
+import PageTourNavbarButton from "./PageTourNavbarButton.vue";
 
 const navItems = useNavigation();
 const configStore = useLayoutConfigStore();
@@ -104,6 +105,7 @@ watch([systemPart, branchId], () => {
           <NavbarBranches />
           <NavPartSwitcher class="ms-1" />
           <NavbarChat />
+          <PageTourNavbarButton />
           <NavBarI18n
             class="ms-1"
             v-if="

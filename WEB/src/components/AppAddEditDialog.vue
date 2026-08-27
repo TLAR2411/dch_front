@@ -1,4 +1,6 @@
 <script setup>
+import PageTourHelpButton from "@/components/PageTourHelpButton.vue";
+
 const props = defineProps({
   title: {
     type: String,
@@ -30,11 +32,17 @@ const props = defineProps({
     skipCheck: true,
     default: undefined,
   },
+  /** Show ? in the title bar to replay the create-dialog tour. */
+  showTourHelp: {
+    type: Boolean,
+    default: false,
+  },
 });
 const emit = defineEmits([
   "update:isDialogVisible",
   "onSubmit",
   "onCloseDialog",
+  "onTourHelp",
 ]);
 
 const refForm = ref();
@@ -72,7 +80,10 @@ const $loading = computed({
       <!-- Ensure this div can scroll -->
       <DialogCloseBtn @click="onCloseDialog" />
       <VCard>
-        <VCardItem style="padding-top: 12px; padding-bottom: 12px">
+        <VCardItem
+          class="d-flex align-center justify-space-between"
+          style="padding-top: 12px; padding-bottom: 12px"
+        >
           <span style="font-size: 18px">
             <template v-if="icon">
               <VIcon>{{ icon }}</VIcon>
@@ -83,6 +94,13 @@ const $loading = computed({
             </template>
             {{ $t(title) }}
           </span>
+          <PageTourHelpButton
+            v-if="showTourHelp"
+            button-id="page-tour-dialog-help-btn"
+            tooltip="How to use this form"
+            class="ms-2"
+            @click="$emit('onTourHelp')"
+          />
         </VCardItem>
         <VDivider />
 
@@ -102,6 +120,7 @@ const $loading = computed({
             {{ $t("Close") }}
           </VBtn>
           <VBtn
+            id="page-tour-dialog-submit"
             v-if="isSubmit"
             @click="onFormSubmit"
             :loading="loading"

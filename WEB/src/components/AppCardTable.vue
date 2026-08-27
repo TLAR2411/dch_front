@@ -546,6 +546,7 @@ defineExpose({ reload, exportToExcel });
                     </VCard>
                   </VMenu>
                   <IconBtn
+                    id="page-tour-filter-btn"
                     rounded
                     @click.prevent="toggleFilters"
                     size="30"
@@ -560,6 +561,7 @@ defineExpose({ reload, exportToExcel });
                       size="20"
                   /></IconBtn>
                   <VBtn
+                    id="page-tour-create-btn"
                     size="30"
                     v-if="
                       (!isCheckBranch || useSettingStore().branch_id != '*') &&
@@ -585,6 +587,7 @@ defineExpose({ reload, exportToExcel });
           </div>
 
           <div
+            id="page-tour-table"
             ref="rightLog"
             class="flex-grow-1 chat-log-container"
             style="background-color: white; overflow-y: auto"
@@ -754,13 +757,14 @@ defineExpose({ reload, exportToExcel });
                             "
                             size="small"
                             color="medium-emphasis"
+                            :id="index === 0 ? 'page-tour-row-actions' : undefined"
                           >
                             <VIcon icon="tabler-dots-vertical" />
                             <VMenu activator="parent">
                               <VList>
                                 <template
-                                  v-for="(button, index) in actionButtons"
-                                  :key="index"
+                                  v-for="(button, btnIndex) in actionButtons"
+                                  :key="btnIndex"
                                 >
                                   <VListItem
                                     v-if="
@@ -770,6 +774,11 @@ defineExpose({ reload, exportToExcel });
                                         checkPermission(button, item)) &&
                                       (!button.condition ||
                                         button.condition(item))
+                                    "
+                                    :id="
+                                      index === 0 && button.value
+                                        ? `page-tour-action-${button.value}`
+                                        : undefined
                                     "
                                     @click="() => button.action(item)"
                                   >
@@ -896,6 +905,12 @@ defineExpose({ reload, exportToExcel });
                       (!isMoreActionCondition || isMoreActionCondition(item))
                     "
                     size="small"
+                    :id="
+                      dataItems?.data?.[0] === item ||
+                      dataItems?.data?.[0]?.id === item?.id
+                        ? 'page-tour-row-actions'
+                        : undefined
+                    "
                   >
                     <VIcon
                       icon="tabler-dots-vertical"
@@ -913,6 +928,13 @@ defineExpose({ reload, exportToExcel });
                               (!button.permission ||
                                 checkPermission(button, item)) &&
                               (!button.condition || button.condition(item))
+                            "
+                            :id="
+                              (dataItems?.data?.[0] === item ||
+                                dataItems?.data?.[0]?.id === item?.id) &&
+                              button.value
+                                ? `page-tour-action-${button.value}`
+                                : undefined
                             "
                             @click="() => button.action(item)"
                             :class="[

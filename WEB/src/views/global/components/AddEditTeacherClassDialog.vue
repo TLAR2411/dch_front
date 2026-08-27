@@ -7,9 +7,14 @@ import { useI18n } from "vue-i18n";
 import { getSubjects, getTeacher } from "@/services/dataService";
 import { useSettingStore } from "@/stores/settingStore";
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
+import { usePageTour } from "@/composable/usePageTour";
 
 const store = useSettingStore();
 const { selectItemTitle } = useEntityLabel();
+const { startTour: startAddTeacherDialogTour } = usePageTour(
+  "global-class-add-teacher-dialog",
+  { autoStart: false, delayMs: 500 },
+);
 
 const teachers = ref([]);
 
@@ -117,6 +122,15 @@ onMounted(async () => {
     subjects.value = await getSubjects();
   }
 });
+
+watch(
+  () => props.isDialogVisible,
+  (open) => {
+    if (!open) return;
+    if (props.itemData?.id) return;
+    startAddTeacherDialogTour({ force: false });
+  },
+);
 </script>
 
 <template>
@@ -126,10 +140,12 @@ onMounted(async () => {
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
+    :show-tour-help="!itemData.id"
+    @on-tour-help="startAddTeacherDialogTour({ force: true })"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
-    <VRow>
+    <VRow id="page-tour-class-teacher-form">
       <VCol cols="12" sm="6" md="6">
         <AppAutocomplete
           v-model="itemData.teacher_id"

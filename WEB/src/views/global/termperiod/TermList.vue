@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { useDisplay } from "vuetify";
+import { usePageTour } from "@/composable/usePageTour";
 import {
   listTermPeriods,
   createAcademicPeriod,
@@ -15,6 +16,8 @@ import { useYearStore } from "@/stores/yearStore";
 import AddEditTermDialog from "./AddEditTermDialog.vue";
 
 const { mdAndUp } = useDisplay();
+usePageTour("global-term");
+
 definePage({
   meta: {
     title: "Term Periods",
@@ -38,6 +41,11 @@ const periods = ref([]);
 
 const filter = ref({
   search: null,
+});
+
+// Clear form when dialog closes so + opens Create (not leftover Edit data)
+watch(isDialogVisible, (open) => {
+  if (!open) formData.value = {};
 });
 
 const headers = computed(() => {

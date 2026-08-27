@@ -13,6 +13,9 @@ import { usePartStore } from "@/stores/partStore";
 import {
   getEntityLabel,
 } from "@/utils/reportLabels.js";
+import { usePageTour } from "@/composable/usePageTour";
+
+usePageTour("global-report-exam", { delayMs: 500 });
 
 const { t } = useI18n();
 const pathStore = usePartStore();
@@ -28,11 +31,6 @@ function selectItemTitle(item) {
 }
 
 const activeTab = ref("ranking");
-
-const reportTabs = computed(() => [
-  { value: "ranking", title: t("Ranking"), icon: "tabler-trophy" },
-  { value: "individual", title: t("Individual"), icon: "tabler-user" },
-]);
 
 const reportTitle = ref("Report Exam");
 
@@ -180,6 +178,7 @@ onMounted(async () => {
 <template>
   <div class="mt-4">
     <VExpansionPanels
+      id="page-tour-exam-report-filters"
       v-model="openedPanel"
       variant="accordion"
       class="report-exam-filters"
@@ -205,7 +204,7 @@ onMounted(async () => {
           <VDivider class="mb-4" />
 
           <VRow>
-            <VCol cols="12" md="3" sm="6">
+            <VCol id="page-tour-exam-report-grade" cols="12" md="3" sm="6">
               <AppSelect
                 v-model="formSearch.grade_id"
                 :items="grades"
@@ -222,7 +221,7 @@ onMounted(async () => {
           <VRow>
             
 
-            <VCol cols="12" sm="6" md="3">
+            <VCol id="page-tour-exam-report-class" cols="12" sm="6" md="3">
               <AppSelect
                 v-model="formSearch.class_id"
                 :items="filteredClasses"
@@ -236,7 +235,7 @@ onMounted(async () => {
               />
             </VCol>
 
-            <VCol cols="12" sm="6" md="3">
+            <VCol id="page-tour-exam-report-type" cols="12" sm="6" md="3">
               <AppSelect
                 v-model="formSearch.type_report"
                 :items="typeReport"
@@ -248,6 +247,7 @@ onMounted(async () => {
 
             <VCol
               v-if="formSearch.type_report === 'Term'"
+              id="page-tour-exam-report-term"
               cols="12"
               sm="6"
               md="3"
@@ -275,6 +275,7 @@ onMounted(async () => {
               {{ $t("Clear") }}
             </VBtn>
             <VBtn
+              id="page-tour-exam-report-search"
               color="primary"
               prepend-icon="tabler-search"
               :disabled="!canSearch"
@@ -293,6 +294,7 @@ onMounted(async () => {
 
     <VCard
       v-if="!hasSearched"
+      id="page-tour-exam-report-empty"
       class="mt-4 report-exam-empty"
       variant="outlined"
     >
@@ -351,20 +353,27 @@ onMounted(async () => {
       </div>
     </VCard>
 
-    <VCard v-else class="mt-4 pa-4">
+    <VCard v-else id="page-tour-exam-report-results" class="mt-4 pa-4">
       <VTabs
+        id="page-tour-exam-report-tabs"
         v-model="activeTab"
         color="primary"
         class="mb-4"
         show-arrows
       >
         <VTab
-          v-for="tab in reportTabs"
-          :key="tab.value"
-          :value="tab.value"
-          :prepend-icon="tab.icon"
+          id="page-tour-exam-report-tab-ranking"
+          value="ranking"
+          prepend-icon="tabler-trophy"
         >
-          {{ tab.title }}
+          {{ $t("Ranking") }}
+        </VTab>
+        <VTab
+          id="page-tour-exam-report-tab-individual"
+          value="individual"
+          prepend-icon="tabler-user"
+        >
+          {{ $t("Individual") }}
         </VTab>
       </VTabs>
 

@@ -311,7 +311,12 @@ export const useAuthStore = defineStore("auth", {
 
       removeAccessToken();
       localStorage.removeItem("accessToken");
+      // Keep page-tour progress so guides don't auto-replay after every login
+      const pageToursSeen = localStorage.getItem("dewey-page-tours-seen");
       localStorage.clear();
+      if (pageToursSeen) {
+        localStorage.setItem("dewey-page-tours-seen", pageToursSeen);
+      }
       sessionStorage.clear();
 
       router.replace({ name: "login" });

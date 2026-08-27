@@ -7,18 +7,27 @@ import formatGender from "@/utils/formater/formatGender";
 import { useRouter } from "vue-router";
 import AddEditStudentCurriculumDialog from "./AddEditStudentCurriculumDialog.vue";
 import AddEditStudentClassDialog from "../studentclass/AddEditStudentClassDialog.vue";
+import { usePageTour } from "@/composable/usePageTour";
 
 const router = useRouter();
+usePageTour("global-student-curriculum");
 
 const { mdAndUp } = useDisplay();
 
 const dataTableRef = ref(null);
 
 const isDialogVisible = ref(false);
-
 const isDialogVisibleStudentClass = ref(false);
-
 const isLoading = ref(true);
+const formData = ref({});
+
+const filter = ref({
+  search: null,
+});
+
+watch(isDialogVisible, (open) => {
+  if (!open) formData.value = {};
+});
 
 definePage({
   meta: {
@@ -65,7 +74,6 @@ const headers = computed(() => {
 
 const onDisable = async (item) => {
   try {
-    // isLoading.value = true;
     const res = await api.post("students-curriculums-disable", { id: item.id });
     if (res.data.status) {
       dataTableRef.value.reload();
@@ -74,8 +82,6 @@ const onDisable = async (item) => {
     }
   } catch (error) {
     console.error("Failed to disable student:", error);
-  } finally {
-    // isLoading.value = false;
   }
 };
 
@@ -90,13 +96,10 @@ const onDelete = async (item) => {
     }
   } catch (error) {
     console.error("Failed to fetch data:", error);
-  } finally {
-    // isLoading.value = false;
   }
 };
 
 const onCreate = async (data, callback) => {
-  console.log("Creating with data:", data);
   try {
     isLoading.value = true;
 
@@ -111,15 +114,11 @@ const onCreate = async (data, callback) => {
     callback(res.data.status);
   } catch (error) {
     console.error("Failed to fetch data:", error);
+    callback(false);
   } finally {
     isLoading.value = false;
   }
 };
-
-// Removed: a direct supabase.from() fetch that pulled the whole table on
-// mount, console.logged it, and assigned nothing. The visible list comes
-// from the API via AppCardTable/AppDataTable. See
-// dch_app/docs/frontend-integration-contract.md
 
 const onEdit = async (item) => {
   router.push({ name: "admin-students-edit-id", params: { id: item.id } });
@@ -133,14 +132,13 @@ const onEdit = async (item) => {
     :item-data="formData"
     :loading="isLoading"
     @on-create="onCreate"
-    @on-update="onUpdate"
   />
 
   <AddEditStudentClassDialog
     v-model:isDialogVisibleStudentClass="isDialogVisibleStudentClass"
     :loading="isLoading"
-    @on-create="onCreateStudentClass"
   />
+
   <AppCardTable
     v-model:isDialogCreateVisible="isDialogVisible"
     ref="dataTableRef"
@@ -157,11 +155,11 @@ const onEdit = async (item) => {
     is-disable
     create-dialog
     save-state
+    :is-back="false"
     @on-disable="onDisable"
   >
     <template #filter>
       <VRow class="justify-end">
-        <!----Filter Input-->
         <VCol cols="12" sm="6" md="4" lg="2">
           <VTextField
             v-model="filter.search"

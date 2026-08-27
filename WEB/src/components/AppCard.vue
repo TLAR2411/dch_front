@@ -556,6 +556,7 @@ defineExpose({
                       {{ $t("Submit & Print") }}
                     </VBtn>
                     <VBtn
+                      id="page-tour-submit"
                       v-if="isSubmit"
                       @click.prevent="onSubmit"
                       :loading="loading"

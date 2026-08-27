@@ -7,11 +7,14 @@ import { useRouter } from "vue-router";
 import { useDisplay } from "vuetify";
 import AppName from "@/components/AppName.vue";
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
+import { usePageTour } from "@/composable/usePageTour";
 
 const { mdAndUp } = useDisplay();
 const { t, locale } = useI18n();
 const { entityLabel } = useEntityLabel();
 const router = useRouter();
+
+usePageTour("admin-users");
 
 definePage({
   meta: {

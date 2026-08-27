@@ -2,13 +2,16 @@
 import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { useDisplay } from "vuetify";
-
 import AddEditStudentClassDialog from "../studentclass/AddEditStudentClassDialog.vue";
-
 import AddEditClassDialog from "./AddEditClassDialog.vue";
-import { ref } from "vue";
+import { usePageTour } from "@/composable/usePageTour";
+import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
+
 const { mdAndUp } = useDisplay();
+usePageTour("global-classes");
+const router = useRouter();
+
 definePage({
   meta: {
     title: "Checkin Checkout",
@@ -19,8 +22,6 @@ definePage({
     layoutWrapperClasses: "layout-content-height-fixed",
   },
 });
-
-const router = useRouter();
 
 const { t } = useI18n();
 const formData = ref({});
@@ -34,6 +35,10 @@ const classData = ref(null);
 
 const filter = ref({
   search: null,
+});
+
+watch(isDialogVisible, (open) => {
+  if (!open) formData.value = {};
 });
 
 const headers = [

@@ -3,7 +3,10 @@ import { getClasses } from "@/services/dataService";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
+import { usePageTour } from "@/composable/usePageTour";
 import Schedule from "../components/Schedule.vue";
+
+usePageTour("global-schedule");
 
 const { t } = useI18n();
 const { selectItemTitle, entityLabel } = useEntityLabel();
@@ -30,7 +33,7 @@ onMounted(async () => {
 
 <template>
   <VRow>
-    <VCol cols="12" md="4" class="mt-2 schedule-list-no-print">
+    <VCol id="page-tour-schedule-class" cols="12" md="4" class="mt-2 schedule-list-no-print">
       <AppSelect
         v-model="form.class_id"
         :items="classes"

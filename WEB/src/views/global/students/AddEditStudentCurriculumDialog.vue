@@ -10,10 +10,15 @@ import { useSettingStore } from "@/stores/settingStore";
 import { useDisplay } from "vuetify/lib/composables/display.mjs";
 import AppAddEditDrawer from "@/components/AppAddEditDrawer.vue";
 import AppName from "@/components/AppName.vue";
+import { usePageTour } from "@/composable/usePageTour";
 
 const { xs } = useDisplay();
 
 const { t } = useI18n();
+const { startTour: startAssignDialogTour } = usePageTour(
+  "global-student-curriculum-assign-dialog",
+  { autoStart: false, delayMs: 500 },
+);
 
 const loadingtable = ref(false);
 
@@ -136,6 +141,15 @@ const headers = computed(() => [
 onMounted(async () => {
   getAllStudents();
 });
+
+watch(
+  () => props.isDialogVisible,
+  (open) => {
+    if (!open) return;
+    if (props.itemData?.id) return;
+    startAssignDialogTour({ force: false });
+  },
+);
 </script>
 
 <template>
@@ -146,11 +160,13 @@ onMounted(async () => {
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
+    :show-tour-help="!itemData.id"
+    @on-tour-help="startAssignDialogTour({ force: true })"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
     <VRow>
-      <VCol cols="12" md="12">
+      <VCol id="page-tour-student-curriculum-select" cols="12" md="12">
         <VDataTable
           :loading="loadingtable"
           v-model="itemData.student_id"
@@ -170,11 +186,13 @@ onMounted(async () => {
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
+    :show-tour-help="!itemData.id"
+    @on-tour-help="startAssignDialogTour({ force: true })"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
     <VRow>
-      <VCol cols="12" md="12">
+      <VCol id="page-tour-student-curriculum-select" cols="12" md="12">
         <VDataTable
           :loading="loadingtable"
           v-model="itemData.student_id"

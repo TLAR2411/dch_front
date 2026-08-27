@@ -23,6 +23,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  /** Mark first rule as tour targets (avoid duplicate ids across lists). */
+  tourAnchor: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits([
@@ -41,11 +46,16 @@ const ruleKey = (rule) =>
 
 <template>
   <VCard
-    v-for="rule in rules"
+    v-for="(rule, ruleIndex) in rules"
     :key="rule.grading_rule_id ?? rule.category_id"
     variant="outlined"
     rounded="lg"
     :class="['rule-card', { 'rule-card--compact': compact }]"
+    :id="
+      tourAnchor && ruleIndex === 0
+        ? 'page-tour-subject-setting-rule'
+        : undefined
+    "
   >
     <div
       :class="[
@@ -94,6 +104,11 @@ const ruleKey = (rule) =>
           variant="text"
           :size="compact ? 'x-small' : 'small'"
           density="comfortable"
+          :id="
+            tourAnchor && ruleIndex === 0
+              ? 'page-tour-subject-setting-add-assessment'
+              : undefined
+          "
           @click.stop="emit('add-assessment', rule)"
         />
         <VBtn

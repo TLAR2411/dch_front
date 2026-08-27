@@ -43,6 +43,9 @@ import {
   upsertScores,
 } from "./scoreEntryService.js";
 import StudentBehavior from "./StudentBehavior.vue";
+import { usePageTour } from "@/composable/usePageTour";
+
+usePageTour("global-score-entry");
 
 const { t } = useI18n();
 const yearStore = useYearStore();
@@ -482,9 +485,9 @@ onMounted(async () => {
 <template>
   <div>
     <!-- Shared search — once for both tabs -->
-    <VCard class="pa-3 mb-3">
+    <VCard id="page-tour-score-filters" class="pa-3 mb-3">
       <VRow align="center" dense>
-        <VCol cols="12" md="3">
+        <VCol id="page-tour-score-class" cols="12" md="3">
           <AppSelect
             v-model="form.class_id"
             :items="classes"
@@ -495,7 +498,7 @@ onMounted(async () => {
             :disabled="loadingFilters"
           />
         </VCol>
-        <VCol cols="12" md="3">
+        <VCol id="page-tour-score-subject" cols="12" md="3">
           <AppSelect
             v-model="form.subject_id"
             :items="subjects"
@@ -507,7 +510,7 @@ onMounted(async () => {
           />
         </VCol>
 
-        <VCol cols="12" md="3">
+        <VCol id="page-tour-score-term" cols="12" md="3">
           <AppSelect
             v-model="form.term_id"
             :items="terms"
@@ -532,6 +535,7 @@ onMounted(async () => {
             {{ $t("Refresh") }}
           </VBtn>
           <VBtn
+            id="page-tour-score-save"
             density="comfortable"
             v-if="activeTab === 'scores'"
             color="primary"
@@ -545,7 +549,7 @@ onMounted(async () => {
       </VRow>
     </VCard>
 
-    <VCard v-if="!hasClass" class="pa-8 text-center">
+    <VCard v-if="!hasClass" id="page-tour-score-empty" class="pa-8 text-center">
       <VIcon size="48" class="mb-3" style="opacity: 0.35">
         tabler-report-analytics
       </VIcon>
@@ -558,14 +562,32 @@ onMounted(async () => {
     </VCard>
 
     <template v-else-if="canLoad">
-      <VTabs v-model="activeTab" color="primary" class="mb-3">
-        <VTab v-if="hasSubject" value="scores" prepend-icon="tabler-table">
+      <VTabs
+        id="page-tour-score-tabs"
+        v-model="activeTab"
+        color="primary"
+        class="mb-3"
+      >
+        <VTab
+          v-if="hasSubject"
+          id="page-tour-score-tab-scores"
+          value="scores"
+          prepend-icon="tabler-table"
+        >
           {{ $t("Insert Score") }}
         </VTab>
-        <VTab value="recommend" prepend-icon="tabler-message-2">
+        <VTab
+          id="page-tour-score-tab-recommend"
+          value="recommend"
+          prepend-icon="tabler-message-2"
+        >
           {{ $t("Teacher Recommend") }}
         </VTab>
-        <VTab value="behavior" prepend-icon="tabler-message-2">
+        <VTab
+          id="page-tour-score-tab-behavior"
+          value="behavior"
+          prepend-icon="tabler-message-2"
+        >
           {{ $t("Student Behavior") }}
         </VTab>
       </VTabs>

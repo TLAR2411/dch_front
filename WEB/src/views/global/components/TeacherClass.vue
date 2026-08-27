@@ -131,6 +131,7 @@ onMounted(() => {
     <VCardTitle class="d-flex align-center justify-space-between pa-4">
       <VChip class="rounded-l" color="primary">Teacher and Subjects</VChip>
       <VBtn
+        id="page-tour-add-teacher"
         color="primary"
         size="small"
         prepend-icon="tabler-plus"

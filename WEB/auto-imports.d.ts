@@ -113,6 +113,7 @@ declare global {
   const getMainSourceIncomes: typeof import('./src/utils/getData.js')['getMainSourceIncomes']
   const getMenuItems: typeof import('./src/utils/getData.js')['getMenuItems']
   const getOccupations: typeof import('./src/utils/getData.js')['getOccupations']
+  const getPageTour: typeof import('./src/utils/pageTours.js')['getPageTour']
   const getPartDashboardRoute: typeof import('./src/utils/partHomeRoutes.js')['getPartDashboardRoute']
   const getPartHomeRoute: typeof import('./src/utils/partHomeRoutes.js')['getPartHomeRoute']
   const getPeople: typeof import('./src/utils/getData.js')['getPeople']
@@ -140,6 +141,7 @@ declare global {
   const h: typeof import('vue')['h']
   const hasPermission: typeof import('./src/utils/hasPermission.js')['default']
   const hasPermission2: typeof import('./src/utils/hasPermission2.js')['default']
+  const hasSeenPageTour: typeof import('./src/utils/pageTourStorage.js')['hasSeenPageTour']
   const hexToRgb: typeof import('./src/@core/utils/colorConverter.js')['hexToRgb']
   const ignorableWatch: typeof import('@vueuse/core')['ignorableWatch']
   const inject: typeof import('vue')['inject']
@@ -170,6 +172,7 @@ declare global {
   const mapState: typeof import('pinia')['mapState']
   const mapStores: typeof import('pinia')['mapStores']
   const mapWritableState: typeof import('pinia')['mapWritableState']
+  const markPageTourSeen: typeof import('./src/utils/pageTourStorage.js')['markPageTourSeen']
   const markRaw: typeof import('vue')['markRaw']
   const mergeDayRecords: typeof import('./src/utils/attendanceReport.js')['mergeDayRecords']
   const nextTick: typeof import('vue')['nextTick']
@@ -196,6 +199,7 @@ declare global {
   const onUpdated: typeof import('vue')['onUpdated']
   const onWatcherCleanup: typeof import('vue')['onWatcherCleanup']
   const openDB: typeof import('./src/utils/idb.js')['openDB']
+  const pageTours: typeof import('./src/utils/pageTours.js')['pageTours']
   const paginationMeta: typeof import('./src/utils/paginationMeta.js')['paginationMeta']
   const passwordValidator: typeof import('./src/@core/utils/validators.js')['passwordValidator']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
@@ -219,6 +223,7 @@ declare global {
   const refThrottled: typeof import('@vueuse/core')['refThrottled']
   const refWithControl: typeof import('@vueuse/core')['refWithControl']
   const regexValidator: typeof import('./src/@core/utils/validators.js')['regexValidator']
+  const registerPageTour: typeof import('./src/utils/pageTourRegistry.js')['registerPageTour']
   const registerPlugins: typeof import('./src/@core/utils/plugins.js')['registerPlugins']
   const removeAccessToken: typeof import('./src/utils/accessToken.js')['removeAccessToken']
   const removeRefreshToken: typeof import('./src/utils/accessToken.js')['removeRefreshToken']
@@ -266,6 +271,7 @@ declare global {
   const tryOnUnmounted: typeof import('@vueuse/core')['tryOnUnmounted']
   const unref: typeof import('vue')['unref']
   const unrefElement: typeof import('@vueuse/core')['unrefElement']
+  const unregisterPageTour: typeof import('./src/utils/pageTourRegistry.js')['unregisterPageTour']
   const until: typeof import('@vueuse/core')['until']
   const urlValidator: typeof import('./src/@core/utils/validators.js')['urlValidator']
   const useAbility: typeof import('./src/plugins/casl/composables/useAbility.js')['useAbility']
@@ -380,6 +386,7 @@ declare global {
   const useOffsetPagination: typeof import('@vueuse/core')['useOffsetPagination']
   const useOnline: typeof import('@vueuse/core')['useOnline']
   const usePageLeave: typeof import('@vueuse/core')['usePageLeave']
+  const usePageTourRegistry: typeof import('./src/utils/pageTourRegistry.js')['usePageTourRegistry']
   const useParallax: typeof import('@vueuse/core')['useParallax']
   const useParentElement: typeof import('@vueuse/core')['useParentElement']
   const usePerformanceObserver: typeof import('@vueuse/core')['usePerformanceObserver']
@@ -560,6 +567,7 @@ declare module 'vue' {
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getEntityLabel: UnwrapRef<typeof import('./src/utils/reportLabels.js')['getEntityLabel']>
+    readonly getPageTour: UnwrapRef<typeof import('./src/utils/pageTours.js')['getPageTour']>
     readonly getPartDashboardRoute: UnwrapRef<typeof import('./src/utils/partHomeRoutes.js')['getPartDashboardRoute']>
     readonly getPartHomeRoute: UnwrapRef<typeof import('./src/utils/partHomeRoutes.js')['getPartHomeRoute']>
     readonly getPwaInstallState: UnwrapRef<typeof import('./src/utils/pwaInstall.js')['getPwaInstallState']>
@@ -567,6 +575,7 @@ declare module 'vue' {
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hasPermission2: UnwrapRef<typeof import('./src/utils/hasPermission2.js')['default']>
     readonly hasPermission: UnwrapRef<typeof import('./src/utils/hasPermission.js')['default']>
+    readonly hasSeenPageTour: UnwrapRef<typeof import('./src/utils/pageTourStorage.js')['hasSeenPageTour']>
     readonly hexToRgb: UnwrapRef<typeof import('./src/@core/utils/colorConverter.js')['hexToRgb']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
@@ -594,6 +603,7 @@ declare module 'vue' {
     readonly mapState: UnwrapRef<typeof import('pinia')['mapState']>
     readonly mapStores: UnwrapRef<typeof import('pinia')['mapStores']>
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
+    readonly markPageTourSeen: UnwrapRef<typeof import('./src/utils/pageTourStorage.js')['markPageTourSeen']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly normalizeCategoryKey: UnwrapRef<typeof import('./src/utils/gradeCalculation.js')['normalizeCategoryKey']>
@@ -617,6 +627,7 @@ declare module 'vue' {
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
+    readonly pageTours: UnwrapRef<typeof import('./src/utils/pageTours.js')['pageTours']>
     readonly paginationMeta: UnwrapRef<typeof import('./src/utils/paginationMeta.js')['paginationMeta']>
     readonly passwordValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['passwordValidator']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
@@ -638,6 +649,7 @@ declare module 'vue' {
     readonly refThrottled: UnwrapRef<typeof import('@vueuse/core')['refThrottled']>
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
     readonly regexValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['regexValidator']>
+    readonly registerPageTour: UnwrapRef<typeof import('./src/utils/pageTourRegistry.js')['registerPageTour']>
     readonly registerPlugins: UnwrapRef<typeof import('./src/@core/utils/plugins.js')['registerPlugins']>
     readonly removeAccessToken: UnwrapRef<typeof import('./src/utils/accessToken.js')['removeAccessToken']>
     readonly requiredValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['requiredValidator']>
@@ -680,6 +692,7 @@ declare module 'vue' {
     readonly tryOnUnmounted: UnwrapRef<typeof import('@vueuse/core')['tryOnUnmounted']>
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
+    readonly unregisterPageTour: UnwrapRef<typeof import('./src/utils/pageTourRegistry.js')['unregisterPageTour']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
     readonly urlValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['urlValidator']>
     readonly useAbs: UnwrapRef<typeof import('@vueuse/math')['useAbs']>
@@ -789,6 +802,7 @@ declare module 'vue' {
     readonly useOffsetPagination: UnwrapRef<typeof import('@vueuse/core')['useOffsetPagination']>
     readonly useOnline: UnwrapRef<typeof import('@vueuse/core')['useOnline']>
     readonly usePageLeave: UnwrapRef<typeof import('@vueuse/core')['usePageLeave']>
+    readonly usePageTourRegistry: UnwrapRef<typeof import('./src/utils/pageTourRegistry.js')['usePageTourRegistry']>
     readonly useParallax: UnwrapRef<typeof import('@vueuse/core')['useParallax']>
     readonly useParentElement: UnwrapRef<typeof import('@vueuse/core')['useParentElement']>
     readonly usePerformanceObserver: UnwrapRef<typeof import('@vueuse/core')['usePerformanceObserver']>

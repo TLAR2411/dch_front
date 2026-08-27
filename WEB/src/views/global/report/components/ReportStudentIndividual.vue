@@ -451,8 +451,12 @@ watch(selectedStudentId, () => {
 
 <template>
   <div class="report-individual">
-    <VRow class="mb-3 report-no-print" align="center">
-      <VCol cols="12" md="5" sm="6">
+    <VRow
+      id="page-tour-exam-report-individual-toolbar"
+      class="mb-3 report-no-print"
+      align="center"
+    >
+      <VCol id="page-tour-exam-report-student" cols="12" md="5" sm="6">
         <AppSelect
           v-model="selectedStudentId"
           :items="students"
@@ -476,6 +480,7 @@ watch(selectedStudentId, () => {
           {{ $t("Download PNG") }}
         </VBtn>
         <VBtn
+          id="page-tour-exam-report-individual-print"
           color="primary"
           variant="tonal"
           prepend-icon="tabler-printer"

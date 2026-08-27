@@ -139,7 +139,7 @@ function categoryColspan(cat) {
 </script>
 
 <template>
-  <div class="score-grid-wrap">
+  <div id="page-tour-score-grid" class="score-grid-wrap">
     <div
       v-if="categories.length && !weightOk"
       class="text-caption text-warning mb-2 px-1"

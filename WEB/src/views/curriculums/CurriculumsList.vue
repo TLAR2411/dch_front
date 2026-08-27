@@ -4,7 +4,10 @@ import { api } from "@/utils/api";
 import { useDisplay } from "vuetify";
 import formatTime from "@/utils/formater/formatTime";
 import AddEditCurriculumsDialog from "@/views/curriculums/AddEditCurriculumsDialog.vue";
+import { usePageTour } from "@/composable/usePageTour";
 const { mdAndUp } = useDisplay();
+usePageTour("admin-curriculums");
+
 definePage({
   meta: {
     title: "Curriculumns",

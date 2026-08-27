@@ -5,9 +5,15 @@ import { useI18n } from "vue-i18n";
 import formatGender from "@/utils/formater/formatGender";
 
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
+import { usePageTour } from "@/composable/usePageTour";
+import PageTourHelpButton from "@/components/PageTourHelpButton.vue";
 
 const { t } = useI18n();
 const { entityLabel } = useEntityLabel();
+const { startTour: startAddStudentDialogTour } = usePageTour(
+  "global-class-add-student-dialog",
+  { autoStart: false, delayMs: 500 },
+);
 
 const props = defineProps({
   itemData: {
@@ -93,6 +99,14 @@ const headers = [
     value: (item) => formatDate(item.dob),
   },
 ];
+
+watch(
+  () => props.isDialogVisibleStudentClass,
+  (open) => {
+    if (!open) return;
+    startAddStudentDialogTour({ force: false });
+  },
+);
 </script>
 
 <template>
@@ -111,9 +125,17 @@ const headers = [
             {{ entityLabel(props.classData) }}
           </span>
         </span>
-        <button class="scd-close" type="button" @click="onCloseDialog">
-          <VIcon icon="tabler-x" size="16" />
-        </button>
+        <div class="d-flex align-center">
+          <PageTourHelpButton
+            v-if="!itemData.id"
+            button-id="page-tour-dialog-help-btn"
+            tooltip="How to use this form"
+            @click="startAddStudentDialogTour({ force: true })"
+          />
+          <button class="scd-close" type="button" @click="onCloseDialog">
+            <VIcon icon="tabler-x" size="16" />
+          </button>
+        </div>
       </div>
 
       <!-- ── Body ───────────────────────────────────────────── -->
@@ -130,7 +152,7 @@ const headers = [
         </div>
 
         <!-- Table -->
-        <div class="scd-table-wrap">
+        <div id="page-tour-class-student-select" class="scd-table-wrap">
           <VDataTable
             v-model="itemData.student_id"
             :search="search"
@@ -170,6 +192,7 @@ const headers = [
             {{ t("Cancel") }}
           </button>
           <button
+            id="page-tour-class-student-save"
             class="scd-btn scd-btn--primary"
             type="button"
             :disabled="props.loading"

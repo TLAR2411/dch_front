@@ -26,6 +26,9 @@ import { useAuthStore } from "@/stores/authStore";
 import { useYearStore } from "@/stores/yearStore.js";
 import { usePartStore } from "@/stores/partStore.js";
 import { useSettingStore } from "@/stores/settingStore.js";
+import { usePageTour } from "@/composable/usePageTour";
+
+usePageTour("global-subject-setting", { delayMs: 550 });
 
 const yearStore = useYearStore();
 const partStore = usePartStore();
@@ -1179,17 +1182,23 @@ watch(branchId, async (next, prev) => {
   <div class="grading-rules-scroll">
     <div class="d-flex flex-column gap-4">
       <!-- search + add -->
-      <div class="d-flex align-center mt-3 gap-4">
-        <AppTextField
-          v-model="filter.search"
-          :placeholder="t('Search grade or subject...')"
-          prepend-inner-icon="tabler-search"
-          variant="outlined"
-          rounded="lg"
-          hide-details
-          class="flex-grow-1"
-        />
+      <div
+        id="page-tour-subject-setting-toolbar"
+        class="d-flex align-center mt-3 gap-4"
+      >
+        <div id="page-tour-subject-setting-search" class="flex-grow-1">
+          <AppTextField
+            v-model="filter.search"
+            :placeholder="t('Search grade or subject...')"
+            prepend-inner-icon="tabler-search"
+            variant="outlined"
+            rounded="lg"
+            hide-details
+            class="flex-grow-1"
+          />
+        </div>
         <VBtn
+          id="page-tour-subject-setting-add"
           color="primary"
           prepend-icon="tabler-plus"
           @click="openCreateDialog"
@@ -1216,8 +1225,9 @@ watch(branchId, async (next, prev) => {
       />
 
       <!-- grades -->
+      <div id="page-tour-subject-setting-grades" class="d-flex flex-column gap-4">
       <VCard
-        v-for="grade in filteredGrades"
+        v-for="(grade, gradeIndex) in filteredGrades"
         :key="grade.grade_id"
         variant="outlined"
         rounded="lg"
@@ -1227,6 +1237,9 @@ watch(branchId, async (next, prev) => {
         <div
           v-if="mdAndUp"
           class="d-flex align-center justify-space-between pa-4 cursor-pointer"
+          :id="
+            gradeIndex === 0 ? 'page-tour-subject-setting-grade' : undefined
+          "
           @click="toggleGrade(grade.grade_id)"
         >
           <div class="d-flex align-center gap-3">
@@ -1279,6 +1292,9 @@ watch(branchId, async (next, prev) => {
         <div
           v-else
           class="d-flex justify-space-between gap-2 pa-3 cursor-pointer"
+          :id="
+            gradeIndex === 0 ? 'page-tour-subject-setting-grade' : undefined
+          "
           @click="toggleGrade(grade.grade_id)"
         >
           <div class="d-flex align-center justify-space-between">
@@ -1319,7 +1335,7 @@ watch(branchId, async (next, prev) => {
 
             <div class="pa-4 d-flex flex-column gap-3">
               <VCard
-                v-for="subject in grade.subjects"
+                v-for="(subject, subjectIndex) in grade.subjects"
                 :key="subject.subject_id"
                 variant="outlined"
                 rounded="lg"
@@ -1327,6 +1343,11 @@ watch(branchId, async (next, prev) => {
                 <!-- subject header -->
                 <div
                   class="d-flex align-center justify-space-between pa-4 cursor-pointer"
+                  :id="
+                    gradeIndex === 0 && subjectIndex === 0
+                      ? 'page-tour-subject-setting-subject'
+                      : undefined
+                  "
                   @click="toggleSubject(grade.grade_id, subject)"
                 >
                   <div class="d-flex align-center gap-3">
@@ -1358,7 +1379,14 @@ watch(branchId, async (next, prev) => {
 
                   <!-- subject actions + rule count + expand icon (largescreen) -->
                   <div class="d-flex align-center gap-3">
-                    <div v-if="mdAndUp">
+                    <div
+                      v-if="mdAndUp"
+                      :id="
+                        gradeIndex === 0 && subjectIndex === 0
+                          ? 'page-tour-subject-setting-subject-actions'
+                          : undefined
+                      "
+                    >
                       <!-- add -->
                       <VBtn
                         icon="tabler-plus"
@@ -1828,6 +1856,11 @@ watch(branchId, async (next, prev) => {
                         variant="outlined"
                         rounded="lg"
                         class="panel-section-card"
+                        :id="
+                          gradeIndex === 0 && subjectIndex === 0
+                            ? 'page-tour-subject-setting-categories'
+                            : undefined
+                        "
                       >
                         <div
                           class="d-flex align-center justify-space-between pa-4 cursor-pointer"
@@ -2015,6 +2048,9 @@ watch(branchId, async (next, prev) => {
                                 :subject-id="subject.subject_id"
                                 :rules="subject.rules"
                                 :active-rule-key="openRuleKey"
+                                :tour-anchor="
+                                  gradeIndex === 0 && subjectIndex === 0
+                                "
                                 @toggle-rule="toggleRule"
                                 @edit-rule="onEdit($event, 'rule')"
                                 @delete-rule="onDeleteRule"
@@ -2048,6 +2084,7 @@ watch(branchId, async (next, prev) => {
           </div>
         </VExpandTransition>
       </VCard>
+      </div>
     </div>
   </div>
 </template>

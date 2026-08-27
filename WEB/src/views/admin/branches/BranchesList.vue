@@ -5,7 +5,10 @@ import { api } from "@/utils/api";
 import { useAppStore } from "@/stores/appStore.js";
 import { useDisplay } from "vuetify";
 import AppStatusChip from "@/components/AppStatusChip.vue";
+import { usePageTour } from "@/composable/usePageTour";
 const { mdAndUp } = useDisplay();
+
+usePageTour("admin-branches");
 
 definePage({
   meta: {

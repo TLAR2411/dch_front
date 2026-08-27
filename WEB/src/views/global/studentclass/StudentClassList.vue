@@ -35,6 +35,10 @@ const formDataStudentClass = ref({});
 
 const isLoading = ref(true);
 
+const filter = ref({
+  search: null,
+});
+
 const class_id = ref(props.payload.class_id);
 
 definePage({

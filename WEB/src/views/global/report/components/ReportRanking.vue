@@ -247,6 +247,7 @@ watch(
     <VRow class="mb-3 report-no-print" align="center">
       <VCol cols="12" class="d-flex justify-end">
         <VBtn
+          id="page-tour-exam-report-print"
           color="primary"
           variant="tonal"
           prepend-icon="tabler-printer"

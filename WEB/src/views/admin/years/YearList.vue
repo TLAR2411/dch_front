@@ -5,7 +5,10 @@ import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { useAppStore } from "@/stores/appStore.js";
 import { useDisplay } from "vuetify";
+import { usePageTour } from "@/composable/usePageTour";
 const { mdAndUp } = useDisplay();
+usePageTour("admin-years");
+
 definePage({
   meta: {
     title: "Years",

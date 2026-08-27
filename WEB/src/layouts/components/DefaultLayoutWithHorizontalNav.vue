@@ -15,6 +15,7 @@ import NavBarI18n from "@core/components/I18n.vue";
 import NavbarBranches from "./NavbarBranches.vue";
 import NavbarChat from "./NavbarChat.vue";
 import NavbarAcademicYear from "./NavbarAcademicYear.vue";
+import PageTourNavbarButton from "./PageTourNavbarButton.vue";
 import NavbarThemeSwitcher from "./NavbarThemeSwitcher.vue";
 import NavBarNotifications from "./NavBarNotifications.vue";
 import UserProfile from "./UserProfile.vue";
@@ -80,6 +81,7 @@ watch([systemPart, branchId], () => {
           <NavbarBranches class="header-branch-select" />
           <NavPartSwitcher class="ms-1" />
           <NavbarChat />
+          <PageTourNavbarButton />
           <NavBarI18n
             class="ms-1"
             v-if="

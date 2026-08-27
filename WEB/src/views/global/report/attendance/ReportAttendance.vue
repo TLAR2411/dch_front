@@ -7,6 +7,9 @@ import ReportAttendanceByDay from "../components/ReportAttendanceByDay.vue";
 import ReportAttendanceByMonth from "../components/ReportAttendanceByMonth.vue";
 import ReportAttendanceByTerm from "../components/ReportAttendanceByTerm.vue";
 import ReportAttendanceByYear from "../components/ReportAttendanceByYear.vue";
+import { usePageTour } from "@/composable/usePageTour";
+
+usePageTour("global-report-attendance", { delayMs: 500 });
 
 const partStore = usePartStore();
 const reportPart = computed(() => partStore.system_part || "english");
@@ -22,6 +25,13 @@ const form = ref({
   class_id: null,
 });
 
+const selectedClassName = computed(() => {
+  const match = classes.value.find(
+    (c) => Number(c.id) === Number(form.value.class_id),
+  );
+  return selectItemTitle(match) || "—";
+});
+
 onMounted(async () => {
   classes.value = await getClasses();
 });
@@ -29,8 +39,8 @@ onMounted(async () => {
 
 <template>
   <div>
-    <VRow align="center">
-      <VCol cols="12" md="4">
+    <VRow id="page-tour-att-report-top" align="center">
+      <VCol id="page-tour-att-report-class" cols="12" md="4">
         <AppSelect
           v-model="form.class_id"
           :items="classes"
@@ -40,7 +50,7 @@ onMounted(async () => {
           :placeholder="$t('Choose Class')"
         />
       </VCol>
-      <VCol cols="12" md="8">
+      <VCol id="page-tour-att-report-type" cols="12" md="8">
         <VBtnToggle
           v-model="reportType"
           density="compact"
@@ -56,7 +66,11 @@ onMounted(async () => {
       </VCol>
     </VRow>
 
-    <VCard v-if="!form.class_id" class="mt-3 pa-8 text-center">
+    <VCard
+      v-if="!form.class_id"
+      id="page-tour-att-report-empty"
+      class="mt-3 pa-8 text-center"
+    >
       <VIcon size="48" class="mb-3" style="opacity: 0.35">tabler-school</VIcon>
       <div class="text-body-1 font-weight-medium">
         {{ $t("Select a class to view attendance reports") }}
@@ -66,10 +80,15 @@ onMounted(async () => {
       </div>
     </VCard>
 
-    <VCard v-if="form.class_id" class="mt-3 pa-3">
+    <VCard
+      v-if="form.class_id"
+      id="page-tour-att-report-panel"
+      class="mt-3 pa-3"
+    >
       <ReportAttendanceByDay
         v-if="reportType === 'day'"
         :class_id="form.class_id"
+        :class_name="selectedClassName"
       />
       <ReportAttendanceByMonth
         v-else-if="reportType === 'month'"

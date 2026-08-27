@@ -436,6 +436,13 @@
     "getPwaInstallState": true,
     "subscribePwaInstall": true,
     "triggerPwaInstall": true,
-    "usePwaInstall": true
+    "usePwaInstall": true,
+    "getPageTour": true,
+    "hasSeenPageTour": true,
+    "markPageTourSeen": true,
+    "pageTours": true,
+    "registerPageTour": true,
+    "unregisterPageTour": true,
+    "usePageTourRegistry": true
   }
 }

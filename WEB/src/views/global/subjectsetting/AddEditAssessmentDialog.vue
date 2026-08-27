@@ -5,8 +5,14 @@ import { requiredValidator } from "@/@core/utils/validators";
 import { useI18n } from "vue-i18n";
 import AppTextField from "@/@core/components/app-form-elements/AppTextField.vue";
 import AppAddEditDialog from "@/components/AppAddEditDialog.vue";
+import { usePageTour } from "@/composable/usePageTour";
 
 const { t } = useI18n();
+
+const { startTour: startAssessmentDialogTour } = usePageTour(
+  "global-subject-setting-assessment-dialog",
+  { autoStart: false, delayMs: 500 },
+);
 
 const props = defineProps({
   itemData: {
@@ -282,6 +288,14 @@ const onCloseDialog = () => {
   resetData();
   emit("update:isDialogVisible", false);
 };
+
+watch(
+  () => props.isDialogVisible,
+  (open) => {
+    if (!open) return;
+    startAssessmentDialogTour({ force: false });
+  },
+);
 </script>
 
 <template>
@@ -290,10 +304,12 @@ const onCloseDialog = () => {
     :title="t('Create Assessment')"
     :is-dialog-visible="isDialogVisible"
     :loading="loading"
+    :show-tour-help="true"
+    @on-tour-help="startAssessmentDialogTour({ force: true })"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
-    <VRow>
+    <VRow id="page-tour-ss-assessment-meta">
       <VCol cols="12" sm="4">
         <AppTextField
           :model-value="meta.category_name"
@@ -358,7 +374,7 @@ const onCloseDialog = () => {
       </VCol>
     </VRow>
 
-    <VRow>
+    <VRow id="page-tour-ss-assessment-qty">
       <VCol cols="12" sm="6">
         <AppTextField
           v-model="quantity"
@@ -397,7 +413,11 @@ const onCloseDialog = () => {
       {{ t("Enter quantity to show assessment rows.") }}
     </div>
 
-    <div v-else class="d-flex flex-column gap-3 mt-2">
+    <div
+      v-else
+      id="page-tour-ss-assessment-rows"
+      class="d-flex flex-column gap-3 mt-2"
+    >
       <div
         v-for="(row, index) in assessmentRows"
         :key="index"

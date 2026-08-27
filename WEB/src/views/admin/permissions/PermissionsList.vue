@@ -4,8 +4,10 @@ import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { getPermissions } from "@/services/dataService";
 import AddEditDialog from "@/views/admin/permissions/AddEditDialog.vue";
+import { usePageTour } from "@/composable/usePageTour";
 
 const { t } = useI18n();
+usePageTour("admin-permissions");
 
 const formData = ref({});
 const isDialogVisible = ref(false);
@@ -199,6 +201,7 @@ onMounted(loadPermissions);
       <template #append>
         <div class="d-flex align-center flex-wrap gap-2">
           <VTextField
+            id="page-tour-permissions-search"
             v-model="search"
             :label="t('Search')"
             prepend-inner-icon="tabler-search"
@@ -208,7 +211,12 @@ onMounted(loadPermissions);
             style="min-inline-size: 220px"
             clear-icon="tabler-x"
           />
-          <VBtn color="primary" prepend-icon="tabler-plus" @click="onCreateOpen()">
+          <VBtn
+            id="page-tour-permissions-create"
+            color="primary"
+            prepend-icon="tabler-plus"
+            @click="onCreateOpen()"
+          >
             {{ t("Create") }}
           </VBtn>
         </div>
@@ -217,7 +225,7 @@ onMounted(loadPermissions);
 
     <VDivider />
 
-    <VCardText>
+    <VCardText id="page-tour-permissions-groups">
       <div v-if="isLoading" class="d-flex justify-center py-10">
         <VProgressCircular indeterminate color="primary" />
       </div>

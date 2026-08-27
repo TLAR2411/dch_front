@@ -3,7 +3,6 @@ import { api } from "@/utils/api";
 import { listClassRoster } from "@/services/api/studentClasses";
 import { onMounted, ref, watch, computed } from "vue";
 import { useI18n } from "vue-i18n";
-import MianLogo from "@images/logo/main-logo-1.svg?url";
 import { listGradeSubjectAssignments } from "@/services/api/gradeSubject";
 import { listSubjectParentMap } from "@/services/api/subjects";
 import { listAttendanceRange } from "@/services/api/attendance";
@@ -16,6 +15,7 @@ import { useYearStore } from "@/stores/yearStore.js";
 import { usePartStore } from "@/stores/partStore.js";
 import { app } from "@/utils/app";
 import ReportAttendanceLegend from "./ReportAttendanceLegend.vue";
+import ReportSheetHeader from "./ReportSheetHeader.vue";
 import FooterRepor from "@/views/global/components/footerRepor.vue";
 import { compareEntityNames, getEntityLabel } from "@/utils/reportLabels.js";
 import {
@@ -24,7 +24,6 @@ import {
   genderLabel as formatGenderLabel,
 } from "../lib/attendanceReport.js";
 
-const dchLogoHeader = "/logo/dchlogoheader.png";
 
 const props = defineProps({
   class_id: {
@@ -431,8 +430,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <VRow class="mt-1 report-no-print" align="center">
-    <VCol cols="12" md="4">
+  <VRow
+    id="page-tour-att-report-filters"
+    class="mt-1 report-no-print"
+    align="center"
+  >
+    <VCol id="page-tour-att-report-period" cols="12" md="4">
       <AppSelect
         v-model="form.term_id"
         :items="termOptions"
@@ -454,6 +457,7 @@ onMounted(async () => {
 
     <VCol cols="12" md="4" class="d-flex gap-2">
       <VBtn
+        id="page-tour-att-report-search"
         color="primary"
         variant="tonal"
         :loading="loading"
@@ -464,6 +468,7 @@ onMounted(async () => {
         Search
       </VBtn>
       <VBtn
+        id="page-tour-att-report-print"
         variant="tonal"
         :disabled="!hasData || loading || !attData.length"
         prepend-icon="tabler-printer"
@@ -485,33 +490,13 @@ onMounted(async () => {
       id="printAreaTerm"
       class="attendance-report-sheet border rounded-lg pa-4"
     >
-      <div class="w-100 mx-auto d-flex flex-column align-center justify-center">
-        <v-img
-          :src="dchLogoHeader"
-          alt="Dewey Childcare House"
-          class="w-100 report-logo"
-        />
-
-        <div class="report-title mt-5" :class="{ moul: useKhmerMoul }">
-          {{ reportTitle }}
-        </div>
-      </div>
-      <!-- <div class="report-header text-center mb-4">
-        <img :src="MianLogo" alt="Dewey Childcare House" class="report-logo" />
-        <div class="report-school-kh">ដេវី ឆាល់ឌែរ ហោស៍ DEWEY CHILDCARE HOUSE</div>
-        <div class="report-school-sub">
-          មត្តេយ្យសិក្សាអន្តរជាតិ ៣ ភាសា (អង់គ្លេស-ខ្មែរ-ចិន)
-        </div>
-        <div class="report-school-sub">International Trilingual Kindergarten</div>
-        <div class="report-title mt-2">{{ reportTitle }}</div>
-      </div> -->
-
-      <div class="report-meta d-flex justify-space-between mb-3">
-        <div :class="{ moul: useKhmerMoul }">
-          <div>
-            <span class="meta-label">{{ $t("class:") }}</span>
-            <span class="meta-class-name">{{ classLabel }}</span>
-          </div>
+      <ReportSheetHeader
+        :title="reportTitle"
+        :class-label="classLabel"
+        :program-name="programName"
+        :use-khmer-moul="useKhmerMoul"
+      >
+        <template #left-extra>
           <div v-if="selectedTerm">
             <span class="meta-label">{{ $t("term:") }}</span>
             <span class="meta-class-name">{{ entityLabel(selectedTerm) }}</span>
@@ -520,14 +505,8 @@ onMounted(async () => {
             <span class="meta-label">{{ $t("period:") }}</span>
             <span class="meta-class-name">{{ termRangeLabel }}</span>
           </div>
-        </div>
-        <div class="text-end" :class="{ moul: useKhmerMoul }">
-          <div>
-            <span class="meta-label">{{ $t("program:") }}</span>
-            <span class="meta-class-name">{{ programName }}</span>
-          </div>
-        </div>
-      </div>
+        </template>
+      </ReportSheetHeader>
 
       <div class="report-table-wrap">
         <table class="report-grid report-grid-summary">
@@ -669,17 +648,20 @@ onMounted(async () => {
 }
 
 .report-meta {
-  font-size: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.55;
 }
 
 .meta-label {
-  font-weight: 400;
+  font-weight: 700;
   margin-right: 4px;
   color: #00620d !important;
 }
 
 .meta-class-name {
-  color: orange !important;
+  font-weight: 700;
+  color: #e6a100 !important;
 }
 
 .report-table-wrap {
@@ -788,13 +770,15 @@ onMounted(async () => {
   }
 
   .meta-label {
+    font-weight: 700;
     color: #00620d !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
   .meta-class-name {
-    color: orange !important;
+    font-weight: 700;
+    color: #e6a100 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

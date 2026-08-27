@@ -5,8 +5,10 @@ import { useDisplay } from "vuetify";
 import AppName from "@/components/AppName.vue";
 import formatGender from "@/utils/formater/formatGender";
 import { useRouter } from "vue-router";
+import { usePageTour } from "@/composable/usePageTour";
 
 const router = useRouter();
+usePageTour("admin-students-list");
 
 const { mdAndUp } = useDisplay();
 

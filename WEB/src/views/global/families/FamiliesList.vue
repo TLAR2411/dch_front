@@ -4,6 +4,10 @@ import { useI18n } from "vue-i18n";
 import { api } from "@/utils/api";
 import { useDisplay } from "vuetify";
 import { useRouter } from "vue-router";
+import { usePageTour } from "@/composable/usePageTour";
+
+usePageTour("global-families");
+
 
 const router = useRouter();
 const { mdAndUp } = useDisplay();

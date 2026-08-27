@@ -8,12 +8,14 @@ import { useRoute } from "vue-router";
 import { api } from "@/utils/api.js";
 import AppCombobox from "@/@core/components/app-form-elements/AppCombobox.vue";
 import Loading from "../components/Loading.vue";
+import { usePageTour } from "@/composable/usePageTour";
 import { usePartStore } from "@/stores/partStore";
 import { useYearStore } from "@/stores/yearStore";
 import { useSettingStore } from "@/stores/settingStore";
 import { getEntityLabel } from "@/utils/reportLabels.js";
 
 const { t } = useI18n();
+usePageTour("global-attendance", { delayMs: 500 });
 const partStore = usePartStore();
 const yearStore = useYearStore();
 const settingStore = useSettingStore();
@@ -306,7 +308,7 @@ onMounted(async () => {
 <template>
   <div>
     <VRow class="mt-1" align="center">
-      <VCol cols="6" md="2">
+      <VCol id="page-tour-attendance-class" cols="6" md="2">
         <AppSelect
           v-model="form.class_id"
           :items="classes"
@@ -317,11 +319,11 @@ onMounted(async () => {
         />
       </VCol>
 
-      <VCol cols="6" md="2">
+      <VCol id="page-tour-attendance-date" cols="6" md="2">
         <AppDateTimePicker v-model="date" :placeholder="$t('Select date')" />
       </VCol>
 
-      <VCol cols="6" md="2" v-if="isSearch">
+      <VCol id="page-tour-attendance-subject" cols="6" md="2" v-if="isSearch">
         <AppSelect
           v-model="form.subject_id"
           :items="subjectSchedules"
@@ -336,6 +338,7 @@ onMounted(async () => {
 
       <VCol cols="6" md="2" class="d-flex ga-2">
         <VBtn
+          id="page-tour-attendance-search"
           variant="tonal"
           color="success"
           density="comfortable"
@@ -350,6 +353,7 @@ onMounted(async () => {
 
       <VCol cols="12" md="4" class="d-flex ga-2 flex-wrap" v-if="isSearch">
         <VBtn
+          id="page-tour-attendance-submit"
           variant="tonal"
           color="success"
           :loading="saving"
@@ -361,6 +365,7 @@ onMounted(async () => {
           {{ isSubmit ? $t("Update") : $t("Submit") }}
         </VBtn>
         <VBtn
+          id="page-tour-attendance-approve"
           variant="tonal"
           :color="!isApprovedFlag ? 'warning' : 'primary'"
           :loading="isApprove"
@@ -433,6 +438,7 @@ onMounted(async () => {
         </div>
 
         <VTable
+          id="page-tour-attendance-table"
           fixed-header
           density="comfortable"
           class="border rounded attendance-table"

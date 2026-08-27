@@ -5,6 +5,10 @@ import { api } from "@/utils/api";
 import { onMounted, watch } from "vue";
 import { getPermissions } from "@/services/dataService";
 import { useDisplay } from "vuetify";
+import { usePageTour } from "@/composable/usePageTour";
+
+usePageTour("admin-roles");
+
 const { mdAndUp } = useDisplay();
 const { t } = useI18n();
 const formData = ref({});

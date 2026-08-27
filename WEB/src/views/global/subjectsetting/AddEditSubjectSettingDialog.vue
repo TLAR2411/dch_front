@@ -11,9 +11,15 @@ import AppAddEditDrawer from "@/components/AppAddEditDrawer.vue";
 
 import { useYearStore } from "@/stores/yearStore";
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
+import { usePageTour } from "@/composable/usePageTour";
 
 const yearStore = useYearStore();
 const { selectItemTitle } = useEntityLabel();
+
+const { startTour: startCreateDialogTour } = usePageTour(
+  "global-subject-setting-create-dialog",
+  { autoStart: false, delayMs: 500 },
+);
 
 const curId = ref(usePartStore().cur_id);
 
@@ -304,6 +310,15 @@ onMounted(async () => {
     await resolveSelectedSubject(itemData.value.subject_id);
   }
 });
+
+watch(
+  () => props.isDialogVisible,
+  (open) => {
+    if (!open) return;
+    if (itemData.value.isEdit || itemData.value.id) return;
+    startCreateDialogTour({ force: false });
+  },
+);
 </script>
 
 <template>
@@ -314,6 +329,8 @@ onMounted(async () => {
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
+    :show-tour-help="!itemData.isEdit && !itemData.id"
+    @on-tour-help="startCreateDialogTour({ force: true })"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
@@ -331,7 +348,7 @@ onMounted(async () => {
       }}
     </VAlert>
 
-    <VRow style="margin-top: -20px">
+    <VRow id="page-tour-ss-subject-grades" style="margin-top: -20px">
       <VCol cols="6" sm="6" md="6">
         <AppAutocomplete
           v-model="itemData.subject_id"
@@ -391,96 +408,99 @@ onMounted(async () => {
 
     <VDivider class="mt-5" />
 
-    <VRow
-      v-for="(rule, index) in itemData.rules"
-      :key="index"
-      align="center"
-      style="margin-top: 0"
-    >
-      <VCol cols="5" md="4">
-        <AppAutocomplete
-          :disabled="itemData.edit_mode === 'rule'"
-          v-model="rule.category_id"
-          :items="availableCategories(index)"
-          :item-title="selectItemTitle"
-          item-value="id"
-          :label="t('Choose Category')"
-          autocomplete="off"
-          persistent-hint
-        />
-      </VCol>
+    <div id="page-tour-ss-rules">
+      <VRow
+        v-for="(rule, index) in itemData.rules"
+        :key="index"
+        align="center"
+        style="margin-top: 0"
+      >
+        <VCol cols="5" md="4">
+          <AppAutocomplete
+            :disabled="itemData.edit_mode === 'rule'"
+            v-model="rule.category_id"
+            :items="availableCategories(index)"
+            :item-title="selectItemTitle"
+            item-value="id"
+            :label="t('Choose Category')"
+            autocomplete="off"
+            persistent-hint
+          />
+        </VCol>
 
-      <VCol cols="3" md="3">
-        <AppTextField
-          v-model="rule.percentage"
-          suffix="%"
-          :label="t('Percentage')"
-          :disabled="isChildSubject"
-          :hint="isChildSubject ? t('Always 0% for child subjects') : undefined"
-          :persistent-hint="isChildSubject"
-        />
-      </VCol>
+        <VCol cols="3" md="3">
+          <AppTextField
+            v-model="rule.percentage"
+            suffix="%"
+            :label="t('Percentage')"
+            :disabled="isChildSubject"
+            :hint="isChildSubject ? t('Always 0% for child subjects') : undefined"
+            :persistent-hint="isChildSubject"
+          />
+        </VCol>
 
-      <VCol cols="3" md="3">
-        <AppTextField v-model="rule.max_score" :label="t('Max Score')" />
-      </VCol>
+        <VCol cols="3" md="3">
+          <AppTextField v-model="rule.max_score" :label="t('Max Score')" />
+        </VCol>
 
-      <VCol cols="1" md="2" class="d-flex align-center">
-        <VBtn
-          v-if="
-            itemData.rules.length !== 1 && !itemData.isEdit && !rule.category_id
-          "
-          icon
-          size="small"
-          color="error"
-          variant="text"
-          :disabled="itemData.rules.length === 1"
-          @click="removeRule(index)"
-        >
-          <VIcon icon="tabler-circle-minus" />
-        </VBtn>
-        <VBtn
-          v-if="index === itemData.rules.length - 1 && canAddMoreRules"
-          icon
-          size="small"
-          color="success"
-          variant="text"
-          @click="addRule"
-        >
-          <VIcon icon="tabler-circle-plus" />
-        </VBtn>
-      </VCol>
-    </VRow>
+        <VCol cols="1" md="2" class="d-flex align-center">
+          <VBtn
+            v-if="
+              itemData.rules.length !== 1 && !itemData.isEdit && !rule.category_id
+            "
+            icon
+            size="small"
+            color="error"
+            variant="text"
+            :disabled="itemData.rules.length === 1"
+            @click="removeRule(index)"
+          >
+            <VIcon icon="tabler-circle-minus" />
+          </VBtn>
+          <VBtn
+            v-if="index === itemData.rules.length - 1 && canAddMoreRules"
+            icon
+            size="small"
+            color="success"
+            variant="text"
+            @click="addRule"
+          >
+            <VIcon icon="tabler-circle-plus" />
+          </VBtn>
+        </VCol>
+      </VRow>
 
-    <VRow style="margin-top: 0">
-      <VCol cols="12">
-        <VAlert
-          v-if="isChildSubject"
-          :color="isOverLimit ? 'error' : 'success'"
-          variant="tonal"
-          density="compact"
-        >
-          {{ t("Child weight") }}: {{ formPercentageTotal }}%
-          <span v-if="isOverLimit">
-            — {{ t("Child categories must stay at 0%") }}
-          </span>
-          <span v-else>
-            — {{ t("Weights belong on the parent subject") }}
-          </span>
-        </VAlert>
-        <VAlert
-          v-else
-          :color="isOverLimit ? 'error' : isComplete ? 'success' : 'warning'"
-          variant="tonal"
-          density="compact"
-        >
-          {{ t("Total Percentage") }}: {{ totalPercentage }}% / 100%
-          <span v-if="isOverLimit">
-            — {{ t("exceeds 100%, please adjust") }}
-          </span>
-        </VAlert>
-      </VCol>
-    </VRow>
+      <VRow style="margin-top: 0">
+        <VCol cols="12">
+          <VAlert
+            v-if="isChildSubject"
+            :color="isOverLimit ? 'error' : 'success'"
+            variant="tonal"
+            density="compact"
+          >
+            {{ t("Child weight") }}: {{ formPercentageTotal }}%
+            <span v-if="isOverLimit">
+              — {{ t("Child categories must stay at 0%") }}
+            </span>
+            <span v-else>
+              — {{ t("Weights belong on the parent subject") }}
+            </span>
+          </VAlert>
+          <VAlert
+            v-else
+            id="page-tour-ss-weight-total"
+            :color="isOverLimit ? 'error' : isComplete ? 'success' : 'warning'"
+            variant="tonal"
+            density="compact"
+          >
+            {{ t("Total Percentage") }}: {{ totalPercentage }}% / 100%
+            <span v-if="isOverLimit">
+              — {{ t("exceeds 100%, please adjust") }}
+            </span>
+          </VAlert>
+        </VCol>
+      </VRow>
+    </div>
   </AppAddEditDialog>
 
   <AppAddEditDrawer
@@ -489,6 +509,8 @@ onMounted(async () => {
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
+    :show-tour-help="!itemData.isEdit && !itemData.id"
+    @on-tour-help="startCreateDialogTour({ force: true })"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
@@ -506,7 +528,7 @@ onMounted(async () => {
       }}
     </VAlert>
 
-    <VRow style="margin-top: -20px">
+    <VRow id="page-tour-ss-subject-grades" style="margin-top: -20px">
       <VCol cols="12" sm="4" md="4">
         <AppAutocomplete
           v-model="itemData.subject_id"
@@ -538,89 +560,92 @@ onMounted(async () => {
 
     <VDivider class="mt-5" />
 
-    <VRow
-      v-for="(rule, index) in itemData.rules"
-      :key="index"
-      align="center"
-      style="margin-top: 0"
-    >
-      <VCol cols="5" md="5">
-        <AppAutocomplete
-          v-model="rule.category_id"
-          :items="availableCategories(index)"
-          :item-title="selectItemTitle"
-          item-value="id"
-          :label="t('Choose Category')"
-          autocomplete="off"
-          persistent-hint
-        />
-      </VCol>
+    <div id="page-tour-ss-rules">
+      <VRow
+        v-for="(rule, index) in itemData.rules"
+        :key="index"
+        align="center"
+        style="margin-top: 0"
+      >
+        <VCol cols="5" md="5">
+          <AppAutocomplete
+            v-model="rule.category_id"
+            :items="availableCategories(index)"
+            :item-title="selectItemTitle"
+            item-value="id"
+            :label="t('Choose Category')"
+            autocomplete="off"
+            persistent-hint
+          />
+        </VCol>
 
-      <VCol cols="3" md="3">
-        <AppTextField
-          v-model="rule.percentage"
-          :label="t('%')"
-          :disabled="isChildSubject"
-        />
-      </VCol>
+        <VCol cols="3" md="3">
+          <AppTextField
+            v-model="rule.percentage"
+            :label="t('%')"
+            :disabled="isChildSubject"
+          />
+        </VCol>
 
-      <VCol cols="3" md="3">
-        <AppTextField v-model="rule.max_score" :label="t('MS')" />
-      </VCol>
+        <VCol cols="3" md="3">
+          <AppTextField v-model="rule.max_score" :label="t('MS')" />
+        </VCol>
 
-      <VCol cols="1" md="1" class="d-flex ga-2 align-center">
-        <VBtn
-          v-if="itemData.rules.length !== 1"
-          icon
-          size="small"
-          color="error"
-          variant="text"
-          :disabled="itemData.rules.length === 1"
-          @click="removeRule(index)"
-        >
-          <VIcon icon="tabler-circle-minus" />
-        </VBtn>
+        <VCol cols="1" md="1" class="d-flex ga-2 align-center">
+          <VBtn
+            v-if="itemData.rules.length !== 1"
+            icon
+            size="small"
+            color="error"
+            variant="text"
+            :disabled="itemData.rules.length === 1"
+            @click="removeRule(index)"
+          >
+            <VIcon icon="tabler-circle-minus" />
+          </VBtn>
 
-        <VBtn
-          v-if="index === itemData.rules.length - 1 && canAddMoreRules"
-          icon
-          size="small"
-          color="success"
-          variant="text"
-          @click="addRule"
-        >
-          <VIcon icon="tabler-circle-plus" />
-        </VBtn>
-      </VCol>
-    </VRow>
+          <VBtn
+            v-if="index === itemData.rules.length - 1 && canAddMoreRules"
+            icon
+            size="small"
+            color="success"
+            variant="text"
+            @click="addRule"
+          >
+            <VIcon icon="tabler-circle-plus" />
+          </VBtn>
+        </VCol>
+      </VRow>
 
-    <VRow style="margin-top: 0">
-      <VCol cols="12" class="d-flex ga-5 align-center">
-        <VAlert
-          v-if="isChildSubject"
-          class="flex-grow-1"
-          :color="isOverLimit ? 'error' : 'success'"
-          variant="tonal"
-          density="compact"
-        >
-          {{ t("Child weight") }}: {{ formPercentageTotal }}%
-          <span v-if="isOverLimit">
-            — {{ t("Child categories must stay at 0%") }}
-          </span>
-        </VAlert>
-        <VAlert
-          v-else
-          class="flex-grow-1"
-          :color="isOverLimit ? 'error' : isComplete ? 'success' : 'warning'"
-          variant="tonal"
-          density="compact"
-        >
-          {{ t("Total Percentage") }}: {{ totalPercentage }}% / 100%
-          <span v-if="isOverLimit">
-            — {{ t("exceeds 100%, please adjust") }}
-          </span>
-        </VAlert>
-      </VCol>
-    </VRow>
+      <VRow style="margin-top: 0">
+        <VCol cols="12" class="d-flex ga-5 align-center">
+          <VAlert
+            v-if="isChildSubject"
+            class="flex-grow-1"
+            :color="isOverLimit ? 'error' : 'success'"
+            variant="tonal"
+            density="compact"
+          >
+            {{ t("Child weight") }}: {{ formPercentageTotal }}%
+            <span v-if="isOverLimit">
+              — {{ t("Child categories must stay at 0%") }}
+            </span>
+          </VAlert>
+          <VAlert
+            v-else
+            id="page-tour-ss-weight-total"
+            class="flex-grow-1"
+            :color="isOverLimit ? 'error' : isComplete ? 'success' : 'warning'"
+            variant="tonal"
+            density="compact"
+          >
+            {{ t("Total Percentage") }}: {{ totalPercentage }}% / 100%
+            <span v-if="isOverLimit">
+              — {{ t("exceeds 100%, please adjust") }}
+            </span>
+          </VAlert>
+        </VCol>
+      </VRow>
+    </div>
   </AppAddEditDrawer>
 </template>

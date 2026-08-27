@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from "vue";
+import PageTourHelpButton from "@/components/PageTourHelpButton.vue";
 
 const props = defineProps({
   title: String,
@@ -9,12 +10,18 @@ const props = defineProps({
   },
   isUpdate: Boolean,
   loading: Boolean,
+  /** Show ? in the title bar to replay the create-dialog tour. */
+  showTourHelp: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits([
   "onCloseDialog",
   "onSubmit",
   "update:isDialogVisible",
+  "onTourHelp",
 ]);
 
 const refForm = ref();
@@ -113,14 +120,22 @@ watch(
           class="d-flex justify-space-between align-center px-4 pb-3 flex-shrink-0"
         >
           <span class="text-subtitle-1 font-weight-medium">{{ title }}</span>
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            @click="emit('onCloseDialog')"
-          >
-            <v-icon>tabler-x</v-icon>
-          </v-btn>
+          <div class="d-flex align-center">
+            <PageTourHelpButton
+              v-if="showTourHelp"
+              button-id="page-tour-dialog-help-btn"
+              tooltip="How to use this form"
+              @click="emit('onTourHelp')"
+            />
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              @click="emit('onCloseDialog')"
+            >
+              <v-icon>tabler-x</v-icon>
+            </v-btn>
+          </div>
         </div>
 
         <v-divider class="flex-shrink-0" />
@@ -138,6 +153,7 @@ watch(
 
         <div class="d-flex gap-3 pa-4 flex-shrink-0">
           <v-btn
+            id="page-tour-dialog-submit"
             block
             color="primary"
             variant="flat"

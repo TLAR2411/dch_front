@@ -13,11 +13,16 @@ import { getCurrentYearId } from "@/services/getCurrentYearId";
 
 import AppAddEditDrawer from "@/components/AppAddEditDrawer.vue";
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
+import { usePageTour } from "@/composable/usePageTour";
 
 import { useDisplay } from "vuetify";
 
 const { xs } = useDisplay();
 const { selectItemTitle } = useEntityLabel();
+const { startTour: startCreateDialogTour } = usePageTour(
+  "global-classes-create-dialog",
+  { autoStart: false, delayMs: 500 },
+);
 
 const yearStore = useYearStore();
 
@@ -195,14 +200,20 @@ const dialogModelValueUpdate = (newVal) => {
   isDialogVisible.value = newVal;
 };
 
-console.log(getCurrentYearId());
-
 onMounted(async () => {
-  console.log("curid", curId.value);
   grades.value = await getGrades();
   years.value = await getYears();
   rooms.value = await getRooms();
 });
+
+watch(
+  () => props.isDialogVisible,
+  (open) => {
+    if (!open) return;
+    if (props.itemData?.id) return;
+    startCreateDialogTour({ force: false });
+  },
+);
 </script>
 
 <template>
@@ -213,77 +224,86 @@ onMounted(async () => {
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
+    :show-tour-help="!itemData.id"
+    @on-tour-help="startCreateDialogTour({ force: true })"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
     <VRow>
-      <VCol cols="8" sm="8" md="8">
-        <AppAutocomplete
-          v-model="itemData.grade_id"
-          :items="grades"
-          :item-title="selectItemTitle"
-          item-value="id"
-          :label="t('Grade')"
-          autocomplete="off"
-          :rules="[requiredValidator]"
-          persistent-hint
-        />
+      <VCol id="page-tour-class-required" cols="12">
+        <VRow>
+          <VCol cols="8" sm="8" md="8">
+            <AppAutocomplete
+              v-model="itemData.grade_id"
+              :items="grades"
+              :item-title="selectItemTitle"
+              item-value="id"
+              :label="t('Grade')"
+              autocomplete="off"
+              :rules="[requiredValidator]"
+              persistent-hint
+            />
+          </VCol>
+
+          <VCol cols="4" sm="4" md="4">
+            <AppAutocomplete
+              v-model="itemData.symbol"
+              :items="symbols"
+              item-title="name"
+              item-value="value"
+              :label="t('Symbol')"
+              autocomplete="off"
+              persistent-hint
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+
+          <VCol cols="4" sm="4" md="4">
+            <AppAutocomplete
+              v-model="itemData.room_id"
+              :items="rooms"
+              item-title="room_number"
+              item-value="id"
+              :label="t('Room')"
+              autocomplete="off"
+              persistent-hint
+            />
+          </VCol>
+
+          <VCol cols="8" sm="8" md="8">
+            <AppAutocomplete
+              v-model="itemData.year_id"
+              :items="years"
+              item-title="year_name"
+              item-value="id"
+              :label="t('Year')"
+              autocomplete="off"
+              persistent-hint
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+        </VRow>
       </VCol>
 
-      <VCol cols="4" sm="4" md="4">
-        <AppAutocomplete
-          v-model="itemData.symbol"
-          :items="symbols"
-          item-title="name"
-          item-value="value"
-          :label="t('Symbol')"
-          autocomplete="off"
-          persistent-hint
-          :rules="[requiredValidator]"
-        />
-      </VCol>
-
-      <VCol cols="4" sm="4" md="4">
-        <AppAutocomplete
-          v-model="itemData.room_id"
-          :items="rooms"
-          item-title="room_number"
-          item-value="id"
-          :label="t('Room')"
-          autocomplete="off"
-          persistent-hint
-        />
-      </VCol>
-
-      <VCol cols="8" sm="8" md="8">
-        <AppAutocomplete
-          v-model="itemData.year_id"
-          :items="years"
-          item-title="year_name"
-          item-value="id"
-          :label="t('Year')"
-          autocomplete="off"
-          persistent-hint
-          :rules="[requiredValidator]"
-        />
-      </VCol>
-
-      <VCol cols="12" sm="4" md="4">
-        <AppTextField v-model="itemData.name_kh" :label="t('Name Kh')" />
-      </VCol>
-      <VCol cols="12" sm="4" md="4">
-        <AppTextField
-          v-model="itemData.name_en"
-          :label="t('Name En')"
-
-        />
-      </VCol>
-      <VCol cols="12" sm="4" md="4">
-        <AppTextField
-          v-model="itemData.name_cn"
-          :label="t('Name Cn')"
-          :disabled="Number(curId) !== 3"
-        />
+      <VCol id="page-tour-class-names" cols="12">
+        <VRow>
+          <VCol cols="12" sm="4" md="4">
+            <AppTextField v-model="itemData.name_kh" :label="t('Name Kh')" />
+          </VCol>
+          <VCol cols="12" sm="4" md="4">
+            <AppTextField
+              v-model="itemData.name_en"
+              :label="t('Name En')"
+            />
+          </VCol>
+          <VCol cols="12" sm="4" md="4">
+            <AppTextField
+              v-model="itemData.name_cn"
+              :label="t('Name Cn')"
+              :disabled="Number(curId) !== 3"
+            />
+          </VCol>
+        </VRow>
       </VCol>
 
       <VCol cols="12" sm="12" md="12">
@@ -303,74 +323,87 @@ onMounted(async () => {
     :is-dialog-visible="isDialogVisible"
     :is-update="itemData.id != null ? true : false"
     :loading="loading"
+    :show-tour-help="!itemData.id"
+    @on-tour-help="startCreateDialogTour({ force: true })"
     @on-close-dialog="onCloseDialog"
     @on-submit="onFormSubmit"
   >
     <VRow>
-      <VCol cols="8" sm="8" md="8">
-        <AppAutocomplete
-          v-model="itemData.grade_id"
-          :items="grades"
-          :item-title="selectItemTitle"
-          item-value="id"
-          :label="t('Grade')"
-          autocomplete="off"
-          persistent-hint
-        />
+      <VCol id="page-tour-class-required" cols="12">
+        <VRow>
+          <VCol cols="8" sm="8" md="8">
+            <AppAutocomplete
+              v-model="itemData.grade_id"
+              :items="grades"
+              :item-title="selectItemTitle"
+              item-value="id"
+              :label="t('Grade')"
+              autocomplete="off"
+              persistent-hint
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+
+          <VCol cols="4" sm="4" md="4">
+            <AppAutocomplete
+              v-model="itemData.symbol"
+              :items="symbols"
+              item-title="name"
+              item-value="value"
+              :label="t('Symbol')"
+              autocomplete="off"
+              persistent-hint
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+
+          <VCol cols="4" sm="4" md="4">
+            <AppAutocomplete
+              v-model="itemData.room_id"
+              :items="rooms"
+              item-title="room_number"
+              item-value="id"
+              :label="t('Room')"
+              autocomplete="off"
+              persistent-hint
+            />
+          </VCol>
+
+          <VCol cols="8" sm="8" md="8">
+            <AppAutocomplete
+              v-model="itemData.year_id"
+              :items="years"
+              item-title="year_name"
+              item-value="id"
+              :label="t('Year')"
+              autocomplete="off"
+              persistent-hint
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+        </VRow>
       </VCol>
 
-      <VCol cols="4" sm="4" md="4">
-        <AppAutocomplete
-          v-model="itemData.symbol"
-          :items="symbols"
-          item-title="name"
-          item-value="value"
-          :label="t('Symbol')"
-          autocomplete="off"
-          persistent-hint
-        />
-      </VCol>
-
-      <VCol cols="4" sm="4" md="4">
-        <AppAutocomplete
-          v-model="itemData.room_id"
-          :items="rooms"
-          item-title="room_number"
-          item-value="id"
-          :label="t('Room')"
-          autocomplete="off"
-          persistent-hint
-        />
-      </VCol>
-
-      <VCol cols="8" sm="8" md="8">
-        <AppAutocomplete
-          v-model="itemData.year_id"
-          :items="years"
-          item-title="year_name"
-          item-value="id"
-          :label="t('Year')"
-          autocomplete="off"
-          persistent-hint
-        />
-      </VCol>
-
-      <VCol cols="12" sm="4" md="4">
-        <AppTextField v-model="itemData.name_kh" :label="t('Name Kh')" />
-      </VCol>
-      <VCol cols="12" sm="4" md="4">
-        <AppTextField
-          v-model="itemData.name_en"
-          :label="t('Name En')"
-          :rules="[requiredValidator]"
-        />
-      </VCol>
-      <VCol cols="12" sm="4" md="4">
-        <AppTextField
-          v-model="itemData.name_cn"
-          :label="t('Name Cn')"
-          :disabled="Number(curId) !== 3"
-        />
+      <VCol id="page-tour-class-names" cols="12">
+        <VRow>
+          <VCol cols="12" sm="4" md="4">
+            <AppTextField v-model="itemData.name_kh" :label="t('Name Kh')" />
+          </VCol>
+          <VCol cols="12" sm="4" md="4">
+            <AppTextField
+              v-model="itemData.name_en"
+              :label="t('Name En')"
+              :rules="[requiredValidator]"
+            />
+          </VCol>
+          <VCol cols="12" sm="4" md="4">
+            <AppTextField
+              v-model="itemData.name_cn"
+              :label="t('Name Cn')"
+              :disabled="Number(curId) !== 3"
+            />
+          </VCol>
+        </VRow>
       </VCol>
 
       <VCol cols="12" sm="12" md="12">
@@ -380,6 +413,7 @@ onMounted(async () => {
           rows="2"
         >
         </AppTextarea>
-      </VCol> </VRow
-  ></AppAddEditDrawer>
+      </VCol>
+    </VRow>
+  </AppAddEditDrawer>
 </template>

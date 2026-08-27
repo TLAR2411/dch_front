@@ -4,10 +4,12 @@ import { useSettingStore } from "@/stores/settingStore";
 import { useYearStore } from "@/stores/yearStore";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { usePageTour } from "@/composable/usePageTour";
 
 const { t } = useI18n();
 const settingStore = useSettingStore();
 const yearStore = useYearStore();
+usePageTour("admin-dashboards");
 
 const data = ref(null);
 const loading = ref(false);
@@ -69,6 +71,7 @@ const summaryCards = computed(() => [
     icon: "tabler-users",
     color: "primary",
     to: { name: "admin-students" },
+    tourId: "page-tour-dash-students",
   },
   {
     key: "teachers",
@@ -110,10 +113,6 @@ const summaryCards = computed(() => [
     key: "users",
     title: t("Users"),
     value: toNumber(data.value?.users?.active_users),
-    // subtitle: t("{disabled} disabled · {total} total", {
-    //   disabled: toNumber(data.value?.users?.disabled_users),
-    //   total: toNumber(data.value?.users?.total_users),
-    // }),
     icon: "tabler-user-cog",
     color: "error",
     to: { name: "admin-users" },
@@ -125,9 +124,6 @@ const systemCards = computed(() => [
     key: "years",
     title: t("Years"),
     value: toNumber(data.value?.years?.active_years),
-    // subtitle: t("{total} configured", {
-    //   total: toNumber(data.value?.years?.total_years),
-    // }),
     icon: "tabler-calendar",
     color: "primary",
     to: { name: "admin-years" },
@@ -163,27 +159,6 @@ const systemCards = computed(() => [
 
 const byCurriculum = computed(() => data.value?.by_curriculum ?? []);
 
-const quickLinks = [
-  { title: "Students", icon: "tabler-user", to: { name: "admin-students" } },
-  {
-    title: "Families",
-    icon: "tabler-home-heart",
-    to: { name: "global-families" },
-  },
-  { title: "Users", icon: "tabler-users", to: { name: "admin-users" } },
-  {
-    title: "Branches",
-    icon: "tabler-building-bank",
-    to: { name: "admin-branches" },
-  },
-  { title: "Years", icon: "tabler-calendar", to: { name: "admin-years" } },
-  {
-    title: "Curriculums",
-    icon: "tabler-books",
-    to: { name: "admin-curriculums" },
-  },
-];
-
 watch([() => settingStore.branch_id, () => yearStore.year_id], () => {
   getData();
 });
@@ -195,11 +170,16 @@ onMounted(() => {
 
 <template>
   <div class="dashboard-admin">
-    <div class="text-h5 font-weight-medium mb-4">
-      {{ $t("School overview") }}
+    <div
+      id="page-tour-dash-title"
+      class="d-flex align-center justify-space-between mb-4"
+    >
+      <div class="text-h5 font-weight-medium">
+        {{ $t("School overview") }}
+      </div>
     </div>
 
-    <VRow>
+    <VRow id="page-tour-dash-summary">
       <VCol
         v-for="card in summaryCards"
         :key="card.key"
@@ -207,7 +187,12 @@ onMounted(() => {
         sm="6"
         lg="4"
       >
-        <VCard :to="card.to" class="stat-card" :ripple="false">
+        <VCard
+          :id="card.tourId"
+          :to="card.to"
+          class="stat-card"
+          :ripple="false"
+        >
           <VCardText class="pa-4">
             <div class="d-flex align-center justify-space-between mb-2">
               <div class="d-flex align-center gap-2">
@@ -237,7 +222,7 @@ onMounted(() => {
       {{ $t("By curriculum") }}
     </div>
 
-    <VCard>
+    <VCard id="page-tour-dash-curriculum">
       <VTable class="curriculum-table">
         <thead>
           <tr>
@@ -284,7 +269,7 @@ onMounted(() => {
       {{ $t("System setup") }}
     </div>
 
-    <VRow>
+    <VRow id="page-tour-dash-system">
       <VCol v-for="card in systemCards" :key="card.key" cols="12" sm="6" lg="3">
         <VCard :to="card.to" class="stat-card" :ripple="false">
           <VCardText class="pa-4">
@@ -311,23 +296,6 @@ onMounted(() => {
         </VCard>
       </VCol>
     </VRow>
-
-    <!-- <div class="text-h5 font-weight-medium mt-8 mb-4">
-      {{ $t("Quick links") }}
-    </div> -->
-
-    <!-- <div class="d-flex flex-wrap gap-3">
-      <VBtn
-        v-for="link in quickLinks"
-        :key="link.title"
-        :to="link.to"
-        :prepend-icon="link.icon"
-        variant="tonal"
-        color="primary"
-      >
-        {{ $t(link.title) }}
-      </VBtn>
-    </div> -->
   </div>
 </template>
 

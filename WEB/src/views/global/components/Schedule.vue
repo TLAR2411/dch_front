@@ -7,6 +7,13 @@ import FooterRepor from "@/views/global/components/footerRepor.vue";
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
+import { usePageTour } from "@/composable/usePageTour";
+import PageTourHelpButton from "@/components/PageTourHelpButton.vue";
+
+const { startTour: startCreateDialogTour } = usePageTour(
+  "global-schedule-create-dialog",
+  { autoStart: false, delayMs: 500 },
+);
 
 const { t, locale } = useI18n();
 const { selectItemTitle, entityLabel } = useEntityLabel();
@@ -730,6 +737,11 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener("resize", handleResize);
 });
+
+watch(dialog, (open) => {
+  if (!open || editingId.value) return;
+  startCreateDialogTour({ force: false });
+});
 </script>
 
 <template>
@@ -738,8 +750,9 @@ onUnmounted(() => {
       class="d-flex align-center justify-space-between pa-4 flex-wrap gap-2 schedule-no-print"
     >
       <VChip class="rounded-l" color="primary">{{ $t("Weekly Schedule") }}</VChip>
-      <div class="d-flex align-center gap-2 flex-wrap">
+      <div id="page-tour-schedule-toolbar" class="d-flex align-center gap-2 flex-wrap">
         <VBtn
+          id="page-tour-schedule-print"
           color="primary"
           variant="tonal"
           size="small"
@@ -750,6 +763,7 @@ onUnmounted(() => {
           {{ $t("Print / PDF") }}
         </VBtn>
         <VBtn
+          id="page-tour-schedule-apply"
           color="secondary"
           variant="tonal"
           size="small"
@@ -760,6 +774,7 @@ onUnmounted(() => {
           {{ $t("Apply To") }}
         </VBtn>
         <VBtn
+          id="page-tour-schedule-add"
           color="primary"
           size="small"
           prepend-icon="tabler-plus"
@@ -859,7 +874,7 @@ onUnmounted(() => {
           <div :class="{moul:locale === 'km'}"  class="schedule-report-title">{{ reportTitle }}</div>
         </div>
 
-        <div class="overflow-x-auto">
+        <div id="page-tour-schedule-grid" class="overflow-x-auto">
           <table class="schedule-table">
             <thead>
               <tr>
@@ -936,7 +951,7 @@ onUnmounted(() => {
 
   <!-- ── Dialog ── -->
   <VDialog v-model="dialog" max-width="720" scrollable>
-    <VCard class="schedule-dialog">
+    <VCard id="page-tour-schedule-dialog" class="schedule-dialog">
       <VCardTitle class="d-flex align-center justify-space-between pa-5 pb-2">
         <div>
           <div class="text-h6">
@@ -950,13 +965,21 @@ onUnmounted(() => {
             }}
           </div>
         </div>
-        <VBtn icon variant="text" @click="dialog = false">
-          <VIcon>tabler-x</VIcon>
-        </VBtn>
+        <div class="d-flex align-center">
+          <PageTourHelpButton
+            v-if="!editingId"
+            button-id="page-tour-dialog-help-btn"
+            tooltip="How to use this form"
+            @click="startCreateDialogTour({ force: true })"
+          />
+          <VBtn icon variant="text" @click="dialog = false">
+            <VIcon>tabler-x</VIcon>
+          </VBtn>
+        </div>
       </VCardTitle>
 
       <VCardText class="pa-5 pt-3">
-        <div v-if="!editingId" class="mb-5">
+        <div v-if="!editingId" id="page-tour-schedule-classes" class="mb-5">
           <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-2">
             <div class="text-body-2 font-weight-medium">{{ t("Classes") }}</div>
             <div class="d-flex gap-2">
@@ -982,8 +1005,9 @@ onUnmounted(() => {
           />
         </div>
 
-        <div class="entry-type-toggle mb-5">
+        <div id="page-tour-schedule-entry-type" class="entry-type-toggle mb-5">
           <button
+            id="page-tour-schedule-entry-subject"
             type="button"
             class="entry-type-btn"
             :class="{ active: form.entry_type === 'subject' }"
@@ -992,6 +1016,7 @@ onUnmounted(() => {
             {{ t("Subject") }}
           </button>
           <button
+            id="page-tour-schedule-entry-title"
             type="button"
             class="entry-type-btn"
             :class="{ active: form.entry_type === 'title' }"
@@ -1003,19 +1028,23 @@ onUnmounted(() => {
 
         <VRow>
           <VCol cols="12" md="7">
-            <VSelect
+            <div
               v-if="form.entry_type === 'subject'"
-              :items="subjects"
-              :item-title="selectItemTitle"
-              item-value="id"
-              v-model="form.subject_id"
-              :label="t('Subject')"
-              :placeholder="t('Select subject')"
-              clearable
-              class="mb-4"
-            />
+              id="page-tour-schedule-subject-field"
+            >
+              <VSelect
+                :items="subjects"
+                :item-title="selectItemTitle"
+                item-value="id"
+                v-model="form.subject_id"
+                :label="t('Subject')"
+                :placeholder="t('Select subject')"
+                clearable
+                class="mb-4"
+              />
+            </div>
 
-            <template v-else>
+            <div v-else id="page-tour-schedule-title-field">
               <VTextField
                 v-model="form.title"
                 :label="t('Title')"
@@ -1036,8 +1065,9 @@ onUnmounted(() => {
                   @click="form.color = opt.value"
                 />
               </div>
-            </template>
+            </div>
 
+            <div id="page-tour-schedule-days">
             <VSwitch
               v-model="form.merge_days"
               :label="t('Merge across days')"
@@ -1082,10 +1112,11 @@ onUnmounted(() => {
                 />
               </VCol>
             </VRow>
+            </div>
           </VCol>
 
           <VCol cols="12" md="5">
-            <div class="time-panel">
+            <div id="page-tour-schedule-time" class="time-panel">
               <div class="text-body-2 font-weight-medium mb-3">{{ t("Time") }}</div>
               <VTextField
                 v-model="form.start"
@@ -1114,7 +1145,13 @@ onUnmounted(() => {
         <VBtn variant="tonal" size="large" :disabled="isSaving" @click="dialog = false">
           {{ t("Cancel") }}
         </VBtn>
-        <VBtn color="primary" size="large" :loading="isSaving" @click="save">
+        <VBtn
+          id="page-tour-schedule-dialog-save"
+          color="primary"
+          size="large"
+          :loading="isSaving"
+          @click="save"
+        >
           {{
             editingId
               ? t("Save changes")
