@@ -63,11 +63,17 @@ onMounted(() => {
         class="align-center justify-center"
         scrim="rgba(255, 255, 255, 0.85)"
       >
-        <div class="d-flex flex-column align-center gap-3">
+        <div class="d-flex flex-column align-center gap-4">
+          <img
+            src="/logo/main-logo-1.svg"
+            alt="Dewey"
+            height="72"
+            class="app-bootstrap-logo"
+          />
           <VProgressCircular
             indeterminate
             color="primary"
-            size="48"
+            size="40"
             aria-label="Loading application"
             role="progressbar"
           />
@@ -85,6 +91,13 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.app-bootstrap-logo {
+  display: block;
+  width: auto;
+  max-width: 200px;
+  object-fit: contain;
+}
+
 .my-notification {
   margin: 0 5px 5px;
   padding: 10px;
