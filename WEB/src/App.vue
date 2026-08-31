@@ -4,13 +4,14 @@ import { useTheme } from "vuetify";
 import initCore from "@core/initCore";
 import { initConfigStore, useConfigStore } from "@core/stores/config";
 import { hexToRgb } from "@core/utils/colorConverter";
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
 import { Notifications } from "@kyvg/vue3-notification";
 import GlobalDialog from "@/components/GlobalDialog.vue";
 import { defineAsyncComponent } from "vue";
 
 import { useDialog } from "@/composable/useDialog";
 import { useAuthStore } from "@/stores/authStore";
+import { getAccessToken } from "@/utils/accessToken";
 
 const ScrollToTop = defineAsyncComponent(
   () => import("@core/components/ScrollToTop.vue"),
@@ -31,6 +32,10 @@ const auth = useAuthStore();
 initCore();
 initConfigStore();
 
+// Full-app loader while refresh re-verifies the session and loads app data
+const isAppBootstrapping = computed(
+  () => Boolean(getAccessToken()) && !auth.isBootstrapped,
+);
 
 onMounted(() => {
   initializeDialog(globalDialog.value);
@@ -51,6 +56,25 @@ onMounted(() => {
       )}`"
     >
       <GlobalDialog ref="globalDialog" />
+
+      <VOverlay
+        :model-value="isAppBootstrapping"
+        persistent
+        class="align-center justify-center"
+        scrim="rgba(255, 255, 255, 0.85)"
+      >
+        <div class="d-flex flex-column align-center gap-3">
+          <VProgressCircular
+            indeterminate
+            color="primary"
+            size="48"
+            aria-label="Loading application"
+            role="progressbar"
+          />
+          <span class="text-medium-emphasis">{{ $t("Loading…") }}</span>
+        </div>
+      </VOverlay>
+
       <RouterView v-slot="{ Component }">
         <component :is="Component" v-if="Component" />
       </RouterView>
