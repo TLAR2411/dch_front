@@ -4,8 +4,7 @@
  *
  * Progressive tabs:
  *   - No class → empty state (no tabs)
- *   - Class selected → Teacher Recommend + Student Behavior
- *   - Subject selected → also Insert Score
+ *   - Class + Subject + Term → load score sheet, then show all tabs on Insert Score
  *
  * FLOW (score tab):
  *   1. Pick Class → resolve grade_id → load Subjects
@@ -63,7 +62,8 @@ function entityLabel(entity, fallback = "—") {
   return getEntityLabel(entity, reportPart.value, fallback);
 }
 
-const activeTab = ref("recommend");
+const activeTab = ref("scores");
+const tabsEverShown = ref(false);
 
 const classes = ref([]);
 const subjects = ref([]);
@@ -117,6 +117,19 @@ const canLoad = computed(
     !!yearId.value,
 );
 
+/** Full-page loader until the first score sheet load finishes for the current filters. */
+const showInitialLoading = computed(
+  () =>
+    canLoad.value &&
+    !tabsEverShown.value &&
+    (loadingGrid.value || !hasLoaded.value),
+);
+
+/** Tabs stay visible after the first successful load (including during Refresh). */
+const showTabs = computed(
+  () => canLoad.value && tabsEverShown.value,
+);
+
 let subjectsLoadSeq = 0;
 
 const allItemIds = computed(() =>
@@ -127,6 +140,7 @@ function clearGrid() {
   students.value = [];
   categories.value = [];
   hasLoaded.value = false;
+  tabsEverShown.value = false;
   attendanceMax.value = null;
   Object.keys(scores).forEach((k) => delete scores[k]);
 }
@@ -321,6 +335,7 @@ async function loadGrid() {
     });
   } finally {
     loadingGrid.value = false;
+    if (canLoad.value) tabsEverShown.value = true;
   }
 }
 
@@ -403,11 +418,6 @@ async function saveScores() {
 watch(
   () => form.value.class_id,
   () => {
-    if (!form.value.class_id) {
-      activeTab.value = "recommend";
-    } else if (activeTab.value === "scores" && !form.value.subject_id) {
-      activeTab.value = "recommend";
-    }
     loadSubjects();
   },
 );
@@ -433,11 +443,11 @@ watch(
   () => [form.value.class_id, form.value.term_id, form.value.subject_id],
   ([classId, termId, subjectId]) => {
     if (!classId || !termId || !subjectId) {
-      activeTab.value = "recommend";
       clearGrid();
       return;
     }
 
+    activeTab.value = "scores";
     loadGrid();
   },
 );
@@ -561,7 +571,31 @@ onMounted(async () => {
       </div>
     </VCard>
 
-    <template v-else-if="canLoad">
+    <VCard
+      v-else-if="hasClass && !canLoad"
+      class="pa-8 text-center"
+    >
+      <VIcon size="48" class="mb-3" style="opacity: 0.35">
+        tabler-report-analytics
+      </VIcon>
+      <div class="text-body-1 font-weight-medium">
+        {{ $t("Select Class, Subject, and Term") }}
+      </div>
+      <div class="text-body-2 mt-1" style="opacity: 0.7">
+        {{
+          $t(
+            "Choose filters above once, then switch tabs for scores or recommendations.",
+          )
+        }}
+      </div>
+    </VCard>
+
+    <VCard v-else-if="showInitialLoading" class="pa-8 text-center">
+      <VProgressCircular indeterminate color="primary" class="mb-3" />
+      <div class="text-body-2">{{ $t("Loading score sheet…") }}</div>
+    </VCard>
+
+    <template v-else-if="showTabs">
       <VTabs
         id="page-tour-score-tabs"
         v-model="activeTab"

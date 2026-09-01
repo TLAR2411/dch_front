@@ -440,6 +440,7 @@ function categoryColspan(cat) {
 
   .col-item {
     min-width: 56px;
+    padding: 5px 3px;
   }
 
   .computed {
@@ -472,23 +473,29 @@ function categoryColspan(cat) {
 }
 
 .score-input {
-  width: 52px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
+  width: 100%;
+  min-width: 64px;
+  min-height: 20px;
+  padding: 6px 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 6px;
+  background: rgb(var(--v-theme-surface));
   text-align: center;
-  font: inherit;
-  // padding: 2px 2px;
   color: inherit;
+  box-sizing: border-box;
 
-  // &:hover,
-    &:focus {
-      border-color: rgba(var(--v-theme-primary), 0.1
-      
-      );
-      background: rgb(var(--v-theme-surface));
-      outline: none;
-    }
+  &:hover {
+    border-color: rgba(var(--v-theme-primary), 0.35);
+  }
+
+  &:focus {
+    border-color: rgb(var(--v-theme-primary));
+    background: rgb(var(--v-theme-surface));
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.15);
+  }
 
   &:disabled {
     opacity: 0.7;

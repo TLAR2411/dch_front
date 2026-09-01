@@ -57,29 +57,23 @@ onMounted(() => {
     >
       <GlobalDialog ref="globalDialog" />
 
-      <VOverlay
-        :model-value="isAppBootstrapping"
-        persistent
-        class="align-center justify-center"
-        scrim="rgba(255, 255, 255, 0.85)"
+      <div
+        v-if="isAppBootstrapping"
+        class="app-bootstrap-loader"
       >
-        <div class="d-flex flex-column align-center gap-4">
+        <div class="loading-logo">
           <img
-            src="/logo/main-logo-1.svg"
+            src="/logo/main-logo-2.svg"
             alt="Dewey"
-            height="72"
-            class="app-bootstrap-logo"
+            width="80"
           />
-          <VProgressCircular
-            indeterminate
-            color="primary"
-            size="40"
-            aria-label="Loading application"
-            role="progressbar"
-          />
-          <span class="text-medium-emphasis">{{ $t("Loading…") }}</span>
         </div>
-      </VOverlay>
+        <div class="loading">
+          <div class="effect-1 effects" />
+          <div class="effect-2 effects" />
+          <div class="effect-3 effects" />
+        </div>
+      </div>
 
       <RouterView v-slot="{ Component }">
         <component :is="Component" v-if="Component" />
@@ -91,11 +85,71 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.app-bootstrap-logo {
-  display: block;
-  width: auto;
-  max-width: 200px;
-  object-fit: contain;
+.app-bootstrap-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: var(--initial-loader-bg, #fff);
+}
+
+.loading {
+  position: relative;
+  box-sizing: border-box;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  block-size: 55px;
+  inline-size: 55px;
+}
+
+.loading .effect-1,
+.loading .effect-2,
+.loading .effect-3 {
+  position: absolute;
+  box-sizing: border-box;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  block-size: 100%;
+  border-inline-start: 3px solid var(--initial-loader-color, #123764);
+  inline-size: 100%;
+}
+
+.loading .effect-1 {
+  animation: app-bootstrap-rotate 1s ease infinite;
+}
+
+.loading .effect-2 {
+  animation: app-bootstrap-rotate-opacity 1s ease infinite 0.1s;
+}
+
+.loading .effect-3 {
+  animation: app-bootstrap-rotate-opacity 1s ease infinite 0.2s;
+}
+
+@keyframes app-bootstrap-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes app-bootstrap-rotate-opacity {
+  0% {
+    opacity: 0.1;
+    transform: rotate(0deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: rotate(1turn);
+  }
 }
 
 .my-notification {
