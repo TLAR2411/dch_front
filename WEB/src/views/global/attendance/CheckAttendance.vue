@@ -365,6 +365,7 @@ onMounted(async () => {
           {{ isSubmit ? $t("Update") : $t("Submit") }}
         </VBtn>
         <VBtn
+        
           id="page-tour-attendance-approve"
           variant="tonal"
           :color="!isApprovedFlag ? 'warning' : 'primary'"

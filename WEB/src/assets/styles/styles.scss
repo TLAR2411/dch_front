@@ -1,50 +1,104 @@
-// html,
-// body,
-// #app {
-//   font-family: "Public Sans", "notosans", sans-serif;
-//   font-size: clamp(0.875rem, 1vw + 0.5rem, 1rem);
-//   // font-size: 14px;
-//   height: 100%;
-//   margin: 0;
-//   //  font-size-adjust: 0.54;
-// }
+/* ============================================================
+   1. GLOBAL FONT STACK & ROOT
+   Latin first so English text and ASCII digits come from Inter.
+   No height: 100% — it squeezes tab panels and clips content.
+   ============================================================ */
+html,
+body {
+  margin: 0;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+#app {
+  min-height: 100dvh;
+  font-family: "inter", "kantumruy", sans-serif;
+}
 
 html,
 body,
-#app {
-  font-family: "notosans", "battambang", sans-serif;
-  font-weight: 400;
-  letter-spacing: 0.01em;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  height: 100%;
-  margin: 0;
-}
-
-.v-tab {
-  font-family: "notosans", sans-serif;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-}
-
-.v-btn {
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-
-.v-list-item-title,
-.v-field-label,
+.v-application,
+.v-overlay-container,
+.v-overlay__content,
+.v-list,
+.v-field,
 .v-label,
-.v-card-title {
-  font-weight: 400;
+input,
+textarea,
+select,
+button {
+  font-family: "inter", "kantumruy", sans-serif;
 }
-.layout-navbar {
-  padding: 0 12px 0 12px !important;
+
+/* Tap highlight is safe globally. touch-callout is NOT — it kills
+   long-press copy, so scope it to controls only. */
+* {
+  -webkit-tap-highlight-color: transparent;
 }
+
+.v-btn,
+.v-tab,
+.v-list-item,
+img {
+  -webkit-touch-callout: none;
+}
+
+/* ============================================================
+   2. VUETIFY & TABLE FIXES
+   ============================================================ */
+.v-data-table,
+.v-table,
+table {
+  color: rgba(var(--v-theme-on-surface), 0.87);
+}
+
+// .v-table__wrapper {
+//   overscroll-behavior: contain;
+// }
+
+.v-table th .v-data-table-header__content {
+  display: flex;
+  justify-content: space-between;
+}
+
+.v-data-table__thead,
+.v-table thead {
+  font-family: "inter", "kantumruy", sans-serif;
+  font-weight: 600;
+  background-color: rgba(var(--v-theme-on-surface), 0.04);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+
+/* Khmer sits taller than Latin — coeng subscripts and diacritics
+   need vertical room or they clip in dense rows.
+   Note: no `height: auto !important` here. That override is what
+   breaks Vuetify's row sizing. */
+.v-table .v-table__wrapper table td,
+.v-table .v-table__wrapper table th,
+.v-data-table .v-data-table__td,
+.v-data-table .v-data-table__th {
+  line-height: 1.6;
+  vertical-align: middle;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* Keep numeric columns on one line and vertically aligned */
+.no-wrap-num,
+.number-col,
+td.text-end,
+th.text-end {
+  white-space: nowrap;
+  word-break: keep-all;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   3. LAYOUT & UTILITIES
+   ============================================================ */
+.layout-navbar,
 .layout-page-content {
-  padding: 0 12px 0 12px !important;
+  padding: 0 12px !important;
 }
 
 body
@@ -53,92 +107,11 @@ body
   inset-block-start: 0.5rem !important;
 }
 
-/* Styles for ALL WebKit scrollbars (browser and internal) */
-div,
-ul,
-[class*="scrollable"] {
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: rgba(var(--v-theme-on-surface), 0.12);
-    border-radius: 6px;
-    transition: background-color 0.2s ease;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(var(--v-theme-on-surface), 0.16);
-  }
-
-  &::-webkit-scrollbar-thumb:active {
-    background-color: rgba(var(--v-theme-on-surface), 0.24);
-  }
-
-  /* Firefox scrollbar styling */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--v-theme-on-surface), 0.12) transparent;
-
-  /* Optional: Smooth scrolling and touch scrolling */
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-
-  /* Ensure proper overflow for elements that need it */
-  &[style*="overflow-y: auto"],
-  &[style*="overflow-y: scroll"],
-  &[style*="overflow: auto"],
-  &[style*="overflow: scroll"] {
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-}
-
-// ::-webkit-scrollbar {
-//   width: 0.4rem;
-//   height: 0.4rem;
-// }
-
-// ::-webkit-scrollbar-track-piece {
-//   background: #f0f0f0;
-// }
-
-// ::-webkit-scrollbar-thumb {
-//   background: #cccccc;
-// }
-
-// html::-webkit-scrollbar,
-// body::-webkit-scrollbar {
-//   width: 0.3rem !important;
-//   height: 0.2rem !important;
-// }
-
-// .layout-wrapper::-webkit-scrollbar-track-piece {
-//   background: #f0f0f0;
-// }
-// .layout-wrapper::-webkit-scrollbar-thumb {
-//   background: #cccccc;
-// }
-
-.v-data-table {
-  color: rgb(56, 56, 56) !important;
-}
-.v-table {
-  color: rgb(56, 56, 56) !important;
-}
-.v-data-table__thead {
-  background-color: #f8f8f8 !important;
-  border-bottom: 1px solid #ddd !important;
-}
-
 .toast-container {
-  z-index: 1050; // Higher than most UI elements
   position: fixed;
   top: 1rem;
   right: 1rem;
+  z-index: 1050;
 }
 
 .font-size-0-5 {
@@ -160,248 +133,45 @@ ul,
   font-size: 4rem !important;
 }
 
-// 👉 Custom horizontal header (lightened primary color two-row header)
-$horizontal-header-bg: color-mix(in srgb, rgb(var(--v-theme-primary)) 75%, white);
-
-.layout-wrapper.layout-nav-type-horizontal .custom-horizontal-header.custom-horizontal-header {
-  background: rgb(var(--v-theme-primary)) !important;
-  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 70%, black) !important;
-  color: rgb(var(--v-theme-on-primary));
-  box-shadow: none !important;
-  border: none !important;
-
-  .layout-navbar {
-    background: transparent !important;
-    block-size: 54px;
-    border-block-end: none !important;
-
-    .navbar-content-container {
-      display: flex;
-      align-items: center;
-      block-size: 100%;
-    }
-
-    .v-btn--icon,
-    .icon-btn,
-    .v-icon {
-      color: rgb(var(--v-theme-on-primary)) !important;
-    }
-
-    .header-year-chip.v-btn,
-    .header-year-chip .v-btn,
-    .navbar-year-btn {
-      background: #fff !important;
-      color: rgb(var(--v-theme-primary)) !important;
-      border-radius: 0.5rem;
-      padding-inline: 0.75rem;
-      box-shadow: none !important;
-
-      .v-btn__content,
-      .v-btn__overlay,
-      span {
-        color: rgb(var(--v-theme-primary)) !important;
-      }
-
-      .v-btn__underlay {
-        opacity: 0 !important;
-      }
-    }
-
-    .header-branch-select {
-      max-inline-size: 150px;
-
-      .v-field {
-        background: #fff !important;
-        border-radius: 0.5rem;
-        color: rgb(var(--v-theme-primary)) !important;
-        block-size: 32px;
-        min-block-size: 32px;
-
-        .v-field__input {
-          color: rgb(var(--v-theme-primary)) !important;
-          padding-block: 0;
-          min-block-size: 32px;
-        }
-
-        .v-field__outline {
-          --v-field-border-opacity: 0 !important;
-        }
-
-        .v-label,
-        .v-icon {
-          color: rgb(var(--v-theme-primary)) !important;
-        }
-      }
-    }
-
-    // Part switcher: white chip so it doesn't blend into dark primary header
-    .navbar-part-switcher.v-btn {
-      background: #fff !important;
-      color: rgb(var(--v-theme-primary)) !important;
-      box-shadow: none !important;
-
-      .v-btn__content,
-      .v-btn__prepend,
-      .v-icon,
-      span {
-        color: rgb(var(--v-theme-primary)) !important;
-      }
-
-      .v-btn__underlay,
-      .v-btn__overlay {
-        opacity: 0 !important;
-      }
-    }
-
-    // Profile avatar: white circle + primary initials so it doesn't match header
-    .navbar-toolbar-actions .navbar-user-avatar,
-    .navbar-toolbar-actions .navbar-user-avatar .v-avatar {
-      background: #fff !important;
-      color: rgb(var(--v-theme-primary)) !important;
-      border: 1px solid rgba(255, 255, 255, 0.9);
-
-      span,
-      .v-avatar__content,
-      .primary--text {
-        color: rgb(var(--v-theme-primary)) !important;
-      }
-    }
+/* ============================================================
+   4. SCROLLBAR STYLING
+   Scoped to real scroll containers. Never target `div` broadly —
+   that promotes every element to its own iOS compositing layer
+   and causes offset / blank-region rendering bugs.
+   ============================================================ */
+.v-table__wrapper,
+.v-list,
+.v-navigation-drawer__content,
+.v-overlay__content,
+.v-card-text,
+[class*="scrollable"] {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
 
-  .layout-horizontal-nav {
+  &::-webkit-scrollbar-track {
     background: transparent;
-    block-size: 54px;
-    color: rgb(var(--v-theme-on-primary));
-
-    .horizontal-nav-content-container {
-      display: flex;
-      align-items: center;
-      block-size: 100%;
-    }
-
-    .nav-link a,
-    .nav-group .nav-group-label {
-      color: rgb(var(--v-theme-on-primary));
-      font-weight: 500;
-    }
-
-    .nav-item-icon,
-    .nav-group-arrow {
-      color: rgb(var(--v-theme-on-primary)) !important;
-    }
-
-    .nav-link:not(.sub-item) a.router-link-active,
-    .nav-group:not(.sub-item).active > .popper-triggerer > .nav-group-label {
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 0.75rem;
-      color: rgb(var(--v-theme-on-primary)) !important;
-    }
-
-    .nav-link:not(.sub-item) a:hover,
-    .nav-group:not(.sub-item) > .popper-triggerer > .nav-group-label:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 0.75rem;
-    }
-
-    .popper-content {
-      background: rgb(var(--v-theme-surface));
-      color: rgb(var(--v-theme-on-surface));
-
-      .nav-link a,
-      .nav-group .nav-group-label {
-        color: inherit;
-      }
-    }
   }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--v-theme-on-surface), 0.12);
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--v-theme-on-surface), 0.16);
+  }
+
+  &::-webkit-scrollbar-thumb:active {
+    background-color: rgba(var(--v-theme-on-surface), 0.24);
+  }
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--v-theme-on-surface), 0.12) transparent;
 }
 
-.layout-wrapper.layout-nav-type-horizontal .custom-horizontal-content {
-  margin-block-start: 1rem;
-}
-
-// 👉 Compact top navbar on small screens
-.navbar-toolbar {
-  min-inline-size: 0;
-  gap: 0.25rem;
-  overflow: hidden;
-
-  .navbar-toolbar-actions {
-    gap: 0.25rem;
-    min-inline-size: 0;
-  }
-}
-
-@media (max-width: 600px) {
-  .layout-navbar {
-    padding-inline: 8px !important;
-  }
-
-  .navbar-toolbar {
-    gap: 0.125rem;
-  }
-
-  .navbar-toolbar-actions {
-    gap: 0.125rem !important;
-  }
-
-  .navbar-part-switcher {
-    min-inline-size: 36px !important;
-    padding-inline: 0 !important;
-  }
-
-  .navbar-chat-btn {
-    margin-inline: 0 !important;
-  }
-}
-
-// 👉 Customizer placed in navbar (no fixed position, no background)
-.customizer-in-navbar .app-customizer-toggler {
-  position: relative !important;
-  inset: auto !important;
-  border-radius: 50% !important;
-  background: transparent !important;
-  background-color: transparent !important;
-  box-shadow: none !important;
-  color: inherit !important;
-
-  .v-icon {
-    color: inherit !important;
-  }
-
-  &:hover,
-  &:focus,
-  &:active {
-    background: transparent !important;
-    background-color: transparent !important;
-    box-shadow: none !important;
-  }
-}
-
-// 👉 Make the customizer drawer full height so it doesn't show content behind it
-.app-customizer {
-  position: fixed !important;
-  inset-block: 0 !important;
-  inset-inline-end: 0 !important;
-  block-size: 100vh !important;
-  z-index: 1002 !important;
-
-  // Customizer icons must be dark on its light surface, not the navbar's white
-  // .v-btn--icon,
-  // .v-icon {
-  //   color: rgb(var(--v-theme-on-surface)) !important;
-  // }
-}
-
-@media print {
-  .layout-navbar,
-  .layout-vertical-nav,
-  .layout-footer,
-  .report-no-print,
-  .d-print-none {
-    display: none !important;
-  }
-
-  .layout-page-content {
-    padding: 0 !important;
-  }
-}
+/* ============================================================
+   5. Chill Chill Chill
+   ============================================================ */
