@@ -13,6 +13,7 @@ import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { usePageTour } from "@/composable/usePageTour";
+// import { locale } from "moment";
 
 definePage({
   meta: {
@@ -26,7 +27,7 @@ definePage({
 });
 
 const router = useRouter();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { selectItemTitle } = useEntityLabel();
 usePageTour("admin-users-create");
 
@@ -36,10 +37,10 @@ const gender = [
 ];
 
 const manageBranch = [
-  { name: "មួយសាខា", value: 1 },
-  { name: "ច្រើនសាខា", value: 2 },
-  { name: "គ្រប់សាខា", value: 3 },
-  { name: "លើកលែងសាខា", value: 4 },
+  { name: "មួយសាខា", value: 1, name_en: "One Branch" },
+  { name: "ច្រើនសាខា", value: 2, name_en: "Multiple Branch" },
+  // { name: "គ្រប់សាខា", value: 3 },
+  // { name: "លើកលែងសាខា", value: 4 },
 ];
 
 const initialFormData = () => ({
@@ -182,7 +183,7 @@ onMounted(async () => {
           v-model="formData.manage_branch"
           :label="t('Manage Branch')"
           :items="manageBranch"
-          item-title="name"
+          :item-title="(item) => (locale == 'km' ? item.name : item.name_en)"
           item-value="value"
           autocomplete="off"
         />

@@ -188,7 +188,6 @@ watch(
   <VRow>
     <VCol cols="12" sm="6" md="3">
       <AppAutocomplete
-        class="customFontSiemreap"
         label="ខេត្ត/រាជធានី"
         :items="provinces"
         item-value="code"
@@ -201,7 +200,6 @@ watch(
 
     <VCol cols="12" sm="6" md="3">
       <AppAutocomplete
-        class="customFontSiemreap"
         label="ស្រុក/ខណ្ឌ"
         :items="districts"
         item-value="code"
@@ -214,7 +212,6 @@ watch(
 
     <VCol cols="12" sm="6" md="3">
       <AppAutocomplete
-        class="customFontSiemreap"
         label="ឃុំ/សង្កាត់"
         :items="communes"
         item-value="code"
@@ -227,7 +224,6 @@ watch(
 
     <VCol cols="12" sm="6" md="3">
       <AppAutocomplete
-        class="customFontSiemreap"
         label="ភូមិ"
         :items="villages"
         item-value="code"

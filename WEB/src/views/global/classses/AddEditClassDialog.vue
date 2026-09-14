@@ -291,10 +291,7 @@ watch(
             <AppTextField v-model="itemData.name_kh" :label="t('Name Kh')" />
           </VCol>
           <VCol cols="12" sm="4" md="4">
-            <AppTextField
-              v-model="itemData.name_en"
-              :label="t('Name En')"
-            />
+            <AppTextField v-model="itemData.name_en" :label="t('Name En')" />
           </VCol>
           <VCol cols="12" sm="4" md="4">
             <AppTextField

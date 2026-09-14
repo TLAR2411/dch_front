@@ -85,9 +85,9 @@ onMounted(async () => {
 <template>
   <div class="class-detail-page">
     <VTabs v-model="currentTab" id="page-tour-class-tabs" class="my-3">
-        <VTab value="window1" id="page-tour-class-tab-general">General</VTab>
-        <VTab value="window2" id="page-tour-class-tab-students">Students</VTab>
-        <VTab value="window3" id="page-tour-class-tab-teachers">Teachers</VTab>
+      <VTab value="window1" id="page-tour-class-tab-general">General</VTab>
+      <VTab value="window2" id="page-tour-class-tab-students">Students</VTab>
+      <VTab value="window3" id="page-tour-class-tab-teachers">Teachers</VTab>
     </VTabs>
 
     <div>

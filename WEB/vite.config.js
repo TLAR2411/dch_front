@@ -47,7 +47,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',        // check & install updates in bg
       injectRegister: 'auto',            // injects the register code for you
-      includeAssets: ['favicon.ico', 'robots.txt', 'logo/logo-192.png', 'logo/logo-512.png'],
+      includeAssets: ['favicon.ico', 'robots.txt', 'logo/main-logo-2.svg', 'logo/main-logo-2.svg'],
       manifest: {
         name: 'Score Management System',
         short_name: 'DCH SMS',
@@ -58,8 +58,8 @@ export default defineConfig({
         background_color: '#ffffff',
         theme_color: '#636363ff',
         icons: [
-          { src: '/logo/logo-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/logo/logo-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/logo/main-logo-2.svg', sizes: '192x192', type: 'image/svg' },
+          { src: '/logo/main-logo-2.svg', sizes: '512x512', type: 'image/svg' },
         ],
       },
       workbox: {
