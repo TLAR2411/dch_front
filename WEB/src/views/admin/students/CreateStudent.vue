@@ -14,6 +14,9 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { getCurriculums } from "@/services/dataService";
 import { usePageTour } from "@/composable/usePageTour";
+import { useI18n } from "vue-i18n";
+
+const { t, locale } = useI18n();
 
 const curriculums = ref([]);
 
@@ -21,17 +24,19 @@ const router = useRouter();
 usePageTour("admin-students-create");
 
 const genderOptions = [
-  { name: "ប្រុស", value: "male" },
-  { name: "ស្រី", value: "female" },
+  { name: "ប្រុស", value: "male", name_en: "Male" },
+  { name: "ស្រី", value: "female", name_en: "Female" },
 ];
 
 const nationOptions = [
   {
     name: "ខ្មែរ",
+    name_en:"Khmer",
     value: "khmer",
   },
   {
     name: "ជនជាតិ",
+    name_en:"Other",
     value: "other",
   },
 ];
@@ -518,7 +523,9 @@ onMounted(async () => {
               <AppSelect
                 v-model="formData.gender"
                 :items="genderOptions"
-                item-title="name"
+                :item-title="
+                  (item) => (locale == 'km' ? item.name : item.name_en)
+                "
                 item-value="value"
                 label="Gender"
                 :rules="[requiredValidator]"
@@ -530,7 +537,9 @@ onMounted(async () => {
               <AppSelect
                 v-model="formData.nation"
                 :items="nationOptions"
-                item-title="name"
+                :item-title="
+                  (item) => (locale == 'km' ? item.name : item.name_en)
+                "
                 item-value="value"
                 label="Nation"
                 autocomplete="off"
@@ -602,13 +611,7 @@ onMounted(async () => {
 
         <AppLabel title="School Information" />
 
-        <VCol
-          id="page-tour-student-curriculum"
-          cols="12"
-          lg="5"
-          md="5"
-          sm="5"
-        >
+        <VCol id="page-tour-student-curriculum" cols="12" lg="5" md="5" sm="5">
           <AppAutocomplete
             v-model="formData.cur_id"
             label="Curriculums"

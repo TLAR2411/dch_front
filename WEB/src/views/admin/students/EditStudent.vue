@@ -13,27 +13,31 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import Address from "@/components/Address.vue";
 import { getCurriculums } from "@/services/dataService";
+import { useI18n } from "vue-i18n";
+
+const { t, locale } = useI18n();
 
 const router = useRouter();
 
 const route = useRoute();
 
 const genderOptions = [
-  { name: "ប្រុស", value: "male" },
-  { name: "ស្រី", value: "female" },
+  { name: "ប្រុស", value: "male", name_en: "Male" },
+  { name: "ស្រី", value: "female", name_en: "Female" },
 ];
 
 const nationOptions = [
   {
     name: "ខ្មែរ",
+    name_en: "Khmer",
     value: "khmer",
   },
   {
     name: "ជនជាតិ",
+    name_en: "Other",
     value: "other",
   },
 ];
-
 const bmiStatusLabels = {
   underweight: "Underweight",
   normal: "Normal",
@@ -441,7 +445,9 @@ onMounted(async () => {
               <AppSelect
                 v-model="formData.gender"
                 :items="genderOptions"
-                item-title="name"
+                :item-title="
+                  (item) => (locale == 'km' ? item.name : item.name_en)
+                "
                 item-value="value"
                 label="Gender"
                 :rules="[requiredValidator]"
@@ -453,7 +459,9 @@ onMounted(async () => {
               <AppSelect
                 v-model="formData.nation"
                 :items="nationOptions"
-                item-title="name"
+                :item-title="
+                  (item) => (locale == 'km' ? item.name : item.name_en)
+                "
                 item-value="value"
                 label="Nation"
                 autocomplete="off"

@@ -22,8 +22,8 @@ const { selectItemTitle } = useEntityLabel();
 const roles = ref([]);
 
 const genderOptions = [
-  { name: "ប្រុស", value: "male" },
-  { name: "ស្រី", value: "female" },
+  { name: "ប្រុស", value: "male", name_en: "Male" },
+  { name: "ស្រី", value: "female", name_en: "Female" },
 ];
 
 const manageBranch = [
@@ -34,11 +34,23 @@ const manageBranch = [
 const nationOptions = [
   {
     name: "ខ្មែរ",
-    value: "khmer",
+    value: "Khmer",
+    name_en: "Khmer",
   },
   {
-    name: "ជនជាតិ",
-    value: "other",
+    name: "ជនជាតិហ្វីលីពីន",
+    value: "Filipino",
+    name_en: "Filipino",
+  },
+  {
+    name: "ជនជាតិអាមេរិក",
+    value: "American",
+    name_en: "American",
+  },
+  {
+    name: "ផ្សេងៗ",
+    value: "Other",
+    name_en: "Other",
   },
 ];
 
@@ -348,7 +360,9 @@ onMounted(async () => {
             <AppSelect
               v-model="formData.gender"
               :items="genderOptions"
-              item-title="name"
+              :item-title="
+                (item) => (locale == 'km' ? item.name : item.name_en)
+              "
               item-value="value"
               :label="t('Gender')"
               :rules="[requiredValidator]"
@@ -360,7 +374,9 @@ onMounted(async () => {
             <AppSelect
               v-model="formData.nation"
               :items="nationOptions"
-              item-title="name"
+              :item-title="
+                (item) => (locale == 'km' ? item.name : item.name_en)
+              "
               item-value="value"
               :label="t('Nation')"
               :rules="[requiredValidator]"
