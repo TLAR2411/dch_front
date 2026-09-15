@@ -15,7 +15,7 @@ import { useI18n } from "vue-i18n";
 
 const router = useRouter();
 const route = useRoute();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { selectItemTitle } = useEntityLabel();
 
 const genderOptions = [
@@ -24,8 +24,8 @@ const genderOptions = [
 ];
 
 const manageBranch = [
-  { name: "មួយសាខា", value: 1 },
-  { name: "ច្រើនសាខា", value: 2 },
+  { name: "មួយសាខា", value: 1, name_en: "Single Branch" },
+  { name: "ច្រើនសាខា", value: 2, name_en: "Multiple Branch" },
 ];
 
 const nationOptions = [
@@ -125,7 +125,8 @@ const initData = async () => {
         branch_id: Array.isArray(data.branch_id)
           ? data.branch_id.map(Number)
           : [],
-        manage_branch: data.manage_branch != null ? Number(data.manage_branch) : 1,
+        manage_branch:
+          data.manage_branch != null ? Number(data.manage_branch) : 1,
         role_id: data.role_id != null ? Number(data.role_id) : null,
         new_photo_path: null,
       };
@@ -292,7 +293,9 @@ onMounted(async () => {
               v-model="formData.manage_branch"
               :label="t('Manage Branch')"
               :items="manageBranch"
-              item-title="name"
+              :item-title="
+                (item) => (locale == 'km' ? item.name : item.name_en)
+              "
               item-value="value"
               autocomplete="off"
             />

@@ -13,9 +13,10 @@ import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { getBranches, getRoles } from "@/services/dataService";
 import { useEntityLabel } from "@/composable/useEntityLabel.js";
+// import { locale } from "moment";
 
 const router = useRouter();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { selectItemTitle } = useEntityLabel();
 
 const roles = ref([]);
@@ -26,8 +27,8 @@ const genderOptions = [
 ];
 
 const manageBranch = [
-  { name: "មួយសាខា", value: 1 },
-  { name: "ច្រើនសាខា", value: 2 },
+  { name: "មួយសាខា", value: 1, name_en: "Single Branch" },
+  { name: "ច្រើនសាខា", value: 2, name_en: "Multiple Branch" },
 ];
 
 const nationOptions = [
@@ -401,7 +402,9 @@ onMounted(async () => {
               v-model="formData.manage_branch"
               :label="t('Manage Branch')"
               :items="manageBranch"
-              item-title="name"
+              :item-title="
+                (item) => (locale == 'km' ? item.name : item.name_en)
+              "
               item-value="value"
               autocomplete="off"
             />
