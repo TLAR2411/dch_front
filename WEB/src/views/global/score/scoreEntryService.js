@@ -64,8 +64,8 @@ export async function resolveClassGradeId(classId) {
 const subjectsForGradeInFlight = new Map();
 
 /** Parent subjects assigned to grade for the year.
- *  classId lets the API narrow the list to the subjects the logged-in
- *  teacher teaches in that class (admins are unaffected). */
+ *  Optional classId can narrow to classes_teacher subjects; Score Entry omits
+ *  it so teachers see every grade subject. */
 export async function fetchSubjectsForGrade(yearId, gradeId, classId = null) {
   if (!yearId || !gradeId) return [];
 

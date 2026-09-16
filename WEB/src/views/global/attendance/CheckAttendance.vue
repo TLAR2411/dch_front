@@ -237,12 +237,10 @@ watch(date, async (newDate) => {
 
 const getSubjectSchedule = async (dayId) => {
   try {
-    // only_teaching: non-admin teachers only get the subjects they teach
-    // in this class; admins still see the full schedule.
+    // Full class timetable for everyone (teachers included) — no classes_teacher filter.
     const rows = await listSchedules({
       class_id: form.value.class_id,
       day_id: dayId,
-      only_teaching: true,
     });
     const seenSubjectIds = new Set();
     subjectSchedules.value = (rows || []).filter((row) => {

@@ -173,11 +173,8 @@ async function loadSubjects() {
     if (seq !== subjectsLoadSeq) return;
 
     classGradeId.value = gradeId;
-    const list = await fetchSubjectsForGrade(
-      yearId.value,
-      gradeId,
-      form.value.class_id,
-    );
+    // Omit class_id so teachers get every grade subject (no classes_teacher filter).
+    const list = await fetchSubjectsForGrade(yearId.value, gradeId);
     if (seq !== subjectsLoadSeq) return;
 
     subjects.value = list;
