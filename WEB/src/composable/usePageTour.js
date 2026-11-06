@@ -6,12 +6,14 @@ import {
   registerPageTour,
   unregisterPageTour,
 } from "@/utils/pageTourRegistry";
-import { hasSeenPageTour, markPageTourSeen } from "@/utils/pageTourStorage";
+import { markPageTourSeen } from "@/utils/pageTourStorage";
 
 /**
- * Auto-starts a Driver.js tour on first visit; expose startTour() to replay.
+ * Driver.js page tour. Tours never open on their own: they only run when the
+ * user clicks a ? button, which calls startTour({ force: true }).
  * @param {string} tourId - key in pageTours
- * @param {{ autoStart?: boolean, delayMs?: number }} options
+ * @param {{ autoStart?: boolean, delayMs?: number }} options - autoStart: false
+ *   keeps the tour off the navbar ? button (dialogs have their own ? button)
  */
 export function usePageTour(tourId, options = {}) {
   const { autoStart = true, delayMs = 450 } = options;
@@ -43,7 +45,7 @@ export function usePageTour(tourId, options = {}) {
   };
 
   const startTour = async ({ force = true } = {}) => {
-    if (!force && hasSeenPageTour(tourId)) return;
+    if (!force) return;
 
     await nextTick();
     // Wait for layout / async fields to paint
@@ -63,9 +65,6 @@ export function usePageTour(tourId, options = {}) {
   onMounted(() => {
     if (autoStart) {
       registerPageTour(tourId, startTour);
-    }
-    if (autoStart && !hasSeenPageTour(tourId)) {
-      startTour({ force: true });
     }
   });
 
