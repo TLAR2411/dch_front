@@ -307,9 +307,14 @@ export async function fetchAttendanceDays({
 }) {
   if (!classId || !subjectId || !startDate || !endDate) return new Map();
 
+  // Same roll-up as the attendance report: marks taken under a component
+  // (child) subject count toward its parent subject.
+  const children = await listSubjectParentMap([subjectId]);
+  const subjectIds = [subjectId, ...(children ?? []).map((c) => c.id)];
+
   const data = await listAttendanceRange({
     class_id: classId,
-    subject_ids: [subjectId],
+    subject_ids: subjectIds,
     from: normalizeDate(startDate),
     to: normalizeDate(endDate),
   });

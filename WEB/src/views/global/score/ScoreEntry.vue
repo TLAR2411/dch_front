@@ -311,14 +311,11 @@ async function loadGrid() {
         endDate: term.end_date,
       });
 
+      // Always recount from attendance so a previously saved value
+      // never goes stale; the next Save persists the fresh count.
       for (const s of classStudents) {
-        const current = scores[s.student_id]?.[attendanceItem.id];
-        if (current != null && current !== "") continue;
-
-        const days = daysMap.get(s.student_id);
-        if (days != null) {
-          setStudentScores(s.student_id, { [attendanceItem.id]: days });
-        }
+        const days = daysMap.get(s.student_id) ?? 0;
+        setStudentScores(s.student_id, { [attendanceItem.id]: days });
       }
     }
 
